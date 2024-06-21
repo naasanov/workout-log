@@ -3,7 +3,6 @@ import Section from './Section.js';
 
 function App() {
   const [sections, setSections] = useState([]);
-  const [ids, setIds] = useState([])
   const [inputTerm, setInputTerm] = useState("");
   const [showError, setShowError] = useState(false);
 
@@ -15,14 +14,9 @@ function App() {
       return;
     }
 
-    // find unique key
-    let key = ids.length + 1;
-    while (ids.includes(key)) {
-      key = key * 2 + 1;
-    }
+    let key = Date.now()
 
     setSections((prevSections) => [...prevSections, {id: key, name: inputTerm, movements: []}]);
-    setIds((prevIds) => [...prevIds, key]);
     setInputTerm("");
     setShowError(false);
   }
@@ -32,8 +26,9 @@ function App() {
   }
 
   function handleRemove(key) {
-    setSections((prevSections)=>prevSections.filter((item) => item.id != key));
-    setIds((prevIds)=>prevIds.filter(item => item !== key));
+    setSections((prevSections) => (
+      prevSections.filter((item) => item.id !== key)
+    ));
   }
 
   function handleMovementRemove(sectionId, movement) {
