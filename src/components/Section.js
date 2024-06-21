@@ -34,7 +34,7 @@ function Section({ section, onRemove, onMovementRemove, onMovementAdd }) {
                 {showRemove && <button onClick={()=>{onRemove()}}>x</button>}
             </li>
             <ul>
-                {section.movements.map((item) => <Movement name={item} onRemove={()=>{onMovementRemove(item)}}/>)}
+                {section.movements.map((item) => <Movement name={item.name} onRemove={()=>{onMovementRemove(item.id)}}/>)}
                 {showError && <p className="error">enter at least one character</p>}
             </ul>
         </>

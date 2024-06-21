@@ -14,7 +14,7 @@ function App() {
       return;
     }
 
-    let key = Date.now()
+    const key = Date.now()
 
     setSections((prevSections) => [...prevSections, {id: key, name: inputTerm, movements: []}]);
     setInputTerm("");
@@ -31,21 +31,22 @@ function App() {
     ));
   }
 
-  function handleMovementRemove(sectionId, movement) {
+  function handleMovementAdd(sectionId, movement) {
+    const key = Date.now();
     setSections((prevSections) => (
       prevSections.map((section) => (
         section.id === sectionId
-        ? {...section, movements: section.movements.filter((m) => m !== movement)}
+        ? {...section, movements: [...section.movements, { id: key, name: movement }]}
         : section
       ))
     ));
   }
 
-  function handleMovementAdd(sectionId, movement) {
+  function handleMovementRemove(sectionId, movementId) {
     setSections((prevSections) => (
       prevSections.map((section) => (
         section.id === sectionId
-        ? {...section, movements: [...section.movements, movement]}
+        ? {...section, movements: section.movements.filter((m) => m.id !== movementId)}
         : section
       ))
     ));
@@ -60,7 +61,7 @@ function App() {
             section={item} 
             onRemove={()=>{handleRemove(item.id)}}
             onMovementAdd={(movement) => handleMovementAdd(item.id, movement)}
-            onMovementRemove={(movement) => handleMovementRemove(item.id, movement)}
+            onMovementRemove={(movementId) => handleMovementRemove(item.id, movementId)}
           />))}
       </ul>
       <form onSubmit={handleSubmit}>
