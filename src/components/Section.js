@@ -31,7 +31,7 @@ function Section({ section, onRemove, onMovementRemove, onMovementAdd}) {
                     section.editing
                     ? (
                         <form>
-                            <input type="text" placeholder={section.name}/>
+                            <input type="text" placeholder=""/>
                             <button type="submit" style={{ display: 'none' }} />
                         </form>
                     )

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Section from './Section.js';
+import AddSection from './AddSection.js';
 
 function App() {
   const [sections, setSections] = useState([]);
@@ -55,6 +56,7 @@ function App() {
   return (
     <>
       <h1 className="title">Workout Log</h1>
+
       <ul>
         {sections.map((item) => (
           <Section 
@@ -64,11 +66,14 @@ function App() {
             onMovementRemove={(movementId) => handleMovementRemove(item.id, movementId)}
           />))}
       </ul>
-      <form onSubmit={handleSubmit}>
-        <button type="submit">Add Section</button>
-        <input type="text" value={newInput} onChange={handleChange} />
-        {showError && <p className="error">enter at least one character</p>}
-      </form>
+
+      <AddSection
+        onSubmit={handleSubmit}
+        value={newInput}
+        onChange={handleChange}
+        showError={showError}
+      />
+
     </>
   );
 }
