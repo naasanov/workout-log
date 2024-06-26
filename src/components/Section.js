@@ -1,10 +1,11 @@
 import { useState } from "react";
 import Movement from "./Movement";
 
-function Section({ section, onRemove, onMovementRemove, onMovementAdd }) {
+function Section({ section, onRemove, onMovementRemove, onMovementAdd}) {
     const [inputTerm, setInputTerm] = useState("");
     const [showError, setShowError] = useState(false);
     const [showRemove, setShowRemove] = useState(false);
+
     
     function handleChange(e) {
         setInputTerm(e.target.value);
@@ -24,9 +25,18 @@ function Section({ section, onRemove, onMovementRemove, onMovementAdd }) {
     }
 
     return(
-        <>
+        <div>
             <li onMouseEnter={()=>{setShowRemove(true)}} onMouseLeave={()=>{setShowRemove(false)}}>
-                <b>{section.name}</b>
+                {
+                    section.editing
+                    ? (
+                        <form>
+                            <input type="text" placeholder={section.name}/>
+                            <button type="submit" style={{ display: 'none' }} />
+                        </form>
+                    )
+                    : <b>{section.name}</b>
+                }
                 <form onSubmit={handleSubmit}>
                     <button type="submit">Add Movement</button>
                     <input type="text" value={inputTerm} onChange={handleChange} />
@@ -37,7 +47,7 @@ function Section({ section, onRemove, onMovementRemove, onMovementAdd }) {
                 {section.movements.map((item) => <Movement name={item.name} onRemove={()=>{onMovementRemove(item.id)}}/>)}
                 {showError && <p className="error">enter at least one character</p>}
             </ul>
-        </>
+        </div>
     );
 }
 

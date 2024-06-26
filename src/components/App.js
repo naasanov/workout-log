@@ -3,26 +3,26 @@ import Section from './Section.js';
 
 function App() {
   const [sections, setSections] = useState([]);
-  const [inputTerm, setInputTerm] = useState("");
   const [showError, setShowError] = useState(false);
+  const [newInput, setNewInput] = useState("");
 
   function handleSubmit(e) {
     e.preventDefault();
 
-    if (inputTerm === "") {
+    if (newInput === "") {
       setShowError(true);
       return;
     }
 
     const key = Date.now()
 
-    setSections((prevSections) => [...prevSections, {id: key, name: inputTerm, movements: []}]);
-    setInputTerm("");
+    setSections((prevSections) => [...prevSections, {id: key, name: newInput, movements: [], editing: true}]);
+    setNewInput("");
     setShowError(false);
   }
 
   function handleChange(e) {
-    setInputTerm(e.target.value);
+    setNewInput(e.target.value);
   }
 
   function handleRemove(key) {
@@ -66,7 +66,7 @@ function App() {
       </ul>
       <form onSubmit={handleSubmit}>
         <button type="submit">Add Section</button>
-        <input type="text" value={inputTerm} onChange={handleChange} />
+        <input type="text" value={newInput} onChange={handleChange} />
         {showError && <p className="error">enter at least one character</p>}
       </form>
     </>
