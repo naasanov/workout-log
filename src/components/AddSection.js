@@ -1,5 +1,3 @@
-import { useState } from 'react';
-
 function AddSection({ onSubmit, value, onChange, showError }) {
     return (
         <>
