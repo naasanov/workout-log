@@ -1,6 +1,6 @@
 import { useState } from 'react';
-// testing
-function AddSection({ onSubmit, value, onChange, showError}) {
+
+function AddSection({ onSubmit, value, onChange, showError }) {
     return (
         <>
             <form onSubmit={onSubmit}>
