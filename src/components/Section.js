@@ -1,27 +1,42 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Movement from "./Movement";
 
-function Section({ section, onRemove, onMovementRemove, onMovementAdd}) {
-    const [inputTerm, setInputTerm] = useState("");
+function Section({ section, onRemove, onMovementRemove, onMovementAdd, onEdit, onEditSubmit }) {
+    const [newInput, setNewInput] = useState("");
+    const [editInput, setEditInput] = useState(section.name);
     const [showError, setShowError] = useState(false);
     const [showRemove, setShowRemove] = useState(false);
+    const editInputRef = useRef(null);
 
-    
-    function handleChange(e) {
-        setInputTerm(e.target.value);
-    }
+    useEffect(() => {
+        if (section.editing && editInputRef.current) {
+            editInputRef.current.focus();
+            editInputRef.current.select();
+        }
+    },[section.editing])
 
-    function handleSubmit(e) {
+    function handleNewSubmit(e) {
         e.preventDefault();
 
-        if (inputTerm === "") {
+        if (newInput === "") {
             setShowError(true);
             return;
         }
 
-        onMovementAdd(inputTerm);
-        setInputTerm("");
+        onMovementAdd(newInput);
+        setNewInput("");
         setShowError(false);
+    }
+
+    function handleEditSubmit(e) {
+        e.preventDefault();
+
+        if (editInput === "") {
+            setShowError(true);
+            return;
+        }
+
+        onEditSubmit(editInput);
     }
 
     return(
@@ -30,16 +45,22 @@ function Section({ section, onRemove, onMovementRemove, onMovementAdd}) {
                 {
                     section.editing
                     ? (
-                        <form>
-                            <input type="text" placeholder=""/>
+                        <form onSubmit={handleEditSubmit}>
+                            <input 
+                                ref={editInputRef}
+                                type="text" 
+                                value={editInput} 
+                                onChange={e => setEditInput(e.target.value)}
+                                onFocus={e => e.target.select()}
+                                />
                             <button type="submit" style={{ display: 'none' }} />
                         </form>
                     )
-                    : <b>{section.name}</b>
+                    : <b onClick={onEdit}>{section.name}</b>
                 }
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleNewSubmit}>
                     <button type="submit">Add Movement</button>
-                    <input type="text" value={inputTerm} onChange={handleChange} />
+                    <input type="text" value={newInput} onChange={e => setNewInput(e.target.value)} />
                 </form>
                 {showRemove && <button onClick={()=>{onRemove()}}>x</button>}
             </li>

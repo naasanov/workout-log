@@ -2,6 +2,8 @@ import { useState } from 'react';
 import Section from './Section.js';
 import AddSection from './AddSection.js';
 
+console.log("test");
+
 function App() {
   const [sections, setSections] = useState([]);
   const [showError, setShowError] = useState(false);
@@ -17,13 +19,9 @@ function App() {
 
     const key = Date.now()
 
-    setSections((prevSections) => [...prevSections, {id: key, name: newInput, movements: [], editing: true}]);
+    setSections((prevSections) => [...prevSections, {id: key, name: newInput, movements: [], editing: false}]);
     setNewInput("");
     setShowError(false);
-  }
-
-  function handleChange(e) {
-    setNewInput(e.target.value);
   }
 
   function handleRemove(key) {
@@ -53,27 +51,49 @@ function App() {
     ));
   }
 
+  function handleEdit(sectionId) {
+    setSections(prevSections => (
+      prevSections.map(s => (
+        s.id === sectionId
+        ? {...s, editing: true}
+        : s
+      ))
+    ))
+    console.log(sections)
+  }
+
+  function handleEditSubmit(sectionName, sectionId) {
+    setSections(prevSections => (
+      prevSections.map(s => (
+        s.id === sectionId
+        ? {...s, editing: false, name: sectionName}
+        : s
+      ))
+    ))
+  }
+
   return (
     <>
       <h1 className="title">Workout Log</h1>
 
       <ul>
         {sections.map((item) => (
-          <Section 
+          <Section
             section={item} 
             onRemove={()=>{handleRemove(item.id)}}
-            onMovementAdd={(movement) => handleMovementAdd(item.id, movement)}
-            onMovementRemove={(movementId) => handleMovementRemove(item.id, movementId)}
+            onMovementAdd={movement => handleMovementAdd(item.id, movement)}
+            onMovementRemove={movementId => handleMovementRemove(item.id, movementId)}
+            onEdit={()=>handleEdit(item.id)}
+            onEditSubmit={(name)=>{handleEditSubmit(name, item.id)}}
           />))}
       </ul>
 
       <AddSection
         onSubmit={handleSubmit}
         value={newInput}
-        onChange={handleChange}
+        onChange={e => setNewInput(e.target.value)}
         showError={showError}
       />
-
     </>
   );
 }
