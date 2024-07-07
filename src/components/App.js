@@ -80,11 +80,11 @@ function App() {
         {sections.map((item) => (
           <Section
             section={item} 
-            onRemove={()=>{handleRemove(item.id)}}
+            onRemove={() => handleRemove(item.id)}
             onMovementAdd={movement => handleMovementAdd(item.id, movement)}
             onMovementRemove={movementId => handleMovementRemove(item.id, movementId)}
-            onEdit={()=>handleEdit(item.id)}
-            onEditSubmit={(name)=>{handleEditSubmit(name, item.id)}}
+            onEdit={() => handleEdit(item.id)}
+            onEditSubmit={name => handleEditSubmit(name, item.id)}
           />))}
       </ul>
 

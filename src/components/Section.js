@@ -31,7 +31,7 @@ function Section({ section, onRemove, onMovementRemove, onMovementAdd, onEdit, o
 
     return (
         <div>
-            <li onMouseEnter={() => { setShowRemove(true) }} onMouseLeave={() => { setShowRemove(false) }}>
+            <li onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
                 <Editable 
                     value={section.name}
                     editing={section.editing}
@@ -42,7 +42,7 @@ function Section({ section, onRemove, onMovementRemove, onMovementAdd, onEdit, o
                     <button type="submit">Add Movement</button>
                     <input type="text" value={newInput} onChange={e => setNewInput(e.target.value)} />
                 </form>
-                {showRemove && <button onClick={() => onRemove()}>x</button>}
+                {showRemove && <button onClick={onRemove}>x</button>}
             </li>
             <ul>
                 {section.movements.map((item) => <Movement name={item.name} onRemove={() => onMovementRemove(item.id)} />)}
