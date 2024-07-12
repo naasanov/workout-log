@@ -9,6 +9,7 @@ function Editable({ value, editing, onSubmit, onEdit }) {
     onSubmit(input);
   }
 
+  // cancels editing upon clicking outside of element
   useEffect(() => {
     const handleOutsideClick = (e) => {
       if (inputRef.current && !inputRef.current.contains(e.target)) {
@@ -23,12 +24,13 @@ function Editable({ value, editing, onSubmit, onEdit }) {
     }
   }, [ onSubmit ])
 
+  // selects all text upon editing
   useEffect(() => {
     if (editing && inputRef.current) {
       inputRef.current.focus();
       inputRef.current.select();
     }
-  },[editing])
+  },[ editing ])
 
 
   return (

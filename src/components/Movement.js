@@ -1,12 +1,22 @@
 import { useState } from "react";
 
-function Movement({ name, onRemove }) {
+function Movement({ movement, setSections, sectionId }) {
     const [showRemove, setShowRemove] = useState(false);
+
+    function handleRemove() {
+        setSections((prevSections) => (
+            prevSections.map((s) => (
+                s.id === sectionId
+                ? {...s, movements: s.movements.filter((m) => m.id !== movement.id)}
+                : s
+            ))
+        ));
+    }
 
     return (
         <li onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
-            <span>{name}</span>
-            {showRemove && <button onClick={onRemove}>x</button>}
+            <span>{movement.name}</span>
+            {showRemove && <button onClick={handleRemove}>x</button>}
         </li>
     )
 }
