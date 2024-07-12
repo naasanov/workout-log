@@ -32,16 +32,6 @@ function Section({ setSections, section }) {
         setShowError(false);
     }
 
-    function handleEdit() {
-        setSections(prevSections => (
-          prevSections.map(s => (
-            s.id === section.id
-            ? {...s, editing: true}
-            : s
-          ))
-        ))
-      }
-
     function handleEditSubmit(value) {
         if (value === "") {
             setShowError(true);
@@ -62,8 +52,6 @@ function Section({ setSections, section }) {
             <li onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
                 <Editable 
                     value={section.name}
-                    editing={section.editing}
-                    onEdit={handleEdit}
                     onSubmit={handleEditSubmit}
                 />
                 <form onSubmit={handleMovementSubmit}>

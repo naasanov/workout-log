@@ -1,19 +1,22 @@
 import { useState, useEffect, useRef } from 'react';
 
-function Editable({ value, editing, onSubmit, onEdit }) {
+function Editable({ value, onSubmit }) {
   const [input, setInput] = useState(value);
+  const [editing, setEditing] = useState(false);
   const inputRef = useRef(null);
 
   function handleSubmit(e) {
     e.preventDefault();
+    setEditing(false);
     onSubmit(input);
   }
 
   // cancels editing upon clicking outside of element
   useEffect(() => {
     const handleOutsideClick = (e) => {
-      if (inputRef.current && !inputRef.current.contains(e.target)) {
-        onSubmit && onSubmit(inputRef.current.value);
+      if (inputRef.current && onSubmit && !inputRef.current.contains(e.target)) {
+        onSubmit(inputRef.current.value);
+        setEditing(false);
       }
     };
 
@@ -48,7 +51,7 @@ function Editable({ value, editing, onSubmit, onEdit }) {
             <button type='submit' style={{ display: 'none' }}/>
           </form> 
         )
-        : <span onClick={onEdit}>{value}</span>
+        : <span onClick={() => setEditing(true)}>{value}</span>
       }
     </>
   );
