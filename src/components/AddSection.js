@@ -14,7 +14,7 @@ function AddSection({ setSections }) {
   
       const key = Date.now()
   
-      setSections((prevSections) => [...prevSections, {id: key, name: input, movements: [], editing: false}]);
+      setSections(prevSections => [...prevSections, {id: key, name: input, editing: false}]);
       setInput("");
       setShowError(false);
     }

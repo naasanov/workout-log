@@ -1,15 +1,11 @@
 import { useState } from "react";
 
-function Movement({ movement, setSections, sectionId }) {
+function Movement({ movement, setMovements }) {
     const [showRemove, setShowRemove] = useState(false);
 
     function handleRemove() {
-        setSections((prevSections) => (
-            prevSections.map((s) => (
-                s.id === sectionId
-                ? {...s, movements: s.movements.filter((m) => m.id !== movement.id)}
-                : s
-            ))
+        setMovements(prevMovements => (
+            prevMovements.filter(m => m.id !== movement.id)
         ));
     }
 

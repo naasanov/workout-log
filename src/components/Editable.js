@@ -4,7 +4,7 @@ function Editable({ value, editing, onSubmit, onEdit }) {
   const [input, setInput] = useState(value);
   const inputRef = useRef(null);
 
-  const handleSubmit = (e) => {
+  function handleSubmit(e) {
     e.preventDefault();
     onSubmit(input);
   }
@@ -31,7 +31,6 @@ function Editable({ value, editing, onSubmit, onEdit }) {
       inputRef.current.select();
     }
   },[ editing ])
-
 
   return (
     <>
