@@ -9,7 +9,7 @@ function App() {
   const [showError, setShowError] = useState(false);
   const [newInput, setNewInput] = useState("");
 
-  function handleSubmit(e) {
+  function handleSectionSubmit(e) {
     e.preventDefault();
 
     if (newInput === "") {
@@ -24,7 +24,7 @@ function App() {
     setShowError(false);
   }
 
-  function handleRemove(key) {
+  function handleSectionRemove(key) {
     setSections((prevSections) => (
       prevSections.filter((item) => item.id !== key)
     ));
@@ -59,7 +59,6 @@ function App() {
         : s
       ))
     ))
-    console.log(sections)
   }
 
   function handleEditSubmit(sectionName, sectionId) {
@@ -80,7 +79,7 @@ function App() {
         {sections.map((item) => (
           <Section
             section={item} 
-            onRemove={() => handleRemove(item.id)}
+            onRemove={() => handleSectionRemove(item.id)}
             onMovementAdd={movement => handleMovementAdd(item.id, movement)}
             onMovementRemove={movementId => handleMovementRemove(item.id, movementId)}
             onEdit={() => handleEdit(item.id)}
@@ -89,7 +88,7 @@ function App() {
       </ul>
 
       <AddSection
-        onSubmit={handleSubmit}
+        onSubmit={handleSectionSubmit}
         value={newInput}
         onChange={e => setNewInput(e.target.value)}
         showError={showError}

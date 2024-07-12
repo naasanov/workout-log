@@ -10,11 +10,26 @@ function Editable({ value, editing, onSubmit, onEdit }) {
   }
 
   useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (inputRef.current && !inputRef.current.contains(e.target)) {
+        onSubmit && onSubmit(inputRef.current.value);
+      }
+    };
+
+    document.addEventListener('click', handleOutsideClick, true);
+
+    return () => {
+      document.removeEventListener('click', handleOutsideClick, true)
+    }
+  }, [ onSubmit ])
+
+  useEffect(() => {
     if (editing && inputRef.current) {
       inputRef.current.focus();
       inputRef.current.select();
     }
   },[editing])
+
 
   return (
     <>
