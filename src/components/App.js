@@ -10,7 +10,6 @@ function App() {
   return (
     <>
       <h1 className="title">Workout Log</h1>
-
       <ul>
         {sections.map((s) => (
           <Section
@@ -19,7 +18,6 @@ function App() {
             setSections={setSections}
           />))}
       </ul>
-
       <AddSection setSections={setSections}/>
     </>
   );
