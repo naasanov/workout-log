@@ -49,7 +49,7 @@ function Section({ setSections, section }) {
 
     return (
         <div>
-            <li onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
+            <li className="section" onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
                 <Editable 
                     value={section.name}
                     onSubmit={handleEditSubmit}

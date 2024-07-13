@@ -1,14 +1,11 @@
 import Editable from "./Editable";
+import Variation from "./Variation";
 import { useState } from "react";
 
 function Movement({ movement, setMovements }) {
-    const [details, setDetails] = useState({
-        variation: "variation",
-        weight: "weight",
-        reps: "___",
-        date: "date"
-    });
+    const [variations, setVariations] = useState([])
     const [showRemove, setShowRemove] = useState(false);
+    const [showError, setShowError] = useState(false);
 
     function handleRemove() {
         setMovements(prevMovements => (
@@ -16,21 +13,35 @@ function Movement({ movement, setMovements }) {
         ));
     }
 
-    function handleEdit(field, change) {
-        setDetails(prevDetails => (
-            {...prevDetails, [field]: change}
-        ));
+    function handleVariationSubmit(e) {
+        e.preventDefault();
+
+        const key = Date.now();
+        setVariations(prevVariatons => (
+            [...prevVariatons, {id: key, name: 'variation'}]
+        ))
+    }
+
+    function handleNameEdit(change) {
+        setMovements(prevMovements => (
+            prevMovements.map(m => (
+                m.id === movement.id
+                ? {...m, name: change}
+                : m
+            ))
+        ))
     }
 
     return (
         <li onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
-            <span><b>{movement.name}:</b></span>
-            <br />
-            <span>(<Editable value={details.variation} onSubmit={(change) => handleEdit("variation", change)} />) </ span>
-            <span><Editable value={details.weight} onSubmit={(change) => handleEdit("weight", change)} /> - </ span>
-            <span><Editable value={details.reps} onSubmit={(change) => handleEdit("reps", change)} /> reps </ span>
-            <span>(<Editable value={details.date} onSubmit={(change) => handleEdit("date", change)} />)</ span>
+            <b><Editable value={movement.name} onSubmit={handleNameEdit}/>:</b>
+            <form onSubmit={handleVariationSubmit}>
+                    <button type="submit">Add Variation</button>
+            </form>
             {showRemove && <button onClick={handleRemove}>x</button>}
+            <br />
+            {variations.map(v => <Variation key={v.id} variation={v} setVariations={setVariations}/>)}
+            {showError && <p className="error">enter at least one character</p>}
         </li>
     )
 }
