@@ -6,6 +6,7 @@ import { useState } from "react";
 function Movement({ movement, setMovements }) {
     const [variations, setVariations] = useState([])
     const [showRemove, setShowRemove] = useState(false);
+    const [showItems, setShowItems] = useState(true);
 
     const setShowError = useError();
 
@@ -44,11 +45,16 @@ function Movement({ movement, setMovements }) {
         <li onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
             <b><Editable value={movement.name} onSubmit={handleNameEdit}/>:</b>
             <form onSubmit={handleVariationSubmit}>
-                    <button type="submit">Add Variation</button>
+                <button type="submit">Add Variation</button>
             </form>
+            <button onClick={()=>setShowItems(prev => !prev)}>V</button>
             {showRemove && <button onClick={handleRemove}>x</button>}
             <br />
-            {variations.map(v => <Variation key={v.id} variation={v} setVariations={setVariations}/>)}
+            {
+                showItems 
+                ? variations.map(v => <Variation key={v.id} variation={v} setVariations={setVariations}/>)
+                : variations.length !== 0 && <span>...</span> 
+            }
         </li>
     )
 }

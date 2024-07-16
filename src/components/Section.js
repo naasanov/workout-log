@@ -4,8 +4,8 @@ import { useError } from "./ErrorProvider";
 import { useState } from "react";
 
 function Section({ setSections, section }) {
-    const [newInput, setNewInput] = useState("");
     const [showRemove, setShowRemove] = useState(false);
+    const [showItems, setShowItems] = useState(true);
     const [movements, setMovements] = useState([]);
 
     const setShowError = useError();
@@ -19,18 +19,12 @@ function Section({ setSections, section }) {
     function handleMovementSubmit(e) {
         e.preventDefault();
 
-        if (newInput === "") {
-            setShowError(true);
-            return;
-        }
-
         // adding a movement to this section
         const key = Date.now();
         setMovements(prevMovements => (
-            [...prevMovements, {id: key, name: newInput}]
+            [...prevMovements, {id: key, name: 'movement'}]
         ))
 
-        setNewInput("");
         setShowError(false);
     }
 
@@ -58,13 +52,25 @@ function Section({ setSections, section }) {
                 />
                 <form onSubmit={handleMovementSubmit}>
                     <button type="submit">Add Movement</button>
-                    <input type="text" value={newInput} onChange={e => setNewInput(e.target.value)} />
                 </form>
+                <button onClick={()=>setShowItems(prev => !prev)}>V</button>
                 {showRemove && <button onClick={handleRemove}>x</button>}
             </li>
-            <ul>
-                {movements.map((m) => <Movement key={m.id} movement={m} setMovements={setMovements} sectionId={section.id}/>)}
-            </ul>
+            {
+                showItems 
+                ? (
+                    <ul>
+                        {movements.map((m) => (
+                            <Movement 
+                                key={m.id} 
+                                movement={m} 
+                                setMovements={setMovements} 
+                                sectionId={section.id}/>
+                        ))}
+                    </ul>
+                )
+                : movements.length !== 0 && <span>...</span>
+            }
         </div>
     );
 }
