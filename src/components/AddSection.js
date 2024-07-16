@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { useError } from './ErrorProvider';
 
 function AddSection({ setSections }) {
-    const [input, setInput] = useState('')
-    const [showError, setShowError] = useState(false);
-
+    const [input, setInput] = useState('');
+    const setShowError = useError();
+    
     function handleSubmit(e) {
       e.preventDefault();
   
@@ -24,7 +25,6 @@ function AddSection({ setSections }) {
             <form onSubmit={handleSubmit}>
                 <button type="submit">Add Section</button>
                 <input type="text" value={input} onChange={e => setInput(e.target.value)} />
-                {showError && <p className="error">enter at least one character</p>}
             </form>
         </>
     );

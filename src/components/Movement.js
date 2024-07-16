@@ -1,11 +1,13 @@
 import Editable from "./Editable";
 import Variation from "./Variation";
+import { useError } from "./ErrorProvider";
 import { useState } from "react";
 
 function Movement({ movement, setMovements }) {
     const [variations, setVariations] = useState([])
     const [showRemove, setShowRemove] = useState(false);
-    const [showError, setShowError] = useState(false);
+
+    const setShowError = useError();
 
     function handleRemove() {
         setMovements(prevMovements => (
@@ -23,6 +25,11 @@ function Movement({ movement, setMovements }) {
     }
 
     function handleNameEdit(change) {
+        if (change === '') {
+            setShowError(true);
+            return;
+        }
+
         setMovements(prevMovements => (
             prevMovements.map(m => (
                 m.id === movement.id
@@ -30,6 +37,7 @@ function Movement({ movement, setMovements }) {
                 : m
             ))
         ))
+        setShowError(false);
     }
 
     return (
@@ -41,7 +49,6 @@ function Movement({ movement, setMovements }) {
             {showRemove && <button onClick={handleRemove}>x</button>}
             <br />
             {variations.map(v => <Variation key={v.id} variation={v} setVariations={setVariations}/>)}
-            {showError && <p className="error">enter at least one character</p>}
         </li>
     )
 }

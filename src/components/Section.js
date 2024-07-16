@@ -1,12 +1,14 @@
-import { useState } from "react";
 import Movement from "./Movement";
 import Editable from "./Editable";
+import { useError } from "./ErrorProvider";
+import { useState } from "react";
 
 function Section({ setSections, section }) {
     const [newInput, setNewInput] = useState("");
-    const [showError, setShowError] = useState(false);
     const [showRemove, setShowRemove] = useState(false);
     const [movements, setMovements] = useState([]);
+
+    const setShowError = useError();
 
     function handleRemove() {
         setSections(prevSections => (
@@ -62,7 +64,6 @@ function Section({ setSections, section }) {
             </li>
             <ul>
                 {movements.map((m) => <Movement key={m.id} movement={m} setMovements={setMovements} sectionId={section.id}/>)}
-                {showError && <p className="error">enter at least one character</p>}
             </ul>
         </div>
     );
