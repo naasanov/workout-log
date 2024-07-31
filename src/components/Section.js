@@ -12,7 +12,7 @@ function Section({ setSections, section }) {
 
     function handleRemove() {
         setSections(prevSections => (
-          prevSections.filter((item) => item.id !== section.id)
+            prevSections.filter((item) => item.id !== section.id)
         ));
     }
 
@@ -22,7 +22,7 @@ function Section({ setSections, section }) {
         // adding a movement to this section
         const key = Date.now();
         setMovements(prevMovements => (
-            [...prevMovements, {id: key, name: 'movement'}]
+            [...prevMovements, { id: key, name: 'movement' }]
         ))
 
         setShowError(false);
@@ -35,42 +35,39 @@ function Section({ setSections, section }) {
         }
 
         setSections(prevSections => (
-          prevSections.map(s => (
-            s.id === section.id
-            ? {...s, editing: false, name: value}
-            : s
-          ))
+            prevSections.map(s => (
+                s.id === section.id
+                    ? { ...s, editing: false, name: value }
+                    : s
+            ))
         ))
     }
 
     return (
         <div>
             <li className="section" onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
-                <Editable 
+                <Editable
                     value={section.name}
                     onSubmit={handleEditSubmit}
                 />
                 <form onSubmit={handleMovementSubmit}>
                     <button type="submit">Add Movement</button>
                 </form>
-                <button onClick={()=>setShowItems(prev => !prev)}>V</button>
+                <button onClick={() => setShowItems(prev => !prev)}>V</button>
                 {showRemove && <button onClick={handleRemove}>x</button>}
             </li>
             {
-                showItems 
-                ? (
-                    <ul>
-                        {movements.map((m) => (
-                            <Movement 
-                                key={m.id} 
-                                movement={m} 
-                                setMovements={setMovements} 
-                                sectionId={section.id}/>
-                        ))}
-                    </ul>
-                )
-                : movements.length !== 0 && <span>...</span>
+                <ul style={{display: showItems ? 'block' : 'none'}}>
+                    {movements.map((m) => (
+                        <Movement
+                            key={m.id}
+                            movement={m}
+                            setMovements={setMovements}
+                            sectionId={section.id} />
+                    ))}
+                </ul>
             }
+            {!showItems && <span>...</span>}
         </div>
     );
 }
