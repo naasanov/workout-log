@@ -1,10 +1,11 @@
 import HeaderStyles from "../styles/Header.module.scss";
+import icon from "../assets/profile.svg"
 
 function Header() {
   return (
     <header className={HeaderStyles.header}>
       <span className={HeaderStyles.title}>Workout Log</span>
-      <i className={HeaderStyles.icon}></i>
+      <img src={icon} className={HeaderStyles.icon} alt="profile" />
     </header>
   );
 }

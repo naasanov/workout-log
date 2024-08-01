@@ -3,8 +3,11 @@ import Editable from "./Editable";
 import { useError } from "./ErrorProvider";
 import { useState } from "react";
 
+import WorkStyles from "../styles/Workouts.module.scss";
+import plus from "../assets/plus.svg";
+
 function Section({ setSections, section }) {
-    const [showRemove, setShowRemove] = useState(false);
+    const [hovering, setHovering] = useState(false);
     const [showItems, setShowItems] = useState(true);
     const [movements, setMovements] = useState([]);
 
@@ -44,31 +47,39 @@ function Section({ setSections, section }) {
     }
 
     return (
-        <div>
-            <li className="section" onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
-                <Editable
-                    value={section.name}
-                    onSubmit={handleEditSubmit}
-                />
-                <form onSubmit={handleMovementSubmit}>
-                    <button type="submit">Add Movement</button>
-                </form>
-                <button onClick={() => setShowItems(prev => !prev)}>V</button>
-                {showRemove && <button onClick={handleRemove}>x</button>}
-            </li>
+        <section>
+            <div className={WorkStyles.section} onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
+                <div>
+                    <Editable
+                        value={section.name}
+                        onSubmit={handleEditSubmit}
+                    />
+                    {hovering && (
+                        <div className={WorkStyles.addMovement}>
+                            <button onClick={handleMovementSubmit}>Add Movement</button>
+                            <img src={plus} alt="plus" />
+                        </div>
+                    )}
+                </div>
+                <div>
+                    {hovering && <button onClick={handleRemove}>x</button>}
+                    <button onClick={() => setShowItems(prev => !prev)}>V</button>
+                </div>
+            </div>
             {
-                <ul style={{display: showItems ? 'block' : 'none'}}>
+                <ul style={{ display: showItems ? 'block' : 'none' }}>
                     {movements.map((m) => (
                         <Movement
                             key={m.id}
                             movement={m}
                             setMovements={setMovements}
-                            sectionId={section.id} />
+                            sectionId={section.id}
+                        />
                     ))}
                 </ul>
             }
             {!showItems && <span>...</span>}
-        </div>
+        </section>
     );
 }
 
