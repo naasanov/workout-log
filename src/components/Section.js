@@ -3,8 +3,11 @@ import Editable from "./Editable";
 import { useError } from "./ErrorProvider";
 import { useState } from "react";
 
-import WorkStyles from "../styles/Workouts.module.scss";
+import styles from "../styles/Workouts.module.scss";
 import plus from "../assets/plus.svg";
+import closedDropdown from "../assets/dropdown_closed.svg";
+import openDropdown from "../assets/dropdown_open.svg";
+import X from "../assets/delete.svg";
 
 function Section({ setSections, section }) {
     const [hovering, setHovering] = useState(false);
@@ -48,22 +51,28 @@ function Section({ setSections, section }) {
 
     return (
         <section>
-            <div className={WorkStyles.section} onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
+            <div className={styles.section} onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
                 <div>
                     <Editable
                         value={section.name}
                         onSubmit={handleEditSubmit}
                     />
                     {hovering && (
-                        <div className={WorkStyles.addMovement}>
-                            <button onClick={handleMovementSubmit}>Add Movement</button>
+                        <div className={styles.addItem}>
+                            <button onClick={handleMovementSubmit}>Add Exercise</button>
                             <img src={plus} alt="plus" />
                         </div>
                     )}
                 </div>
                 <div>
-                    {hovering && <button onClick={handleRemove}>x</button>}
-                    <button onClick={() => setShowItems(prev => !prev)}>V</button>
+                    {hovering && 
+                        <button onClick={handleRemove} className={styles.icon}>
+                            <img src={X} alt="delete"/>
+                        </button>
+                    }
+                    <button onClick={() => setShowItems(prev => !prev)} className={styles.icon}>
+                        <img src={showItems ? openDropdown : closedDropdown} alt="dropdown closed" />
+                    </button>
                 </div>
             </div>
             {
@@ -78,7 +87,6 @@ function Section({ setSections, section }) {
                     ))}
                 </ul>
             }
-            {!showItems && <span>...</span>}
         </section>
     );
 }

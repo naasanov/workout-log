@@ -3,14 +3,14 @@ import AddSection from './AddSection.js';
 import ErrorProvider from './ErrorProvider.js';
 import { useState } from 'react';
 
-import WorkStyles from "../styles/Workouts.module.scss";
+import styles from "../styles/Workouts.module.scss";
 
 function Workouts() {
   const [sections, setSections] = useState([]);
 
   return (
     <ErrorProvider>
-      <main className={WorkStyles.container}>
+      <main className={styles.container}>
         <ul>
           {sections.map((s) => (
             <Section

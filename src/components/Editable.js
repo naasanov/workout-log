@@ -11,6 +11,14 @@ function Editable({ value, onSubmit }) {
     onSubmit(input);
   }
 
+  useEffect(() => {
+    const input = inputRef.current;
+    if (input) {
+      input.style.width = '1px';
+      input.style.width = `${input.scrollWidth}px`;
+    }
+  })
+
   // cancels editing upon clicking outside of element
   useEffect(() => {
     const handleOutsideClick = (e) => {
@@ -25,7 +33,7 @@ function Editable({ value, onSubmit }) {
     return () => {
       document.removeEventListener('click', handleOutsideClick, true)
     }
-  }, [ onSubmit ])
+  }, [onSubmit])
 
   // selects all text upon editing
   useEffect(() => {
@@ -33,25 +41,25 @@ function Editable({ value, onSubmit }) {
       inputRef.current.focus();
       inputRef.current.select();
     }
-  },[ editing ])
+  }, [editing])
 
   return (
     <>
       {
         editing
-        ? (
-          <form onSubmit={handleSubmit}>
-            <input 
-              ref={inputRef}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onFocus={e => e.target.select()}
-              type='text'
-            />
-            <button type='submit' style={{ display: 'none' }}/>
-          </form> 
-        )
-        : <span onClick={() => setEditing(true)}>{value}</span>
+          ? (
+            <form onSubmit={handleSubmit}>
+              <input
+                ref={inputRef}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onFocus={e => e.target.select()}
+                type='text'
+              />
+              <button type='submit' style={{ display: 'none' }} />
+            </form>
+          )
+          : <span onClick={() => setEditing(true)}>{value}</span>
       }
     </>
   );

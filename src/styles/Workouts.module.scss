@@ -8,6 +8,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  overflow: hidden;
 
   background-color: $surface;
   color: $text;
@@ -27,13 +28,33 @@
 
   > div {
     display: flex;
-    gap: 1rem;
     align-items: center;
     line-height: 0;
   }
 }
 
-.addMovement {
+input {
+  max-width: 10em;
+  background-color: transparent;
+  color: $text;
+  border: none;
+  border-bottom: solid 3px $primary;
+  letter-spacing: $sarabun-spacing;
+  font: {
+    family: "Sarabun", sans-serif;
+    weight: 500;
+    size: 26px;
+  }
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.addItem {
+  display: flex;
+  align-items: center;
+  width: fit-content;
   padding: 5px 10px;
   border-radius: $border-radius;
   cursor: pointer;
@@ -55,5 +76,20 @@
 
     letter-spacing: $sarabun-spacing;
     color: $primary;
+  }
+}
+
+.icon {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  background-color: transparent;
+  border: none;
+  border-radius: 100px;
+  cursor: pointer;
+
+  &:hover {
+    background-color: $primary-translucent;
   }
 }

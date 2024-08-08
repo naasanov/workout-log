@@ -3,10 +3,13 @@ import Variation from "./Variation";
 import { useError } from "./ErrorProvider";
 import { useState } from "react";
 
+import styles from "../styles/Workouts.module.scss";
+import plus from "../assets/plus.svg";
+import X from "../assets/delete.svg";
+
 function Movement({ movement, setMovements }) {
     const [variations, setVariations] = useState([])
-    const [showRemove, setShowRemove] = useState(false);
-    const [showItems, setShowItems] = useState(true);
+    const [hovering, setHovering] = useState(false);
 
     const setShowError = useError();
 
@@ -21,7 +24,7 @@ function Movement({ movement, setMovements }) {
 
         const key = Date.now();
         setVariations(prevVariatons => (
-            [...prevVariatons, {id: key, name: 'variation'}]
+            [...prevVariatons, { id: key, name: 'variation' }]
         ))
     }
 
@@ -34,27 +37,31 @@ function Movement({ movement, setMovements }) {
         setMovements(prevMovements => (
             prevMovements.map(m => (
                 m.id === movement.id
-                ? {...m, name: change}
-                : m
+                    ? { ...m, name: change }
+                    : m
             ))
         ))
         setShowError(false);
     }
 
     return (
-        <li onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
-            <b><Editable value={movement.name} onSubmit={handleNameEdit}/>:</b>
-            <form onSubmit={handleVariationSubmit}>
-                <button type="submit">Add Variation</button>
-            </form>
-            <button onClick={()=>setShowItems(prev => !prev)}>V</button>
-            {showRemove && <button onClick={handleRemove}>x</button>}
-            <br />
-            {
-                showItems 
-                ? variations.map(v => <Variation key={v.id} variation={v} setVariations={setVariations}/>)
-                : variations.length !== 0 && <span>...</span> 
-            }
+        <li onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)} className={styles.section}>
+            <div>
+                <Editable value={movement.name} onSubmit={handleNameEdit} />
+                {hovering &&
+                    <div className={styles.addItem}>
+                        <button onClick={handleVariationSubmit}>Add Variation</button>
+                        <img src={plus} alt="plus" />
+                    </div>}
+            </div>
+            <div>
+                {hovering &&
+                    <button onClick={handleRemove} className={styles.icon}>
+                        <img src={X} alt="delete" />
+                    </button>
+                }
+            </div>
+            {variations.map(v => <Variation key={v.id} variation={v} setVariations={setVariations} />)}
         </li>
     )
 }
