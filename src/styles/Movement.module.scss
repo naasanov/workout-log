@@ -1,21 +1,12 @@
 @import "variables";
 
-.container {
-  padding: 2rem 10%;
-}
-
-.sectionWrapper {
-  display: flex;
-  flex-direction: column;
-}
-
 .section {
   display: flex;
   overflow: hidden;
-  justify-content: space-between;
+  flex-direction: column;
 
   background-color: $surface;
-  
+
   min-height: 4.5rem;
   padding: 1rem 2rem;
   border-radius: $border-radius;
@@ -23,7 +14,7 @@
 
   letter-spacing: $sarabun-spacing;
   color: $text;
-  
+
   font: {
     family: "Sarabun", sans-serif;
     weight: 500;
@@ -34,6 +25,21 @@
 .sectionPart {
   display: flex;
   align-items: center;
+
+  &:nth-child(2) {
+    margin-right: auto;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.variations {
+  display: flex;
+  flex-direction: column;
 }
 
 input {
@@ -95,20 +101,4 @@ input {
   &:hover {
     background-color: $primary-translucent;
   }
-}
-
-.variations {
-  display: flex;
-  flex-direction: column;
-}
-
-.movementWrapper {
-  display: flex;
-  flex-direction: column;
-}
-
-.movementHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
 }

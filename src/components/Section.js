@@ -52,28 +52,29 @@ function Section({ setSections, section }) {
     return (
         <section>
             <div className={styles.section} onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
-                <div>
-                    <Editable
-                        value={section.name}
-                        onSubmit={handleEditSubmit}
-                    />
-                    {hovering && (
-                        <div className={styles.addItem}>
-                            <button onClick={handleMovementSubmit}>Add Exercise</button>
-                            <img src={plus} alt="plus" />
-                        </div>
-                    )}
-                </div>
-                <div>
-                    {hovering && 
-                        <button onClick={handleRemove} className={styles.icon}>
-                            <img src={X} alt="delete"/>
+                    <div className={styles.sectionPart}>
+                        <Editable
+                            className={styles.item}
+                            value={section.name}
+                            onSubmit={handleEditSubmit}
+                        />
+                        {hovering && (
+                            <div className={styles.addItem} >
+                                <button onClick={handleMovementSubmit}>Add Exercise</button>
+                                <img src={plus} alt="plus" />
+                            </div>
+                        )}
+                    </div>
+                    <div className={styles.sectionPart}>
+                        {hovering &&
+                            <button onClick={handleRemove} className={styles.icon}>
+                                <img src={X} alt="delete"/>
+                            </button>
+                        }
+                        <button onClick={() => setShowItems(prev => !prev)} className={styles.icon}>
+                            <img src={showItems ? openDropdown : closedDropdown} alt="dropdown closed" />
                         </button>
-                    }
-                    <button onClick={() => setShowItems(prev => !prev)} className={styles.icon}>
-                        <img src={showItems ? openDropdown : closedDropdown} alt="dropdown closed" />
-                    </button>
-                </div>
+                    </div>
             </div>
             {
                 <ul style={{ display: showItems ? 'block' : 'none' }}>

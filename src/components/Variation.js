@@ -2,6 +2,8 @@ import Editable from './Editable';
 import { useError } from './ErrorProvider';
 import { useState } from 'react';
 
+import styles from '../styles/Variation.module.scss';
+
 function Variation({ variation, setVariations }) {
   const [details, setDetails] = useState({
     weight: "weight",
@@ -29,8 +31,8 @@ function Variation({ variation, setVariations }) {
     setVariations(prevVariations => (
       prevVariations.map(v => (
         v.id === variation.id
-        ? {...v, name: change}
-        : v
+          ? { ...v, name: change }
+          : v
       ))
     ));
     setShowError(false);
@@ -43,13 +45,13 @@ function Variation({ variation, setVariations }) {
     }
 
     setDetails(prevDetails => (
-        {...prevDetails, [field]: change}
+      { ...prevDetails, [field]: change }
     ));
     setShowError(false);
   }
 
   return (
-    <div onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
+    <div className={styles.variation} onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
       <span>(<Editable value={variation.name} onSubmit={handleTitleEdit} />) </ span>
       <span><Editable value={details.weight} onSubmit={change => handleDetailEdit("weight", change)} /> - </ span>
       <span><Editable value={details.reps} onSubmit={change => handleDetailEdit("reps", change)} /> reps </ span>

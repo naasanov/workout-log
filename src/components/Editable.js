@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-function Editable({ value, onSubmit }) {
+function Editable({ value, onSubmit, className }) {
   const [input, setInput] = useState(value);
   const [editing, setEditing] = useState(false);
   const inputRef = useRef(null);
@@ -44,7 +44,7 @@ function Editable({ value, onSubmit }) {
   }, [editing])
 
   return (
-    <>
+    <div className={className}>
       {
         editing
           ? (
@@ -61,7 +61,7 @@ function Editable({ value, onSubmit }) {
           )
           : <span onClick={() => setEditing(true)}>{value}</span>
       }
-    </>
+    </div>
   );
 }
 
