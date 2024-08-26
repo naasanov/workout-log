@@ -26,6 +26,7 @@ function Editable({ value, onSubmit, className }) {
       if (inputRef.current && onSubmit && !inputRef.current.contains(e.target)) {
         onSubmit(inputRef.current.value);
         setEditing(false);
+        setInput(value); // resets input if exited without submitting
       }
     };
 
@@ -41,10 +42,6 @@ function Editable({ value, onSubmit, className }) {
     if (editing && inputRef.current) {
       inputRef.current.focus();
       inputRef.current.select();
-    }
-
-    if (!editing) {
-      setInput(value);
     }
   }, [editing])
 
