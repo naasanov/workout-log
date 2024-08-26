@@ -7,9 +7,8 @@
 
   background-color: $surface;
 
-  min-height: 4.5rem;
-  padding: 1rem 2rem;
   border-radius: $border-radius;
+  padding: 0 32px;
   margin-bottom: 0.5rem;
 
   letter-spacing: $sarabun-spacing;
@@ -18,7 +17,7 @@
   font: {
     family: "Sarabun", sans-serif;
     weight: 500;
-    size: 26px;
+    size: 24px;
   }
 }
 
@@ -35,14 +34,22 @@
   display: flex;
   align-items: center;
   width: 100%;
+  padding: 17px 0 0 0;
+  height: 48px
 }
 
 .variations {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: min-content min-content min-content auto min-content min-content;
+  width: 100%;
+  padding: 5px 0 1rem 1.5rem;
+
+  &:empty {
+    padding: 17px 0 0 0;
+  }
 }
 
-input {
+.sectionPart input {
   max-width: 10em;
   background-color: transparent;
   color: $text;
@@ -52,7 +59,7 @@ input {
   font: {
     family: "Sarabun", sans-serif;
     weight: 500;
-    size: 26px;
+    size: 24px;
   }
 
   &:focus {
@@ -65,6 +72,7 @@ input {
   align-items: center;
   width: fit-content;
   padding: 5px 10px;
+  margin-left: 5px;
   border-radius: $border-radius;
   cursor: pointer;
 

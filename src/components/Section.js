@@ -77,7 +77,7 @@ function Section({ setSections, section }) {
                     </div>
             </div>
             {
-                <ul style={{ display: showItems ? 'block' : 'none' }}>
+                <ul className={styles.movements} style={{ display: showItems ? 'block' : 'none' }}>
                     {movements.map((m) => (
                         <Movement
                             key={m.id}

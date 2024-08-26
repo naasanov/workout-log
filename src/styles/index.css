@@ -7,3 +7,7 @@ body {
   margin: 0;
   background-color: #151515;
 }
+
+html {
+  overflow-y: scroll;
+}
