@@ -1,23 +1,23 @@
 {
   "files": {
-    "main.css": "/static/css/main.4b5d5724.css",
-    "main.js": "/static/js/main.7457a090.js",
-    "static/js/453.8d19bc4e.chunk.js": "/static/js/453.8d19bc4e.chunk.js",
-    "static/media/dumbbell.svg": "/static/media/dumbbell.3a953e87895955b05fade22c6c6eb6bb.svg",
-    "static/media/calender.svg": "/static/media/calender.bd41c583276bea795edd3c74e42b1682.svg",
-    "static/media/profile.svg": "/static/media/profile.06bae256d96314a7de1add8ebdb35c88.svg",
-    "index.html": "/index.html",
-    "static/media/delete.svg": "/static/media/delete.90b41900a42e32c5dccd609a807a4d19.svg",
-    "static/media/plus.svg": "/static/media/plus.ceecdea5f69b034f851fcdfcc74c81b4.svg",
-    "static/media/number.svg": "/static/media/number.ca2eb5921f9c027ff4fc1a7a9eec1298.svg",
-    "static/media/dropdown_open.svg": "/static/media/dropdown_open.adafe225f656b610ebd7539330397fb4.svg",
-    "static/media/dropdown_closed.svg": "/static/media/dropdown_closed.d50db485cfc89fc9f8a8a466b75ad935.svg",
-    "main.4b5d5724.css.map": "/static/css/main.4b5d5724.css.map",
-    "main.7457a090.js.map": "/static/js/main.7457a090.js.map",
-    "453.8d19bc4e.chunk.js.map": "/static/js/453.8d19bc4e.chunk.js.map"
+    "main.css": "/workout-log/static/css/main.4b5d5724.css",
+    "main.js": "/workout-log/static/js/main.45892718.js",
+    "static/js/453.8d19bc4e.chunk.js": "/workout-log/static/js/453.8d19bc4e.chunk.js",
+    "static/media/dumbbell.svg": "/workout-log/static/media/dumbbell.3a953e87895955b05fade22c6c6eb6bb.svg",
+    "static/media/calender.svg": "/workout-log/static/media/calender.bd41c583276bea795edd3c74e42b1682.svg",
+    "static/media/profile.svg": "/workout-log/static/media/profile.06bae256d96314a7de1add8ebdb35c88.svg",
+    "index.html": "/workout-log/index.html",
+    "static/media/delete.svg": "/workout-log/static/media/delete.90b41900a42e32c5dccd609a807a4d19.svg",
+    "static/media/plus.svg": "/workout-log/static/media/plus.ceecdea5f69b034f851fcdfcc74c81b4.svg",
+    "static/media/number.svg": "/workout-log/static/media/number.ca2eb5921f9c027ff4fc1a7a9eec1298.svg",
+    "static/media/dropdown_open.svg": "/workout-log/static/media/dropdown_open.adafe225f656b610ebd7539330397fb4.svg",
+    "static/media/dropdown_closed.svg": "/workout-log/static/media/dropdown_closed.d50db485cfc89fc9f8a8a466b75ad935.svg",
+    "main.4b5d5724.css.map": "/workout-log/static/css/main.4b5d5724.css.map",
+    "main.45892718.js.map": "/workout-log/static/js/main.45892718.js.map",
+    "453.8d19bc4e.chunk.js.map": "/workout-log/static/js/453.8d19bc4e.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.4b5d5724.css",
-    "static/js/main.7457a090.js"
+    "static/js/main.45892718.js"
   ]
 }
