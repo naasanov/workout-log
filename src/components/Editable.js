@@ -35,7 +35,7 @@ function Editable({ value, onSubmit, className }) {
     return () => {
       document.removeEventListener('click', handleOutsideClick, true)
     }
-  }, [onSubmit]);
+  }, [onSubmit, value]);
 
   useEffect(() => {
     // selects all text upon editing

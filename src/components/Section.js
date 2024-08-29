@@ -28,7 +28,7 @@ function Section({ setSections, section }) {
         // adding a movement to this section
         const key = Date.now();
         setMovements(prevMovements => (
-            [...prevMovements, { id: key, name: 'movement' }]
+            [...prevMovements, { id: key, name: 'exercise' }]
         ))
 
         setShowError(false);
