@@ -45,8 +45,8 @@ function Movement({ movement, setMovements }) {
     }
 
     return (
-        <li className={styles.section} onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)} >
-            <div className={styles.header}>
+        <li className={styles.section}>
+            <div className={styles.header} onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
                 <Editable className={styles.sectionPart} value={movement.name} onSubmit={handleNameEdit} />
                 <div className={`${styles.sectionPart} ${styles.addItem}`} style={{ display: hovering ? 'block' : 'none' }}>
                     <button onClick={handleVariationSubmit}>Add Variation</button>

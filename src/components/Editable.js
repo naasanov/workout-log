@@ -11,13 +11,14 @@ function Editable({ value, onSubmit, className }) {
     onSubmit(input);
   }
 
+  // keeps width of input locked to width of text
   useEffect(() => {
     const input = inputRef.current;
     if (input) {
-      input.style.width = '1px';
+      input.style.width = '1rem';
       input.style.width = `${input.scrollWidth}px`;
     }
-  })
+  });
 
   // cancels editing upon clicking outside of element
   useEffect(() => {
@@ -25,6 +26,7 @@ function Editable({ value, onSubmit, className }) {
       if (inputRef.current && onSubmit && !inputRef.current.contains(e.target)) {
         onSubmit(inputRef.current.value);
         setEditing(false);
+        setInput(value); // resets input if exited without submitting
       }
     };
 
@@ -33,10 +35,10 @@ function Editable({ value, onSubmit, className }) {
     return () => {
       document.removeEventListener('click', handleOutsideClick, true)
     }
-  }, [onSubmit])
+  }, [onSubmit]);
 
-  // selects all text upon editing
   useEffect(() => {
+    // selects all text upon editing
     if (editing && inputRef.current) {
       inputRef.current.focus();
       inputRef.current.select();

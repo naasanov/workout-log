@@ -15,15 +15,15 @@
   justify-content: space-between;
 
   background-color: $surface;
-  
-  min-height: 4.5rem;
-  padding: 1rem 2rem;
+
+  padding: 17px 32px;
+  max-height: 65px;
   border-radius: $border-radius;
   margin-bottom: 0.5rem;
 
   letter-spacing: $sarabun-spacing;
   color: $text;
-  
+
   font: {
     family: "Sarabun", sans-serif;
     weight: 500;
@@ -34,23 +34,18 @@
 .sectionPart {
   display: flex;
   align-items: center;
-}
+  
+  input {
+    max-width: 10em;
+    background-color: transparent;
+    color: $text;
+    border: none;
+    border-bottom: solid 3px $primary;
+    letter-spacing: $sarabun-spacing;
 
-input {
-  max-width: 10em;
-  background-color: transparent;
-  color: $text;
-  border: none;
-  border-bottom: solid 3px $primary;
-  letter-spacing: $sarabun-spacing;
-  font: {
-    family: "Sarabun", sans-serif;
-    weight: 500;
-    size: 26px;
-  }
-
-  &:focus {
-    outline: none;
+    &:focus {
+      outline: none;
+    }
   }
 }
 
@@ -60,6 +55,7 @@ input {
   width: fit-content;
   padding: 5px 10px;
   border-radius: $border-radius;
+  margin-left: 5px;
   cursor: pointer;
 
   &:hover {
@@ -74,7 +70,7 @@ input {
     font: {
       family: $sarabun;
       weight: 500;
-      size: 22px;
+      size: 24px;
     }
 
     letter-spacing: $sarabun-spacing;
@@ -111,4 +107,12 @@ input {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.movements {
+  padding-bottom: 10px;
+
+  &:empty {
+    padding: 0;
+  }
 }
