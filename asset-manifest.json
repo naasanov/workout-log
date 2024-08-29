@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/workout-log/static/css/main.4b5d5724.css",
-    "main.js": "/workout-log/static/js/main.1069e868.js",
+    "main.js": "/workout-log/static/js/main.f3fc9d3b.js",
     "static/js/453.8d19bc4e.chunk.js": "/workout-log/static/js/453.8d19bc4e.chunk.js",
     "static/media/dumbbell.svg": "/workout-log/static/media/dumbbell.3a953e87895955b05fade22c6c6eb6bb.svg",
     "static/media/calender.svg": "/workout-log/static/media/calender.bd41c583276bea795edd3c74e42b1682.svg",
@@ -13,11 +13,11 @@
     "static/media/dropdown_open.svg": "/workout-log/static/media/dropdown_open.adafe225f656b610ebd7539330397fb4.svg",
     "static/media/dropdown_closed.svg": "/workout-log/static/media/dropdown_closed.d50db485cfc89fc9f8a8a466b75ad935.svg",
     "main.4b5d5724.css.map": "/workout-log/static/css/main.4b5d5724.css.map",
-    "main.1069e868.js.map": "/workout-log/static/js/main.1069e868.js.map",
+    "main.f3fc9d3b.js.map": "/workout-log/static/js/main.f3fc9d3b.js.map",
     "453.8d19bc4e.chunk.js.map": "/workout-log/static/js/453.8d19bc4e.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.4b5d5724.css",
-    "static/js/main.1069e868.js"
+    "static/js/main.f3fc9d3b.js"
   ]
 }
