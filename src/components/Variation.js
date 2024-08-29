@@ -64,14 +64,14 @@ function Variation({ variation, setVariations }) {
 
       {/* weight */}
       <div className={styles.part} onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
-        <img className={styles.icon} src={dumbbell} />
+        <img className={styles.icon} src={dumbbell} alt='dumbbell icon'/>
         <Editable value={details.weight} onSubmit={change => handleDetailEdit("weight", change)} />
         <span> lbs</span>
       </ div>
 
       {/* reps */}
       <div className={styles.part} onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
-        <img className={`${styles.icon} ${styles.weight}`} src={number} />
+        <img className={styles.icon} src={number} alt='number icon'/>
         <Editable value={details.reps} onSubmit={change => handleDetailEdit("reps", change)} />
         <span> reps</span>
       </ div>
@@ -81,7 +81,7 @@ function Variation({ variation, setVariations }) {
 
       {/* date */}
       <div className={styles.part} onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
-        <img className={`${styles.icon} ${styles.number}`} src={calender} />
+        <img className={styles.icon} src={calender} alt='date icon'/>
         <Editable value={details.date} onSubmit={change => handleDetailEdit("date", change)} />
       </ div>
 
