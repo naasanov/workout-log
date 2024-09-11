@@ -8,7 +8,7 @@ import plus from "../assets/plus.svg";
 import X from "../assets/delete.svg";
 
 function Movement({ movement, setMovements }) {
-    const [variations, setVariations] = useState([])
+    const [variations, setVariations] = useState([{ id: Date.now(), name: 'variation'}])
     const [hovering, setHovering] = useState(false);
 
     const setShowError = useError();

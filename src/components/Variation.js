@@ -13,7 +13,7 @@ function Variation({ variation, setVariations }) {
   const [details, setDetails] = useState({
     weight: "___",
     reps: "___",
-    date: "date"
+    date: "mm/dd/yy"
   });
   const [showRemove, setShowRemove] = useState(false);
 
