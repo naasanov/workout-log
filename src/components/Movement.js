@@ -1,6 +1,5 @@
 import Editable from "./Editable";
 import Variation from "./Variation";
-import { useError } from "./ErrorProvider";
 import { useState } from "react";
 
 import styles from "../styles/Movement.module.scss";
@@ -10,8 +9,6 @@ import X from "../assets/delete.svg";
 function Movement({ movement, setMovements }) {
     const [variations, setVariations] = useState([{ id: Date.now(), name: 'variation'}])
     const [hovering, setHovering] = useState(false);
-
-    const setShowError = useError();
 
     function handleRemove() {
         setMovements(prevMovements => (
@@ -29,11 +26,6 @@ function Movement({ movement, setMovements }) {
     }
 
     function handleNameEdit(change) {
-        if (change === '') {
-            setShowError(true);
-            return;
-        }
-
         setMovements(prevMovements => (
             prevMovements.map(m => (
                 m.id === movement.id
@@ -41,7 +33,6 @@ function Movement({ movement, setMovements }) {
                     : m
             ))
         ))
-        setShowError(false);
     }
 
     return (

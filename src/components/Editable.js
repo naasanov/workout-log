@@ -1,15 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
+import { useError } from './ErrorProvider';
 
 function Editable({ value, onSubmit, className }) {
   const [input, setInput] = useState(value);
   const [editing, setEditing] = useState(false);
   const inputRef = useRef(null);
-
-  function handleSubmit(e) {
-    e.preventDefault();
-    setEditing(false);
-    onSubmit(input);
-  }
+  const setShowError = useError();
 
   // keeps width of input locked to width of text
   useEffect(() => {
@@ -20,23 +16,6 @@ function Editable({ value, onSubmit, className }) {
     }
   });
 
-  // cancels editing upon clicking outside of element
-  useEffect(() => {
-    const handleOutsideClick = (e) => {
-      if (inputRef.current && onSubmit && !inputRef.current.contains(e.target)) {
-        onSubmit(inputRef.current.value);
-        setEditing(false);
-        setInput(value); // resets input if exited without submitting
-      }
-    };
-
-    document.addEventListener('click', handleOutsideClick, true);
-
-    return () => {
-      document.removeEventListener('click', handleOutsideClick, true)
-    }
-  }, [onSubmit, value]);
-
   useEffect(() => {
     // selects all text upon editing
     if (editing && inputRef.current) {
@@ -45,12 +24,42 @@ function Editable({ value, onSubmit, className }) {
     }
   }, [editing])
 
+  // cancels editing upon clicking outside of element
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (inputRef.current && onSubmit && !inputRef.current.contains(e.target)) {
+        const isWhitespace = !inputRef.current.value.trim();
+        handleSubmit(isWhitespace ? value : input);
+        if (isWhitespace) setShowError(true);
+      }
+    };
+
+    document.addEventListener('click', handleOutsideClick, true);
+
+    return () => {
+      document.removeEventListener('click', handleOutsideClick, true)
+    }
+  }, [value, input]);
+  
+  function handleSubmit(newValue) {
+    const trimmed = newValue.trim();
+    if(!trimmed) { // show error if new value is only whitespace
+      setShowError(true);
+    }
+    else {
+      onSubmit(trimmed);
+      setInput(trimmed);
+      setEditing(false);
+      setShowError(false);
+    }
+  }
+
   return (
     <div className={className}>
       {
         editing
           ? (
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={(e) => {e.preventDefault(); handleSubmit(input);}}>
               <input
                 ref={inputRef}
                 value={input}
@@ -58,7 +67,6 @@ function Editable({ value, onSubmit, className }) {
                 onFocus={e => e.target.select()}
                 type='text'
               />
-              <button type='submit' style={{ display: 'none' }} />
             </form>
           )
           : <span onClick={() => setEditing(true)}>{value}</span>

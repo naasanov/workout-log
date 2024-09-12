@@ -1,6 +1,5 @@
 import Movement from "./Movement";
 import Editable from "./Editable";
-import { useError } from "./ErrorProvider";
 import { useState } from "react";
 
 import styles from "../styles/Workouts.module.scss";
@@ -13,8 +12,6 @@ function Section({ setSections, section }) {
     const [hovering, setHovering] = useState(false);
     const [showItems, setShowItems] = useState(true);
     const [movements, setMovements] = useState([]);
-
-    const setShowError = useError();
 
     function handleRemove() {
         setSections(prevSections => (
@@ -30,16 +27,9 @@ function Section({ setSections, section }) {
         setMovements(prevMovements => (
             [...prevMovements, { id: key, name: 'exercise' }]
         ))
-
-        setShowError(false);
     }
 
     function handleEditSubmit(value) {
-        if (value === "") {
-            setShowError(true);
-            return;
-        }
-
         setSections(prevSections => (
             prevSections.map(s => (
                 s.id === section.id
@@ -60,18 +50,18 @@ function Section({ setSections, section }) {
                         />
                         {hovering && (
                             <div className={styles.addItem} >
-                                <button onClick={handleMovementSubmit}>Add Exercise</button>
+                                <button type='button' onClick={handleMovementSubmit}>Add Exercise</button>
                                 <img src={plus} alt="plus" />
                             </div>
                         )}
                     </div>
                     <div className={styles.sectionPart}>
                         {hovering &&
-                            <button onClick={handleRemove} className={styles.icon}>
+                            <button type='button'  onClick={handleRemove} className={styles.icon}>
                                 <img src={X} alt="delete"/>
                             </button>
                         }
-                        <button onClick={() => setShowItems(prev => !prev)} className={styles.icon}>
+                        <button type='button'  onClick={() => setShowItems(prev => !prev)} className={styles.icon}>
                             <img src={showItems ? openDropdown : closedDropdown} alt="dropdown closed" />
                         </button>
                     </div>

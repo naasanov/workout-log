@@ -1,5 +1,4 @@
 import Editable from './Editable';
-import { useError } from './ErrorProvider';
 import { useState } from 'react';
 
 import styles from '../styles/Variation.module.scss';
@@ -17,8 +16,6 @@ function Variation({ variation, setVariations }) {
   });
   const [showRemove, setShowRemove] = useState(false);
 
-  const setShowError = useError();
-
   function handleRemove() {
     setVariations(prevVariations => (
       prevVariations.filter(v => (
@@ -28,11 +25,6 @@ function Variation({ variation, setVariations }) {
   }
 
   function handleTitleEdit(change) {
-    if (change === '') {
-      setShowError(true);
-      return;
-    }
-
     setVariations(prevVariations => (
       prevVariations.map(v => (
         v.id === variation.id
@@ -40,19 +32,12 @@ function Variation({ variation, setVariations }) {
           : v
       ))
     ));
-    setShowError(false);
   }
 
   function handleDetailEdit(field, change) {
-    if (change === '') {
-      setShowError(true);
-      return;
-    }
-
     setDetails(prevDetails => (
       { ...prevDetails, [field]: change }
     ));
-    setShowError(false);
   }
 
   return (
