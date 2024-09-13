@@ -1,0 +1,11 @@
+@import "variables";
+
+.error {
+    font: {
+        family: $sarabun;
+        size: 20px;
+        weight: 500;
+    }
+    color: #BD0C0F;
+    padding-left: calc(10% + 15px);
+}

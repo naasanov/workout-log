@@ -5,7 +5,7 @@ function Editable({ value, onSubmit, className }) {
   const [input, setInput] = useState(value);
   const [editing, setEditing] = useState(false);
   const inputRef = useRef(null);
-  const setShowError = useError();
+  const {setShowError} = useError();
 
   // keeps width of input locked to width of text
   useEffect(() => {
@@ -39,6 +39,7 @@ function Editable({ value, onSubmit, className }) {
     return () => {
       document.removeEventListener('click', handleOutsideClick, true)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, input]);
   
   function handleSubmit(newValue) {

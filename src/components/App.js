@@ -1,12 +1,15 @@
 import Header from './Header';
 import Workouts from './Workouts';
+import ErrorProvider from './ErrorProvider';
 
 function App() {
 
   return (
     <>
-      <Header />
-      <Workouts />
+      <ErrorProvider>
+        <Header />
+        <Workouts /> 
+      </ErrorProvider>
     </>
   );
 }

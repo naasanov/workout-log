@@ -1,4 +1,5 @@
 import { createContext, useContext, useState } from "react";
+import styles from '../styles/Error.module.scss';
 
 const ErrorContext = createContext();
 
@@ -12,7 +13,7 @@ function ErrorProvider({ children }) {
   return (
     <ErrorContext.Provider value={setShowError}>
       {children}
-      {showError && <p className="error">enter at least one character</p>}
+      {showError && <p className={styles.error}>Enter at least one character</p>}
     </ErrorContext.Provider>
   )
 }
