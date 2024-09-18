@@ -22,10 +22,9 @@ function Section({ setSections, section }) {
     function handleMovementSubmit(e) {
         e.preventDefault();
 
-        // adding a movement to this section
         const key = Date.now();
         setMovements(prevMovements => (
-            [...prevMovements, { id: key, name: 'exercise' }]
+            [...prevMovements, { id: key, name: 'Exercise' }]
         ))
     }
 
@@ -48,7 +47,7 @@ function Section({ setSections, section }) {
                             value={section.name}
                             onSubmit={handleEditSubmit}
                         />
-                        {hovering && (
+                        {hovering && showItems && (
                             <div className={styles.addItem} >
                                 <button type='button' onClick={handleMovementSubmit}>Add Exercise</button>
                                 <img src={plus} alt="plus" />

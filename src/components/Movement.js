@@ -7,7 +7,7 @@ import plus from "../assets/plus.svg";
 import X from "../assets/delete.svg";
 
 function Movement({ movement, setMovements }) {
-    const [variations, setVariations] = useState([{ id: Date.now(), name: 'variation'}])
+    const [variations, setVariations] = useState([{ id: Date.now(), name: 'Variation'}])
     const [hovering, setHovering] = useState(false);
 
     function handleRemove() {
@@ -21,7 +21,7 @@ function Movement({ movement, setMovements }) {
 
         const key = Date.now();
         setVariations(prevVariatons => (
-            [...prevVariatons, { id: key, name: 'variation' }]
+            [...prevVariatons, { id: key, name: 'Variation' }]
         ))
     }
 

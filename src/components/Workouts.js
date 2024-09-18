@@ -9,14 +9,14 @@ function Workouts() {
 
   return (
     <main className={styles.container}>
-      <ul>
+      <div>
         {sections.map((s) => (
           <Section
             key={s.id}
             section={s}
             setSections={setSections}
           />))}
-      </ul>
+      </div>
       <AddSection setSections={setSections} />
     </main>
   );

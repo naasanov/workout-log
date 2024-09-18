@@ -9,7 +9,7 @@ function AddSection({ setSections }) {
         e.preventDefault();
         const key = Date.now()
 
-        setSections(prevSections => [...prevSections, { id: key, name: 'section' }]);
+        setSections(prevSections => [...prevSections, { id: key, name: 'Muscle Group' }]);
         setShowError(false);
     }
 

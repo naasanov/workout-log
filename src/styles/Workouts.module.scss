@@ -18,9 +18,9 @@
   background-color: $surface;
 
   padding: 17px 32px;
+  margin-bottom: 0.5rem;
   max-height: 65px;
   border-radius: $border-radius;
-  margin-bottom: 0.5rem;
 
   letter-spacing: $sarabun-spacing;
   color: $text;
@@ -112,6 +112,7 @@
 
 .movements {
   padding-bottom: 10px;
+  margin: 0;
 
   &:empty {
     padding: 0;
