@@ -5,7 +5,7 @@ function Editable({ value, onSubmit, className }) {
   const [input, setInput] = useState(value);
   const [editing, setEditing] = useState(false);
   const inputRef = useRef(null);
-  const {setShowError} = useError();
+  const setShowError = useError();
 
   // keeps width of input locked to width of text
   useEffect(() => {
@@ -55,6 +55,11 @@ function Editable({ value, onSubmit, className }) {
     }
   }
 
+  function handleChange(e) {
+    setInput(e.target.value);
+    setShowError(false);
+  }
+
   return (
     <div className={className}>
       {
@@ -64,7 +69,7 @@ function Editable({ value, onSubmit, className }) {
               <input
                 ref={inputRef}
                 value={input}
-                onChange={e => setInput(e.target.value)}
+                onChange={handleChange}
                 onFocus={e => e.target.select()}
                 type='text'
               />
