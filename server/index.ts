@@ -1,10 +1,13 @@
-import express, { Express, Request, Response } from "express";
+import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import mysql from "mysql2";
+import users from './routes/users';
+import { Pool } from "mysql2/typings/mysql/lib/Pool";
 
 dotenv.config()
 
-const app: Express = express();
+const app = express();
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 
@@ -14,9 +17,23 @@ app.use(cors({
     optionsSuccessStatus: 200
 }))
 
-app.get('/', (req: Request, res: Response) => {
+const pool: Pool = mysql.createPool({
+    host: process.env.HOST,
+    user: process.env.DB_USERNAME,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME
+});
+
+app.use((req, res, next) => {
+    req.pool = pool;
+    next();
+});
+
+app.get('/', (req, res) => {
     res.send("Express + TS Server");
 })
+
+app.use('/users', users);
 
 const port = process.env.PORT || 4000;
 app.listen(port, () => {
