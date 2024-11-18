@@ -5,5 +5,10 @@ declare global {
       interface Request {
         pool: Pool;
       }
-    }
+    };
+    type MessageResponse = {
+      message: string;
+    };
   }
+
+  export {};
