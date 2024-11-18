@@ -1,9 +1,9 @@
 import { Router, Request, Response } from "express";
 import { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import pool from '../database';
-import { getSqlError } from '../utils/helperFunctions';
-import sqlErrors from '../utils/sqlErrors';
-const { NULL_ERROR, PARSE_ERROR, DUPLICATE_ERROR, FIELD_ERROR } = sqlErrors;
+import handleSqlError from '../utils/handleSqlError';
+import SqlError from '../utils/sqlErrors';
+const { NULL_ERROR, PARSE_ERROR, DUPLICATE_ERROR, FIELD_ERROR } = SqlError;
 
 const router = Router();
 
@@ -14,7 +14,13 @@ router.post('/', async (req: Request, res: Response) => {
     const { email, password }: ReqBody = req.body;
 
     if (!email || !password) {
-        res.status(400).json({ message: "Missing email and/or password in request body" })
+        res.status(400).json({ message: "Missing email and/or password in request body" });
+        return;
+    }
+
+    if (Object.keys(req.body).length !== 2) {
+        res.status(400).json({ message: "Body must only include eamil and password"});
+        return;
     }
 
     try {
@@ -24,17 +30,10 @@ router.post('/', async (req: Request, res: Response) => {
             `, [email, password]
         )
     } catch (error) {
-        console.log(error);
-        const sqlError = getSqlError(error);
-        if (!sqlError) {
-            res.status(500).json({ message: "Internal server error" });
-        }
-        else if (sqlError.code === NULL_ERROR) {
-            res.status(400).json({ message: "Email or password cannot be null" })
-        }
-        else {
-            res.status(500).json({ message: "Internal server error" });
-        }
+        handleSqlError(error, res, {
+            [NULL_ERROR]: [400, "Email or password cannot be null"],
+            [DUPLICATE_ERROR]: [409, "User with this email already exists"]
+        })
         return;
     }
 
@@ -69,8 +68,7 @@ router.get('/:id', async (req: Request, res: Response) => {
             `, [id]
         )
     } catch (error) {
-        console.log(error);
-        res.status(500).json({ message: "Internal server error" });
+        handleSqlError(error, res)
         return;
     }
 
@@ -103,23 +101,11 @@ router.patch('/:id', async (req: Request, res: Response) => {
             `, [req.body, id]
         )
     } catch (error) {
-        console.log(error);
-        const sqlError = getSqlError(error);
-        if (!sqlError) {
-            res.status(500).json({ message: "Internal server error" });
-        }
-        else if (sqlError.code === PARSE_ERROR || sqlError.code === FIELD_ERROR) {
-            res.status(400).json({ message: "Request body must only include email and/or password" });
-        }
-        else if (sqlError.code === NULL_ERROR) {
-            res.status(400).json({ message: "Request body parameters cannot be null" })
-        }
-        else if (sqlError.code === DUPLICATE_ERROR) {
-            res.status(409).json({ message: "User with this email already exists" })
-        }
-        else {
-            res.status(500).json({ message: "Internal server error" });
-        }
+        handleSqlError(error, res, {
+            [PARSE_ERROR]: [400, "Request body must only include email and/or password"],
+            [NULL_ERROR]: [400, "Request body parameters cannot be null"],
+            [DUPLICATE_ERROR]: [409, "User with this email already exists"],
+        })
         return;
     }
 
@@ -145,8 +131,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
             `, [id]
         )
     } catch (error) {
-        console.log(error)
-        res.status(500).json({ message: "Internal server error" });
+        handleSqlError(error, res)
         return;
     }
 
