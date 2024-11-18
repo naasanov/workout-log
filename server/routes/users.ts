@@ -42,9 +42,9 @@ router.post('/', async (req: Request, res: Response) => {
 
 // Read
 router.get('/', async (req: Request, res: Response) => {
-    let result: RowDataPacket[];
+    let data: RowDataPacket[];
     try {
-        [result] = await pool.query<RowDataPacket[]>(`SELECT * FROM users`);
+        [data] = await pool.query<RowDataPacket[]>(`SELECT * FROM users`);
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Internal server error" });
@@ -52,7 +52,7 @@ router.get('/', async (req: Request, res: Response) => {
     }   
 
     res.status(200).json({
-        data: result,
+        data,
         message: "Successfully retrieved all users"
     });
 })
@@ -60,9 +60,9 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/:id', async (req: Request, res: Response) => {
     const id: string = req.params.id;
 
-    let result: RowDataPacket;
+    let data: RowDataPacket;
     try {
-        [[result]] = await pool.query<RowDataPacket[]>(`
+        [[data]] = await pool.query<RowDataPacket[]>(`
             SELECT * FROM users
             WHERE uuid = ?
             `, [id]
@@ -72,13 +72,13 @@ router.get('/:id', async (req: Request, res: Response) => {
         return;
     }
 
-    if (!result) {
+    if (!data) {
         res.status(404).json({ message: `No user found with id ${id}`});
         return;
     }
 
     res.status(200).json({
-        data: result,
+        data,
         message: `Successfully retrieved user with id ${id}`
     })
 })
@@ -92,9 +92,9 @@ router.patch('/:id', async (req: Request, res: Response) => {
         return;
     }
 
-    let result: ResultSetHeader;
+    let data: ResultSetHeader;
     try {
-        [result] = await pool.query<ResultSetHeader>(`
+        [data] = await pool.query<ResultSetHeader>(`
             UPDATE users
             SET ?
             WHERE uuid = ?
@@ -109,7 +109,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
         return;
     }
 
-    if (result.affectedRows === 0) {
+    if (data.affectedRows === 0) {
         res.status(404).json({ message: `No user with id ${id}`});
         return;
     }
@@ -123,9 +123,9 @@ router.patch('/:id', async (req: Request, res: Response) => {
 router.delete('/:id', async (req: Request, res: Response) => {
     const id: string = req.params.id;
     
-    let result: ResultSetHeader;
+    let data: ResultSetHeader;
     try {
-        [result] = await pool.query<ResultSetHeader>(`
+        [data] = await pool.query<ResultSetHeader>(`
             DELETE FROM users
             WHERE uuid = ?
             `, [id]
@@ -135,7 +135,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
         return;
     }
 
-    if (result.affectedRows === 0) {
+    if (data.affectedRows === 0) {
         res.status(404).json({ message: `No user found with id ${id}`});
         return;
     }
