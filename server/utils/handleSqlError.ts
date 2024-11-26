@@ -32,7 +32,9 @@ function getSqlError(error: unknown) {
  * If error map is not provided, sends default message and status for any error
  * @param error 
  * @param res Response object of current request handler
- * @param errorMap Defines behavior for specified errors
+ * @param errorMap Defines behavior for specified errors, typed as follows:  
+ * * [key in SqlError]?: [number, string];  
+ *   fallback?: [number, string];
  */
 function handleSqlError(error: unknown, res: Response, errorMap?: ErrorMap) {
     console.log(error);

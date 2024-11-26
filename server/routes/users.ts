@@ -1,15 +1,14 @@
-import { Router, Request, Response } from "express";
+import { Router } from "express";
 import { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import pool from '../database';
 import handleSqlError from '../utils/handleSqlError';
 import SqlError from '../utils/sqlErrors';
-const { NULL_ERROR, PARSE_ERROR, DUPLICATE_ERROR, FIELD_ERROR } = SqlError;
+const { NULL_ERROR, PARSE_ERROR, DUPLICATE_ERROR } = SqlError;
 
 const router = Router();
 
-// TODO: Add error handling
 // Create
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', async (req, res) => {
     type ReqBody = { email: string, password: string };
     const { email, password }: ReqBody = req.body;
 
@@ -41,7 +40,7 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // Read
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (req, res) => {
     let data: RowDataPacket[];
     try {
         [data] = await pool.query<RowDataPacket[]>(`SELECT * FROM users`);
@@ -57,7 +56,7 @@ router.get('/', async (req: Request, res: Response) => {
     });
 })
 
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', async (req, res) => {
     const id: string = req.params.id;
 
     let data: RowDataPacket;
@@ -84,9 +83,8 @@ router.get('/:id', async (req: Request, res: Response) => {
 })
 
 // Update
-router.patch('/:id', async (req: Request, res: Response) => {
+router.patch('/:id', async (req, res) => {
     const id: string = req.params.id;
-    
     if ('uuid' in req.body || 'idusers' in req.body) {
         res.status(403).json({ message: "Forbidden" });
         return;
@@ -114,13 +112,11 @@ router.patch('/:id', async (req: Request, res: Response) => {
         return;
     }
 
-    res.status(200).send({
-        message: `Successfully updated user with id ${id}`
-    });
+    res.status(200).send({ message: `Successfully updated user with id ${id}` });
 })
 
 // Delete
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', async (req, res) => {
     const id: string = req.params.id;
     
     let data: ResultSetHeader;
