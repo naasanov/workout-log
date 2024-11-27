@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { ResultSetHeader, RowDataPacket } from "mysql2/promise";
+import { ResultSetHeader, RowDataPacket } from "mysql2";
 import pool from '../database';
 import handleSqlError from '../utils/handleSqlError';
 import SqlError from '../utils/sqlErrors';
@@ -45,11 +45,9 @@ router.get('/', async (req, res) => {
     try {
         [data] = await pool.query<RowDataPacket[]>(`SELECT * FROM users`);
     } catch (error) {
-        console.log(error);
-        res.status(500).json({ message: "Internal server error" });
+        handleSqlError(error, res)
         return;
     }   
-
     res.status(200).json({
         data,
         message: "Successfully retrieved all users"
