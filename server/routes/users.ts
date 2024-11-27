@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { ResultSetHeader, RowDataPacket } from "mysql2/promise";
+import { ResultSetHeader, RowDataPacket } from "mysql2";
 import pool from '../database';
 import handleSqlError from '../utils/handleSqlError';
 import SqlError from '../utils/sqlErrors';
@@ -8,18 +8,16 @@ const { NULL_ERROR, PARSE_ERROR, DUPLICATE_ERROR } = SqlError;
 const router = Router();
 
 // Create
-router.post('/', async (req, res) => {
+router.post('/', async (req, res): Promise<any> => {
     type ReqBody = { email: string, password: string };
     const { email, password }: ReqBody = req.body;
 
     if (!email || !password) {
-        res.status(400).json({ message: "Missing email and/or password in request body" });
-        return;
+        return res.status(400).json({ message: "Missing email and/or password in request body" });
     }
 
     if (Object.keys(req.body).length !== 2) {
-        res.status(400).json({ message: "Body must only include eamil and password"});
-        return;
+        return res.status(400).json({ message: "Body must only include eamil and password"});
     }
 
     try {
@@ -29,34 +27,30 @@ router.post('/', async (req, res) => {
             `, [email, password]
         )
     } catch (error) {
-        handleSqlError(error, res, {
+        return handleSqlError(error, res, {
             [NULL_ERROR]: [400, "Email or password cannot be null"],
             [DUPLICATE_ERROR]: [409, "User with this email already exists"]
         })
-        return;
     }
 
     res.status(200).json({ message: "Successfully created new user" });
 });
 
 // Read
-router.get('/', async (req, res) => {
+router.get('/', async (req, res): Promise<any> => {
     let data: RowDataPacket[];
     try {
         [data] = await pool.query<RowDataPacket[]>(`SELECT * FROM users`);
     } catch (error) {
-        console.log(error);
-        res.status(500).json({ message: "Internal server error" });
-        return;
+        return handleSqlError(error, res)
     }   
-
     res.status(200).json({
         data,
         message: "Successfully retrieved all users"
     });
 })
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req, res): Promise<any> => {
     const id: string = req.params.id;
 
     let data: RowDataPacket;
@@ -67,13 +61,11 @@ router.get('/:id', async (req, res) => {
             `, [id]
         )
     } catch (error) {
-        handleSqlError(error, res)
-        return;
+        return handleSqlError(error, res)
     }
 
     if (!data) {
-        res.status(404).json({ message: `No user found with id ${id}`});
-        return;
+        return res.status(404).json({ message: `No user found with id ${id}`});
     }
 
     res.status(200).json({
@@ -83,11 +75,10 @@ router.get('/:id', async (req, res) => {
 })
 
 // Update
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', async (req, res): Promise<any> => {
     const id: string = req.params.id;
-    if ('uuid' in req.body || 'idusers' in req.body) {
-        res.status(403).json({ message: "Forbidden" });
-        return;
+    if ('uuid' in req.body || 'user_id' in req.body) {
+        return res.status(403).json({ message: "Forbidden" });
     }
 
     let data: ResultSetHeader;
@@ -99,24 +90,22 @@ router.patch('/:id', async (req, res) => {
             `, [req.body, id]
         )
     } catch (error) {
-        handleSqlError(error, res, {
+        return handleSqlError(error, res, {
             [PARSE_ERROR]: [400, "Request body must only include email and/or password"],
             [NULL_ERROR]: [400, "Request body parameters cannot be null"],
             [DUPLICATE_ERROR]: [409, "User with this email already exists"],
         })
-        return;
     }
 
     if (data.affectedRows === 0) {
-        res.status(404).json({ message: `No user with id ${id}`});
-        return;
+        return res.status(404).json({ message: `No user with id ${id}`});
     }
 
     res.status(200).send({ message: `Successfully updated user with id ${id}` });
 })
 
 // Delete
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req, res): Promise<any> => {
     const id: string = req.params.id;
     
     let data: ResultSetHeader;
@@ -127,13 +116,11 @@ router.delete('/:id', async (req, res) => {
             `, [id]
         )
     } catch (error) {
-        handleSqlError(error, res)
-        return;
+        return handleSqlError(error, res)
     }
 
     if (data.affectedRows === 0) {
-        res.status(404).json({ message: `No user found with id ${id}`});
-        return;
+        return res.status(404).json({ message: `No user found with id ${id}`});
     }
 
     res.status(200).send({

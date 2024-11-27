@@ -34,3 +34,9 @@ CREATE TABLE `workout_log`.`variations` (
   FOREIGN KEY (movement_id) REFERENCES movements(movement_id),
   PRIMARY KEY (`variation_id`),
   UNIQUE INDEX `variation_id_UNIQUE` (`variation_id` ASC) VISIBLE);
+
+
+IF NOT EXISTS (
+    SELECT 1 FROM users
+    WHERE user_id = ?
+)

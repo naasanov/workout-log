@@ -2,6 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import users from './routes/users';
+import sections from './routes/sections';
 
 dotenv.config()
 
@@ -16,6 +17,7 @@ app.use(cors({
 }))
 
 app.use('/users', users);
+app.use('/sections', sections);
 
 app.get('/', (req, res) => {
     res.send("running correctly")
