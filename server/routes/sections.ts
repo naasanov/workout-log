@@ -8,18 +8,18 @@ const { NULL_ERROR, PARSE_ERROR, DUPLICATE_ERROR } = SqlError;
 const router = Router();
 
 // GET many
-router.get('/:userId', async (req, res): Promise<any> => {
+router.get('/:uuid', async (req, res): Promise<any> => {
     let data: RowDataPacket[];
-    const userId = req.params.userId;
+    const uuid = req.params.uuid;
 
     try {
         const [userExists] = await pool.query(`
             SELECT 1 FROM users
             WHERE user_id = ?
             LIMIT 1
-        `, [userId])
+        `, [uuid])
         if (!userExists) {
-            return res.send(404).json({ message: `User with id ${userId} does not exist` });
+            return res.send(404).json({ message: `User with id ${uuid} does not exist` });
         }
     } catch (error) {
         return handleSqlError(error, res);
@@ -30,7 +30,7 @@ router.get('/:userId', async (req, res): Promise<any> => {
             SELECT section_id, label
             FROM sections
             WHERE user_id = ?
-        `, [userId])
+        `, [uuid])
     }
     catch (error) {
         return handleSqlError(error, res);
@@ -38,7 +38,7 @@ router.get('/:userId', async (req, res): Promise<any> => {
 
     res.status(200).json({
         data,
-        message: `Successfully retrieved all sections for user with id ${userId}`
+        message: `Successfully retrieved all sections for user with id ${uuid}`
     })
 })
 
@@ -69,10 +69,10 @@ router.get('/:sectionId', async (req, res): Promise<any> => {
 })
 
 // POST
-router.post('/:userId', async (req, res): Promise<any> => {
+router.post('/:uuid', async (req, res): Promise<any> => {
     type ReqBody = { label: string };
     const { label }: ReqBody = req.body;
-    const userId = req.params.userId;
+    const uuid = req.params.uuid;
     let result: ResultSetHeader;
     
     if (!label) {
@@ -83,7 +83,7 @@ router.post('/:userId', async (req, res): Promise<any> => {
         [result] = await pool.query<ResultSetHeader>(`
             INSERT INTO sections
             VALUES (?, ?)
-        `, [userId, label])
+        `, [uuid, label])
     }
     catch (error) {
         return handleSqlError(error, res, {

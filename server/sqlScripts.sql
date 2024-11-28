@@ -1,42 +1,29 @@
-CREATE TABLE `workout_log`.`users` (
-  `user_id` INT NOT NULL AUTO_INCREMENT,
-  `uuid` CHAR(36) NOT NULL DEFAULT (UUID()),
-  `email` VARCHAR(254) NOT NULL,
-  `password` VARCHAR(60) NOT NULL,
-  PRIMARY KEY (`user_id`),
-  UNIQUE INDEX `user_id_UNIQUE` (`user_id` ASC) VISIBLE,
-  UNIQUE INDEX `uuid_UNIQUE` (`uuid` ASC) VISIBLE,
-  UNIQUE INDEX `email_UNIQUE` (`email` ASC) VISIBLE);
+CREATE TABLE users (
+  user_uuid BINARY(16) PRIMARY KEY DEFAULT (UUID_TO_BIN(UUID())),
+  email VARCHAR(254) NOT NULL UNIQUE,
+  `password` VARCHAR(60) NOT NULL
+);
 
-CREATE TABLE `workout_log`.`sections` (
-  `section_id` INT NOT NULL AUTO_INCREMENT,
-  `user_id` INT NOT NULL,
-  `label` VARCHAR(255) NOT NULL,
-  PRIMARY KEY (`section_id`),
-  FOREIGN KEY (user_id) REFERENCES users(user_id),
-  UNIQUE INDEX `section_id_UNIQUE` (`section_id` ASC) VISIBLE);
+CREATE TABLE sections (
+  section_id INT AUTO_INCREMENT PRIMARY KEY,
+  user_uuid BINARY(16) NOT NULL,
+  label VARCHAR(50) NOT NULL,
+  FOREIGN KEY (user_uuid) REFERENCES users(user_uuid) ON DELETE CASCADE
+);
 
-CREATE TABLE `workout_log`.`movements` (
-  `movement_id` INT NOT NULL AUTO_INCREMENT,
-  `section_id` INT NOT NULL,
-  `label` VARCHAR(255) NOT NULL,
-  PRIMARY KEY (`movement_id`),
-  FOREIGN KEY (section_id) REFERENCES sections(section_id),
-  UNIQUE INDEX `movement_id_UNIQUE` (`movement_id` ASC) VISIBLE);
+CREATE TABLE movements (
+  movement_id INT AUTO_INCREMENT PRIMARY KEY,
+  section_id INT NOT NULL,
+  label VARCHAR(50) NOT NULL,
+  FOREIGN KEY (section_id) REFERENCES sections(section_id) ON DELETE CASCADE
+);
 
-CREATE TABLE `workout_log`.`variations` (
-  `variation_id` INT NOT NULL AUTO_INCREMENT,
-  `movement_id` INT NOT NULL,
-  `label` VARCHAR(255) NULL,
-  `weight` VARCHAR(255) NULL,
-  `reps` VARCHAR(255) NULL,
-  `date` DATETIME NULL,
-  FOREIGN KEY (movement_id) REFERENCES movements(movement_id),
-  PRIMARY KEY (`variation_id`),
-  UNIQUE INDEX `variation_id_UNIQUE` (`variation_id` ASC) VISIBLE);
-
-
-IF NOT EXISTS (
-    SELECT 1 FROM users
-    WHERE user_id = ?
-)
+CREATE TABLE variations (
+  variation_id INT AUTO_INCREMENT PRIMARY KEY,
+  movement_id INT NOT NULL,
+  label VARCHAR(50) NOT NULL DEFAULT '',
+  weight FLOAT NULL,
+  reps INT NOT NULL DEFAULT 0,
+  `date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (movement_id) REFERENCES movements(movement_id) ON DELETE CASCADE
+);

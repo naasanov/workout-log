@@ -17,7 +17,7 @@ router.post('/', async (req, res): Promise<any> => {
     }
 
     if (Object.keys(req.body).length !== 2) {
-        return res.status(400).json({ message: "Body must only include eamil and password"});
+        return res.status(400).json({ message: "Body must only include email and password"});
     }
 
     try {
