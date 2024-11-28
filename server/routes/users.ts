@@ -20,12 +20,20 @@ router.post('/', async (req, res): Promise<any> => {
         return res.status(400).json({ message: "Body must only include email and password"});
     }
 
+    let result: RowDataPacket;
     try {
         await pool.query<ResultSetHeader>(`
             INSERT INTO users (email, password)
-            VALUES (?, ?)
+            VALUES (?, ?);
             `, [email, password]
-        )
+        );
+
+        [[result]] = await pool.query<RowDataPacket[]>(`
+            SELECT BIN_TO_UUID(user_uuid) AS uuid
+            FROM users
+            WHERE email = ?;
+        `, [email])
+
     } catch (error) {
         return handleSqlError(error, res, {
             [NULL_ERROR]: [400, "Email or password cannot be null"],
@@ -33,14 +41,20 @@ router.post('/', async (req, res): Promise<any> => {
         })
     }
 
-    res.status(200).json({ message: "Successfully created new user" });
+    res.status(201).json({ 
+        message: "Successfully created new user",
+        data: { uuid: result.uuid }
+    });
 });
 
 // Read
 router.get('/', async (req, res): Promise<any> => {
     let data: RowDataPacket[];
     try {
-        [data] = await pool.query<RowDataPacket[]>(`SELECT * FROM users`);
+        [data] = await pool.query<RowDataPacket[]>(`
+            SELECT BIN_TO_UUID(user_uuid) AS user_uuid, email, password
+            FROM users;
+        `);
     } catch (error) {
         return handleSqlError(error, res)
     }   
@@ -50,34 +64,34 @@ router.get('/', async (req, res): Promise<any> => {
     });
 })
 
-router.get('/:id', async (req, res): Promise<any> => {
-    const id: string = req.params.id;
+router.get('/:uuid', async (req, res): Promise<any> => {
+    const uuid: string = req.params.uuid;
 
     let data: RowDataPacket;
     try {
         [[data]] = await pool.query<RowDataPacket[]>(`
-            SELECT * FROM users
-            WHERE uuid = ?
-            `, [id]
-        )
+            SELECT BIN_TO_UUID(user_uuid) AS uuid, email, password 
+            FROM users
+            WHERE user_uuid = UUID_TO_BIN(?);
+        `, [uuid])
     } catch (error) {
         return handleSqlError(error, res)
     }
 
     if (!data) {
-        return res.status(404).json({ message: `No user found with id ${id}`});
+        return res.status(404).json({ message: `No user found with uuid ${uuid}`});
     }
 
     res.status(200).json({
         data,
-        message: `Successfully retrieved user with id ${id}`
+        message: `Successfully retrieved user with uuid ${uuid}`
     })
 })
 
 // Update
-router.patch('/:id', async (req, res): Promise<any> => {
-    const id: string = req.params.id;
-    if ('uuid' in req.body || 'user_id' in req.body) {
+router.patch('/:uuid', async (req, res): Promise<any> => {
+    const uuid: string = req.params.uuid;
+    if ('user_uuid' in req.body) {
         return res.status(403).json({ message: "Forbidden" });
     }
 
@@ -86,8 +100,8 @@ router.patch('/:id', async (req, res): Promise<any> => {
         [data] = await pool.query<ResultSetHeader>(`
             UPDATE users
             SET ?
-            WHERE uuid = ?
-            `, [req.body, id]
+            WHERE user_uuid = UUID_TO_BIN(?)
+            `, [req.body, uuid]
         )
     } catch (error) {
         return handleSqlError(error, res, {
@@ -98,33 +112,33 @@ router.patch('/:id', async (req, res): Promise<any> => {
     }
 
     if (data.affectedRows === 0) {
-        return res.status(404).json({ message: `No user with id ${id}`});
+        return res.status(404).json({ message: `No user with uuid ${uuid}`});
     }
 
-    res.status(200).send({ message: `Successfully updated user with id ${id}` });
+    res.status(200).send({ message: `Successfully updated user with uuid ${uuid}` });
 })
 
 // Delete
-router.delete('/:id', async (req, res): Promise<any> => {
-    const id: string = req.params.id;
+router.delete('/:uuid', async (req, res): Promise<any> => {
+    const uuid: string = req.params.uuid;
     
     let data: ResultSetHeader;
     try {
         [data] = await pool.query<ResultSetHeader>(`
             DELETE FROM users
-            WHERE uuid = ?
-            `, [id]
+            WHERE user_uuid = UUID_TO_BIN(?)
+            `, [uuid]
         )
     } catch (error) {
         return handleSqlError(error, res)
     }
 
     if (data.affectedRows === 0) {
-        return res.status(404).json({ message: `No user found with id ${id}`});
+        return res.status(404).json({ message: `No user found with uuid ${uuid}`});
     }
 
     res.status(200).send({
-        message: `Successfully deleted user with id ${id}`
+        message: `Successfully deleted user with uuid ${uuid}`
     });
 })
 

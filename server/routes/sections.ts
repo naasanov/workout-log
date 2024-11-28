@@ -3,33 +3,34 @@ import { Router } from 'express';
 import pool from '../database';
 import handleSqlError from '../utils/handleSqlError';
 import SqlError from '../utils/sqlErrors';
-const { NULL_ERROR, PARSE_ERROR, DUPLICATE_ERROR } = SqlError;
+const { WRONG_TYPE_ERROR, NO_REFERENCE_ERROR, TOO_LONG_ERROR, WRONG_VALUE_ERROR } = SqlError;
 
 const router = Router();
 
 // GET many
-router.get('/:uuid', async (req, res): Promise<any> => {
+router.get('/user/:uuid', async (req, res): Promise<any> => {
     let data: RowDataPacket[];
     const uuid = req.params.uuid;
 
     try {
-        const [userExists] = await pool.query(`
+        const [userExists] = await pool.query<RowDataPacket[]>(`
             SELECT 1 FROM users
-            WHERE user_id = ?
-            LIMIT 1
+            WHERE user_uuid = UUID_TO_BIN(?)
         `, [uuid])
-        if (!userExists) {
-            return res.send(404).json({ message: `User with id ${uuid} does not exist` });
+        if (userExists.length === 0) {
+            return res.status(404).json({ message: `User with id ${uuid} does not exist` });
         }
     } catch (error) {
-        return handleSqlError(error, res);
+        return handleSqlError(error, res, {
+            [WRONG_TYPE_ERROR]: [400, "Request parameter must be a 36 character, hyphen separated uuid"]
+        });
     }
 
     try {
         [data] = await pool.query<RowDataPacket[]>(`
             SELECT section_id, label
             FROM sections
-            WHERE user_id = ?
+            WHERE user_uuid = UUID_TO_BIN(?)
         `, [uuid])
     }
     catch (error) {
@@ -43,9 +44,13 @@ router.get('/:uuid', async (req, res): Promise<any> => {
 })
 
 // GET one
-router.get('/:sectionId', async (req, res): Promise<any> => {
+router.get('/section/:sectionId', async (req, res): Promise<any> => {
     let data: RowDataPacket;
     const sectionId = req.params.sectionId;
+
+    if (isNaN(sectionId as any)) {
+        return res.status(400).json({ message: "Section id parameter must be an integer" })
+    }
 
     try {
         [[data]] = await pool.query<RowDataPacket[]>(`
@@ -59,7 +64,7 @@ router.get('/:sectionId', async (req, res): Promise<any> => {
     }
 
     if (!data) {
-        return res.status(404).json({ message: `Section with id ${sectionId} not found`});
+        return res.status(404).json({ message: `Section with id ${sectionId} not found` });
     }
 
     res.status(200).json({
@@ -73,64 +78,70 @@ router.post('/:uuid', async (req, res): Promise<any> => {
     type ReqBody = { label: string };
     const { label }: ReqBody = req.body;
     const uuid = req.params.uuid;
-    let result: ResultSetHeader;
     
     if (!label) {
-        return res.send(400).json({ message: 'Request body must include a label'});
+        return res.status(400).json({ message: 'Request body must include a label' });
     }
-    
+
+    let result: ResultSetHeader;
     try {
         [result] = await pool.query<ResultSetHeader>(`
-            INSERT INTO sections
-            VALUES (?, ?)
+            INSERT INTO sections (user_uuid, label)
+            VALUES (UUID_TO_BIN(?), ?)
         `, [uuid, label])
     }
     catch (error) {
         return handleSqlError(error, res, {
-            [NULL_ERROR]: [400, "Label and user id cannot be null"],
+            [WRONG_TYPE_ERROR]: [400, "Request parameter must be a 36 character, hyphen separated uuid"],
+            [NO_REFERENCE_ERROR]: [404, `User with uuid ${uuid} not found`],
+            [TOO_LONG_ERROR]: [400, `Label must not exceed 50 characters`]
         })
     }
 
     const sectionId = result.insertId;
-    res.send(200).json({
+    res.status(201).json({
         data: { sectionId },
-        message: `Successfullly created section`
+        message: `Successfullly created section with id ${sectionId}`
     })
 })
 
 // PATCH
 router.patch('/:sectionId', async (req, res): Promise<any> => {
     const sectionId: string = req.params.sectionId;
-    if ('section_id' in req.body) {
-        return res.status(403).json({ message: "Forbidden" });
+
+    const label = req.body.label;
+    if (label === null || label === undefined) {
+        return res.status(400).json({ message: "Request body must include a non-null label" })
+    }
+    else if (label.length > 50) {
+        return res.status(400).json({ message: "Label must not exceed 50 characters"})
     }
 
     let data: ResultSetHeader;
     try {
         [data] = await pool.query<ResultSetHeader>(`
             UPDATE sections
-            SET ?
+            SET label = ?
             WHERE section_id = ?
-            `, [req.body, sectionId]
+            `, [label, sectionId]
         )
     } catch (error) {
         return handleSqlError(error, res, {
-            [PARSE_ERROR]: [400, "Request body must only include label"],
-            [NULL_ERROR]: [400, "Request body parameters cannot be null"],
+            [WRONG_VALUE_ERROR]: [400, "Request parameter section id must be an integer"]
         })
     }
 
     if (data.affectedRows === 0) {
-        return res.status(404).json({ message: `No section with id ${sectionId}`});
+        return res.status(404).json({ message: `No section with id ${sectionId}` });
     }
 
-    res.status(200).send({ message: `Successfully updated section with id ${sectionId}` });
+    res.status(200).json({ message: `Successfully updated section with id ${sectionId}` });
 })
 
 // DELETE
 router.delete('/:sectionId', async (req, res): Promise<any> => {
     const sectionId = req.params.sectionId;
-    
+
     let data: ResultSetHeader;
     try {
         [data] = await pool.query<ResultSetHeader>(`
@@ -139,14 +150,16 @@ router.delete('/:sectionId', async (req, res): Promise<any> => {
             `, [sectionId]
         )
     } catch (error) {
-        return handleSqlError(error, res);
+        return handleSqlError(error, res, {
+            [WRONG_VALUE_ERROR]: [400, "Request parameter section id must be an integer"]
+        });
     }
 
     if (data.affectedRows === 0) {
-        return res.status(404).json({ message: `No section found with id ${sectionId}`});
+        return res.status(404).json({ message: `No section found with id ${sectionId}` });
     }
 
-    res.status(200).send({ message: `Successfully deleted user with id ${sectionId}` });
+    res.status(200).json({ message: `Successfully deleted section with id ${sectionId}` });
 })
 
 export default router;
