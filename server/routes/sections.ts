@@ -2,16 +2,45 @@ import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { Router } from 'express';
 import pool from '../database';
 import handleSqlError from '../utils/handleSqlError';
+import { validateLabel, validateId } from '../utils/validation';
 import SqlError from '../utils/sqlErrors';
 const { WRONG_TYPE_ERROR, NO_REFERENCE_ERROR, TOO_LONG_ERROR, WRONG_VALUE_ERROR } = SqlError;
 
 const router = Router();
 
+// POST
+router.post('/:uuid', async (req, res): Promise<any> => {
+    const uuid = req.params.uuid;
+    const label = req.body.label;
+    if (!validateLabel(label, res)) return;
+
+    let result: ResultSetHeader;
+    try {
+        [result] = await pool.query<ResultSetHeader>(`
+            INSERT INTO sections (user_uuid, label)
+            VALUES (UUID_TO_BIN(?), ?)
+            `, [uuid, label])
+        }
+    catch (error) {
+        return handleSqlError(error, res, {
+            [WRONG_TYPE_ERROR]: [400, "Request parameter must be a 36 character, hyphen separated uuid"],
+            [NO_REFERENCE_ERROR]: [404, `User with uuid ${uuid} not found`],
+            [TOO_LONG_ERROR]: [400, `Label must not exceed 50 characters`]
+        })
+    }
+    
+    const sectionId = result.insertId;
+    res.status(201).json({
+        data: { sectionId },
+        message: `Successfullly created section with id ${sectionId}`
+    })
+})
+
 // GET many
 router.get('/user/:uuid', async (req, res): Promise<any> => {
-    let data: RowDataPacket[];
     const uuid = req.params.uuid;
-
+    
+    let data: RowDataPacket[];
     try {
         const [userExists] = await pool.query<RowDataPacket[]>(`
             SELECT 1 FROM users
@@ -45,13 +74,10 @@ router.get('/user/:uuid', async (req, res): Promise<any> => {
 
 // GET one
 router.get('/section/:sectionId', async (req, res): Promise<any> => {
-    let data: RowDataPacket;
     const sectionId = req.params.sectionId;
-
-    if (isNaN(sectionId as any)) {
-        return res.status(400).json({ message: "Section id parameter must be an integer" })
-    }
-
+    if (!validateId(sectionId)) return;
+    
+    let data: RowDataPacket;
     try {
         [[data]] = await pool.query<RowDataPacket[]>(`
             SELECT section_id, label
@@ -73,49 +99,11 @@ router.get('/section/:sectionId', async (req, res): Promise<any> => {
     })
 })
 
-// POST
-router.post('/:uuid', async (req, res): Promise<any> => {
-    type ReqBody = { label: string };
-    const { label }: ReqBody = req.body;
-    const uuid = req.params.uuid;
-    
-    if (!label) {
-        return res.status(400).json({ message: 'Request body must include a label' });
-    }
-
-    let result: ResultSetHeader;
-    try {
-        [result] = await pool.query<ResultSetHeader>(`
-            INSERT INTO sections (user_uuid, label)
-            VALUES (UUID_TO_BIN(?), ?)
-        `, [uuid, label])
-    }
-    catch (error) {
-        return handleSqlError(error, res, {
-            [WRONG_TYPE_ERROR]: [400, "Request parameter must be a 36 character, hyphen separated uuid"],
-            [NO_REFERENCE_ERROR]: [404, `User with uuid ${uuid} not found`],
-            [TOO_LONG_ERROR]: [400, `Label must not exceed 50 characters`]
-        })
-    }
-
-    const sectionId = result.insertId;
-    res.status(201).json({
-        data: { sectionId },
-        message: `Successfullly created section with id ${sectionId}`
-    })
-})
-
 // PATCH
 router.patch('/:sectionId', async (req, res): Promise<any> => {
-    const sectionId: string = req.params.sectionId;
-
+    const sectionId = req.params.sectionId;
     const label = req.body.label;
-    if (label === null || label === undefined) {
-        return res.status(400).json({ message: "Request body must include a non-null label" })
-    }
-    else if (label.length > 50) {
-        return res.status(400).json({ message: "Label must not exceed 50 characters"})
-    }
+    if (!validateId(sectionId, res) || !validateLabel(label, res)) return;
 
     let data: ResultSetHeader;
     try {
@@ -141,6 +129,7 @@ router.patch('/:sectionId', async (req, res): Promise<any> => {
 // DELETE
 router.delete('/:sectionId', async (req, res): Promise<any> => {
     const sectionId = req.params.sectionId;
+    if (!validateId(sectionId, res)) return;
 
     let data: ResultSetHeader;
     try {
