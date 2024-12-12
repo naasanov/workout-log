@@ -4,6 +4,7 @@ import cors from "cors";
 import users from './routes/users';
 import sections from './routes/sections';
 import movements from './routes/movements';
+import variations from './routes/variations';
 
 dotenv.config()
 
@@ -20,6 +21,7 @@ app.use(cors({
 app.use('/users', users);
 app.use('/sections', sections);
 app.use('/movements', movements);
+app.use('/variations', variations);
 
 app.get('/', (req, res) => {
     res.send("running correctly")
