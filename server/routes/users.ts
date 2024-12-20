@@ -64,7 +64,31 @@ router.get('/', async (req, res): Promise<any> => {
     });
 })
 
-router.get('/:uuid', async (req, res): Promise<any> => {
+router.get('/:email', async (req, res): Promise<any> => {
+    const email = req.params.email;
+    const password = req.body.password;
+
+    let data: RowDataPacket;
+    try {
+        [[data]] = await pool.query<RowDataPacket[]>(`
+            SELECT BIN_TO_UUID(user_uuid) AS uuid, email, password 
+            FROM users
+            WHERE email = ? AND password = ?;
+        `, [email, password])
+    }
+    catch (error) {
+        return handleSqlError(error, res, {
+            fallback: [500, "Some error (error handling not fully implemented yet)"]
+        });
+    }
+
+    res.status(200).json({
+        data,
+        message: `Successfully retrieved user with email ${email}`
+    });
+})
+
+router.get('/uuid/:uuid', async (req, res): Promise<any> => {
     const uuid: string = req.params.uuid;
 
     let data: RowDataPacket;
