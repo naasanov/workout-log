@@ -1,4 +1,3 @@
-import Header from './Header';
 import Workouts from './Workouts';
 import SignIn from './SignIn';
 import ErrorProvider from './ErrorProvider';
