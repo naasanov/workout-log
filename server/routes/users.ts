@@ -82,6 +82,10 @@ router.get('/:email', async (req, res): Promise<any> => {
         });
     }
 
+    if (!data) {
+        return res.status(404).json({ message: `No user found with email ${email}`});
+    }
+
     res.status(200).json({
         data,
         message: `Successfully retrieved user with email ${email}`

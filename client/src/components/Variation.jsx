@@ -3,10 +3,7 @@ import { useState } from 'react';
 
 import styles from '../styles/Variation.module.scss';
 
-import X from '../assets/delete.svg';
-import dumbbell from '../assets/dumbbell.svg';
-import number from '../assets/number.svg';
-import calender from '../assets/calender.svg';
+import { Delete, Dumbbell, Calender, Number } from './Icons';
 
 function Variation({ variation, setVariations }) {
   const [details, setDetails] = useState({
@@ -49,14 +46,14 @@ function Variation({ variation, setVariations }) {
 
       {/* weight */}
       <div className={styles.part} onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
-        <img className={styles.icon} src={dumbbell} alt='dumbbell icon'/>
+        <Dumbbell className={styles.icon}/>
         <Editable value={details.weight} onSubmit={change => handleDetailEdit("weight", change)} />
         <span> lbs</span>
       </ div>
 
       {/* reps */}
       <div className={styles.part} onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
-        <img className={styles.icon} src={number} alt='number icon'/>
+        <Number className={styles.icon}/>
         <Editable value={details.reps} onSubmit={change => handleDetailEdit("reps", change)} />
         <span> reps</span>
       </ div>
@@ -66,14 +63,14 @@ function Variation({ variation, setVariations }) {
 
       {/* date */}
       <div className={styles.part} onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
-        <img className={styles.icon} src={calender} alt='date icon'/>
+        <Calender className={styles.icon}/>
         <Editable value={details.date} onSubmit={change => handleDetailEdit("date", change)} />
       </ div>
 
       {/* remove */}
       <div onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)} className={`${styles.part} ${styles.remove}`}>
         <button className={styles.delete} onClick={handleRemove}>
-          <img style={{ width: showRemove ? 'auto' : '0px' }} src={X} alt="delete" />
+          <Delete style={{ width: showRemove ? 'auto' : '0px' }} className={styles.icon}/>
         </button>
       </div>
     </>

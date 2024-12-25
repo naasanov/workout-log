@@ -1,4 +1,4 @@
-import { useError } from './ErrorProvider';
+import { useError } from '../context/ErrorProvider';
 import styles from "../styles/Workouts.module.scss";
 import plus from "../assets/plus.svg";
 

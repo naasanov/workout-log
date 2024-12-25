@@ -1,0 +1,105 @@
+@import 'variables';
+
+.signin {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 100px;
+    font-family: $sarabun;
+    color: $text;
+
+    > span {
+        margin-bottom: 50px;
+        font-size: 30px;
+    }
+
+    > div {
+        background-color: $surface;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 35px 30px;
+        border-radius: $border-radius;
+        border: solid 1px $surface-border;
+        font-size: 17px;
+
+        > form {
+            display: flex;
+            flex-direction: column;
+            width: 350px;
+
+            > .input {
+                display: flex;
+                flex-direction: column;
+                margin-bottom: 20px;
+
+                > label {
+                    margin-bottom: 9px;
+                }
+
+                > input {
+                    border-radius: 5px;
+                    padding: 6px 10px;
+                    margin-bottom: 5px;
+                    background-color: $background;
+                    color: $text;
+                    border: solid 1px $surface-border;
+
+                    &:focus {
+                        outline: solid 1px $primary
+                    }
+                }
+
+                > span {
+                    font-size: 15px;
+                    color: $error;
+                }
+            }
+            
+            .error {
+                border-color: $error !important;
+            }
+
+            .message {
+                color: $error;
+                margin-top: 15px;
+            }
+
+            > .button {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+
+                > button {
+                    margin-top: 10px;
+                    border-radius: 20px;
+                    border: none;
+                    font-size: 17px;
+                    font-weight: 500;
+                    padding: 10px;
+                    background-color: $primary;
+                    width: 100%;
+                    cursor: pointer;
+                    color: $background;
+                    transition: 0.2s ease-in;
+
+                    &:hover {
+                        background-color: $primary-dark;
+                    }
+                }
+
+                > span {
+                    margin-top: 10px;
+
+                    > a {
+                        color: $primary;
+                        text-decoration: none;
+                    }
+                }
+            }
+        }
+    }
+
+
+}
+

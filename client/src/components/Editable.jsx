@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useError } from './ErrorProvider';
+import { useError } from '../context/ErrorProvider';
 
 function Editable({ value, onSubmit, className }) {
   const [input, setInput] = useState(value);
@@ -39,12 +39,12 @@ function Editable({ value, onSubmit, className }) {
     return () => {
       document.removeEventListener('click', handleOutsideClick, true)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, input]);
-  
+
   function handleSubmit(newValue) {
     const trimmed = newValue.trim();
-    if(!trimmed) { // show error if new value is only whitespace
+    if (!trimmed) { // show error if new value is only whitespace
       setShowError(true);
     }
     else {
@@ -65,7 +65,7 @@ function Editable({ value, onSubmit, className }) {
       {
         editing
           ? (
-            <form onSubmit={(e) => {e.preventDefault(); handleSubmit(input);}}>
+            <form onSubmit={(e) => { e.preventDefault(); handleSubmit(input); }}>
               <input
                 ref={inputRef}
                 value={input}
