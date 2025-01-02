@@ -1,76 +1,124 @@
 import Editable from './Editable';
-import { useState } from 'react';
-
+import { useEffect, useState } from 'react';
+import { format } from 'date-fns';
 import styles from '../styles/Variation.module.scss';
-
 import { Delete, Dumbbell, Calender, Number } from './Icons';
+import axios from 'axios';
+const URL = process.env.REACT_APP_API_URL;
 
 function Variation({ variation, setVariations }) {
   const [details, setDetails] = useState({
-    weight: "___",
-    reps: "___",
-    date: "mm/dd/yy"
+    date: format(new Date(), 'MM/dd/yy')
   });
   const [showRemove, setShowRemove] = useState(false);
+  useEffect(() => {
+    if (variation) {
+      setDetails({
+        weight: variation.weight ?? "___",
+        reps: variation.reps ?? "___",
+        date: variation.date == null
+          ? "mm/dd/yy"
+          : format(new Date(variation.date), 'MM/dd/yy')
+      })
+    }
+  }, [variation])
 
-  function handleRemove() {
+  async function handleRemove() {
     setVariations(prevVariations => (
       prevVariations.filter(v => (
         v.id !== variation.id
       ))
     ));
+    try {
+      await axios.delete(`${URL}/variations/${variation.id}`)
+    } catch (error) {
+      console.error(error)
+    }
   }
 
-  function handleTitleEdit(change) {
+  async function handleLabelEdit(change) {
     setVariations(prevVariations => (
       prevVariations.map(v => (
         v.id === variation.id
-          ? { ...v, name: change }
+          ? { ...v, label: change }
           : v
       ))
     ));
+    try {
+      await axios.patch(`${URL}/variations/${variation.id}`, {
+        label: change
+      })
+    } catch (error) {
+      console.error(error)
+    }
   }
 
-  function handleDetailEdit(field, change) {
+  async function handleDetailEdit(field, change) {
+    if (field === "weight") {
+      change = parseFloat(change);
+    }
+    else if (field === "reps") {
+      change = parseInt(change);
+    }
+
     setDetails(prevDetails => (
       { ...prevDetails, [field]: change }
     ));
+
+    try {
+      await axios.patch(`${URL}/variations/${variation.id}`, {
+        [field]: change
+      })
+    } catch (error) {
+      console.error(error.response.data.message)
+    }
   }
 
   return (
     <>
-      {/* variation name */}
+      {/* variation label */}
       <div className={`${styles.part} ${styles.variationName}`} onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
-        <Editable value={variation.name} onSubmit={handleTitleEdit} />
-      </ div>
+        <Editable value={variation.label} onSubmit={handleLabelEdit} />
+      </div>
 
       {/* weight */}
       <div className={styles.part} onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
-        <Dumbbell className={styles.icon}/>
-        <Editable value={details.weight} onSubmit={change => handleDetailEdit("weight", change)} />
+        <Dumbbell className={styles.icon} />
+        <Editable
+          value={details.weight}
+          onSubmit={change => handleDetailEdit("weight", change)}
+          type="number"
+        />
         <span> lbs</span>
-      </ div>
+      </div>
 
       {/* reps */}
       <div className={styles.part} onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
-        <Number className={styles.icon}/>
-        <Editable value={details.reps} onSubmit={change => handleDetailEdit("reps", change)} />
+        <Number className={styles.icon} />
+        <Editable
+          value={details.reps}
+          onSubmit={change => handleDetailEdit("reps", change)}
+          type="number"
+        />
         <span> reps</span>
-      </ div>
+      </div>
 
       {/* whitespace */}
       <div onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}></div>
 
       {/* date */}
       <div className={styles.part} onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
-        <Calender className={styles.icon}/>
-        <Editable value={details.date} onSubmit={change => handleDetailEdit("date", change)} />
-      </ div>
+        <Calender className={styles.icon} />
+        <Editable
+          value={details.date}
+          onSubmit={change => handleDetailEdit("date", change)}
+        />
+      </div>
 
       {/* remove */}
       <div onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)} className={`${styles.part} ${styles.remove}`}>
         <button className={styles.delete} onClick={handleRemove}>
-          <Delete style={{ width: showRemove ? 'auto' : '0px' }} className={styles.icon}/>
+          <Delete style={{ width: showRemove ? 'auto' : '0px' }} className={styles.icon} />
         </button>
       </div>
     </>

@@ -68,6 +68,10 @@ router.get('/:email', async (req, res): Promise<any> => {
     const email = req.params.email;
     const password = req.body.password;
 
+    if (!password) {
+        return res.status(400).json({ message: "Request body must include a password" })
+    }
+
     let data: RowDataPacket;
     try {
         [[data]] = await pool.query<RowDataPacket[]>(`

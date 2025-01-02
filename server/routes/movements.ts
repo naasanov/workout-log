@@ -27,8 +27,17 @@ router.post('/:sectionId', async (req, res): Promise<any> => {
             [NO_REFERENCE_ERROR]: [404, `Section with id ${sectionId} not found`],
         })
     }
-    
     const movementId = result.insertId;
+
+    try {
+        await pool.query<ResultSetHeader>(`
+            INSERT INTO variations (movement_id, label)
+            VALUES (?, ?)
+            `, [movementId, "Variation"])
+    } catch (error) {
+        return handleSqlError(error, res)
+    }
+    
     res.status(201).json({
         data: { movementId },
         message: `Successfullly created movement with id ${movementId}`
@@ -55,7 +64,7 @@ router.get('/section/:sectionId', async (req, res): Promise<any> => {
 
     try {
         [data] = await pool.query<RowDataPacket[]>(`
-            SELECT movement_id, label
+            SELECT movement_id as id, label
             FROM movements
             WHERE section_id = ?
         `, [sectionId])
@@ -78,7 +87,7 @@ router.get('/movement/:movementId', async (req, res): Promise<any> => {
     let data: RowDataPacket;
     try {
         [[data]] = await pool.query<RowDataPacket[]>(`
-            SELECT movement_id, label
+            SELECT movement_id as id, label
             FROM movements
             WHERE movement_id = ?
         `, [movementId]);

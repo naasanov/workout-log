@@ -57,7 +57,7 @@ router.get('/user/:uuid', async (req, res): Promise<any> => {
 
     try {
         [data] = await pool.query<RowDataPacket[]>(`
-            SELECT section_id, label
+            SELECT section_id as id, label
             FROM sections
             WHERE user_uuid = UUID_TO_BIN(?)
         `, [uuid])
@@ -80,7 +80,7 @@ router.get('/section/:sectionId', async (req, res): Promise<any> => {
     let data: RowDataPacket;
     try {
         [[data]] = await pool.query<RowDataPacket[]>(`
-            SELECT section_id, label
+            SELECT section_id as id, label
             FROM sections
             WHERE section_id = ?
         `, [sectionId]);

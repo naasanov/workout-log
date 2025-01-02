@@ -1,10 +1,6 @@
 import { Response } from "express";
 import { isValid, parseISO } from "date-fns";
 
-function isValidISO(date: string) {
-    return isValid(parseISO(date));
-}
-
 /**
  * Validates a conventional mySql integer id. If provided a `Response` object, 
  * sends the status and message in the `output` object if provided. Otherwise,
@@ -15,7 +11,7 @@ function isValidISO(date: string) {
  * @param output An array of length two, with the first element being the status code, 
  * and the second element being the message
  * @returns A boolean stating if the id is valid or not
- */
+*/
 function validateId(id: string, res?: Response, output?: [number, string]): boolean {
     const parsed = Number(id);
     const validInt = (
@@ -66,7 +62,7 @@ function validateLabel(label: any, res?: Response): boolean {
  * @param body Request body containing any combination of the fields pertaining to variation (label, weight, reps, date)
  * @param res Optionally include the Response object to automatically send an error response upon detection of invalid data
  * @returns A boolean describing whether the request body is valid or not
- */
+*/
 function validateVariation(body: any, res?: Response) {
     if (Object.keys(body).length === 0) {
         res?.status(400).json({ message: "Request body cannot be empty" });
@@ -77,11 +73,6 @@ function validateVariation(body: any, res?: Response) {
     if (label !== undefined && !validateLabel(label, res)) {
         return false;
     }
-    else if (weight === null || reps === null || date === null) {
-        res?.status(400).json({ message: "Request body fields cannot be null" });
-        return false;
-    }
-    
     let message: string = 'Error(s):\n';
     let valid = true;
     if (weight !== undefined && !(typeof weight === 'number' && Number.isFinite(weight) && weight >= 0)) {
@@ -98,6 +89,10 @@ function validateVariation(body: any, res?: Response) {
     }
     if (!valid) res?.status(400).json({ message });
     return valid;
+}
+
+function isValidISO(date: string) {
+    return isValid(parseISO(date));
 }
 
 export { validateId, validateLabel, isValidISO, validateVariation };

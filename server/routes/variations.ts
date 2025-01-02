@@ -3,6 +3,7 @@ import { Router } from 'express';
 import pool from '../database';
 import handleSqlError from '../utils/handleSqlError';
 import { validateId, validateVariation } from '../utils/validation';
+import { parseISO } from "date-fns";
 import SqlError from '../utils/sqlErrors';
 const { NO_REFERENCE_ERROR } = SqlError;
 
@@ -13,12 +14,11 @@ router.post('/:movementId', async (req, res): Promise<any> => {
     const movementId = req.params.movementId;
     if (!validateId(movementId, res)) return; 
 
-    const fields = ['label', 'weight', 'reps', 'date'];
-    if (!fields.every(field => field in req.body)) {
-        return res.status(400).json({ message: `Request body must include all fields: ${fields.join(", ")}`})
+    if (!("label" in req.body)) {
+        return res.status(400).json({ message: `Request body must include label`})
     }
     if (!validateVariation(req.body, res)) return;
-    req.body.date = new Date(req.body.date);
+    req.body.date = req.body.date && new Date(parseISO(req.body.date));
     const { label, weight, reps, date } = req.body;
 
     let result: ResultSetHeader;
@@ -49,7 +49,7 @@ router.get('/movement/:movementId', async (req, res): Promise<any> => {
     let data: RowDataPacket[];
     try {
         const [movementExists] = await pool.query<RowDataPacket[]>(`
-            SELECT 1 FROM variations
+            SELECT 1 FROM movements
             WHERE movement_id = ?
         `, [movementId])
         if (movementExists.length === 0) {
@@ -61,7 +61,7 @@ router.get('/movement/:movementId', async (req, res): Promise<any> => {
 
     try {
         [data] = await pool.query<RowDataPacket[]>(`
-            SELECT variation_id, label, weight, reps, date
+            SELECT variation_id as id, label, weight, reps, date
             FROM variations
             WHERE movement_id = ?
         `, [movementId])
@@ -84,7 +84,7 @@ router.get('/variation/:variationId', async (req, res): Promise<any> => {
     let data: RowDataPacket;
     try {
         [[data]] = await pool.query<RowDataPacket[]>(`
-            SELECT variation_id, label, weight, reps, date
+            SELECT variation_id as id, label, weight, reps, date
             FROM variations
             WHERE variation_id = ?
         `, [variationId]);
@@ -117,6 +117,9 @@ router.patch('/:variationId', async (req, res): Promise<any> => {
         });
     }
     if (!validateVariation(req.body, res)) return;
+    if (req.body.date) {
+        req.body.date = new Date(parseISO(req.body.date));
+    }
 
     let data: ResultSetHeader;
     try {

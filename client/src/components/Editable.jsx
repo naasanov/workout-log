@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useError } from '../context/ErrorProvider';
 
-function Editable({ value, onSubmit, className }) {
+function Editable({ value, onSubmit, className, type }) {
   const [input, setInput] = useState(value);
   const [editing, setEditing] = useState(false);
   const inputRef = useRef(null);
@@ -11,25 +11,43 @@ function Editable({ value, onSubmit, className }) {
   useEffect(() => {
     const input = inputRef.current;
     if (input) {
-      input.style.width = '1rem';
+      input.style.width = '2ch';
       input.style.width = `${input.scrollWidth}px`;
     }
-  });
+  }, [input, editing]);
 
+  // selects all text upon editing
   useEffect(() => {
-    // selects all text upon editing
     if (editing && inputRef.current) {
       inputRef.current.focus();
       inputRef.current.select();
     }
   }, [editing])
 
+  useEffect(() => {
+    if (type === "number") {
+      setInput(isNaN(value) ? "" : value);
+    }
+    else {
+      setInput(value)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value])
+
   // cancels editing upon clicking outside of element
   useEffect(() => {
     const handleOutsideClick = (e) => {
       if (inputRef.current && onSubmit && !inputRef.current.contains(e.target)) {
         const isWhitespace = !inputRef.current.value.trim();
-        handleSubmit(isWhitespace ? value : input);
+        if (!isWhitespace) {
+          handleSubmit(input)
+        }
+        else if (type === "number") {
+          handleSubmit(isNaN(value) ? "" : value)
+        }
+        else {
+          handleSubmit(value)
+        }
         if (isWhitespace) setShowError(true);
       }
     };
@@ -43,9 +61,14 @@ function Editable({ value, onSubmit, className }) {
   }, [value, input]);
 
   function handleSubmit(newValue) {
-    const trimmed = newValue.trim();
-    if (!trimmed) { // show error if new value is only whitespace
-      setShowError(true);
+    console.log(newValue)
+    const trimmed = newValue.toString().trim();
+    console.log("trimmed: ", !trimmed)
+    if (!trimmed) { 
+      setShowError(true); // show error if new value is only whitespace
+      if (type === "number") {
+        setEditing(false);
+      }
     }
     else {
       onSubmit(trimmed);
@@ -71,7 +94,7 @@ function Editable({ value, onSubmit, className }) {
                 value={input}
                 onChange={handleChange}
                 onFocus={e => e.target.select()}
-                type='text'
+                type={type ?? "text"}
               />
             </form>
           )

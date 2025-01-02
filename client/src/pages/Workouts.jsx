@@ -5,9 +5,7 @@ import { useState, useEffect } from 'react';
 import styles from "../styles/Workouts.module.scss";
 import Header from '../components/Header.jsx';
 import axios from 'axios';
-
-const URL = "http://localhost:4000"
-
+const URL = process.env.REACT_APP_API_URL;
 function Workouts() {
   const [sections, setSections] = useState([]);
   const { user } = useUser();
@@ -15,14 +13,14 @@ function Workouts() {
   useEffect(() => {
     const fetchSections = async () => {
       if (!user) return;
-      let data;
+      let res;
       try {
-        data = await axios.get(`${URL}/sections/user/${user.uuid}`);
+        res = await axios.get(`${URL}/sections/user/${user.uuid}`);
       } catch (error) {
         console.error(error)
       }
-      if (data) {
-        setSections(data)
+      if (res) {
+        setSections(res.data.data)
       }
     }
     fetchSections();

@@ -5,7 +5,8 @@ import Header from "../components/Header";
 import axios from "axios";
 import styles from "../styles/SignIn.module.scss";
 
-const URL = "http://localhost:4000"
+const { URL } = process.env.REACT_APP_API_URL
+
 function SignIn() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
