@@ -3,7 +3,6 @@ import Editable from "./Editable";
 import { useState, useEffect } from "react";
 import styles from "../styles/Workouts.module.scss";
 import plus from "../assets/plus.svg";
-import closedDropdown from "../assets/dropdown_closed.svg";
 import openDropdown from "../assets/dropdown_open.svg";
 import X from "../assets/delete.svg";
 import axios from "axios";
@@ -27,7 +26,7 @@ function Section({ setSections, section }) {
             }
         }
         fetchMovements();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [section.id])
 
     async function handleRemove() {
@@ -96,9 +95,11 @@ function Section({ setSections, section }) {
                             <img src={X} alt="delete" />
                         </button>
                     }
-                    <button type='button' onClick={() => setShowItems(prev => !prev)} className={styles.icon}>
-                        <img src={showItems ? openDropdown : closedDropdown} alt="dropdown closed" />
-                    </button>
+                    {movements.length > 0 &&
+                        <button type='button' onClick={() => setShowItems(prev => !prev)} className={styles.icon}>
+                            <img src={openDropdown} alt="dropdown" className={showItems ? styles.open : styles.closed} />
+                        </button>
+                    }
                 </div>
             </div>
             {

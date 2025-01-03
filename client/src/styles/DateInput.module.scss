@@ -1,0 +1,22 @@
+@import 'variables';
+
+.date {
+    input {
+        width: 30px;
+        text-align: center;
+        border-bottom: solid 1px white !important;
+
+        &::placeholder {
+            font-size: 16px;
+        }
+
+
+        &:focus {
+            border-bottom: solid 3px $primary !important;
+        }
+    }
+
+    span {
+        padding: 0px px
+    }
+}

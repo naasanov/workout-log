@@ -1,24 +1,20 @@
 import Editable from './Editable';
+import DateInput from './DateInput';
 import { useEffect, useState } from 'react';
-import { format } from 'date-fns';
 import styles from '../styles/Variation.module.scss';
 import { Delete, Dumbbell, Calender, Number } from './Icons';
 import axios from 'axios';
 const URL = process.env.REACT_APP_API_URL;
 
 function Variation({ variation, setVariations }) {
-  const [details, setDetails] = useState({
-    date: format(new Date(), 'MM/dd/yy')
-  });
+  const [details, setDetails] = useState({});
   const [showRemove, setShowRemove] = useState(false);
   useEffect(() => {
     if (variation) {
       setDetails({
         weight: variation.weight ?? "___",
         reps: variation.reps ?? "___",
-        date: variation.date == null
-          ? "mm/dd/yy"
-          : format(new Date(variation.date), 'MM/dd/yy')
+        date: variation.date
       })
     }
   }, [variation])
@@ -109,8 +105,8 @@ function Variation({ variation, setVariations }) {
       {/* date */}
       <div className={styles.part} onMouseEnter={() => setShowRemove(true)} onMouseLeave={() => setShowRemove(false)}>
         <Calender className={styles.icon} />
-        <Editable
-          value={details.date}
+        <DateInput
+          date={details.date}
           onSubmit={change => handleDetailEdit("date", change)}
         />
       </div>

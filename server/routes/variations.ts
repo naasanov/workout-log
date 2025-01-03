@@ -26,7 +26,7 @@ router.post('/:movementId', async (req, res): Promise<any> => {
         [result] = await pool.query<ResultSetHeader>(`
             INSERT INTO variations (movement_id, label, weight, reps, date)
             VALUES (?, ?, ?, ?, ?)
-            `, [movementId, label, weight, reps, date])
+            `, [movementId, label, weight, reps, date ?? new Date()])
         }
     catch (error) {
         return handleSqlError(error, res, {

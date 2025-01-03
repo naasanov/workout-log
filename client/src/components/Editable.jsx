@@ -31,7 +31,7 @@ function Editable({ value, onSubmit, className, type }) {
     else {
       setInput(value)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
 
   // cancels editing upon clicking outside of element
@@ -40,13 +40,14 @@ function Editable({ value, onSubmit, className, type }) {
       if (inputRef.current && onSubmit && !inputRef.current.contains(e.target)) {
         const isWhitespace = !inputRef.current.value.trim();
         if (!isWhitespace) {
-          handleSubmit(input)
+          handleSubmit(input);
         }
         else if (type === "number") {
-          handleSubmit(isNaN(value) ? "" : value)
+          handleSubmit(isNaN(value) ? "" : value);
+          setEditing(false);
         }
         else {
-          handleSubmit(value)
+          handleSubmit(value);
         }
         if (isWhitespace) setShowError(true);
       }
@@ -61,14 +62,9 @@ function Editable({ value, onSubmit, className, type }) {
   }, [value, input]);
 
   function handleSubmit(newValue) {
-    console.log(newValue)
     const trimmed = newValue.toString().trim();
-    console.log("trimmed: ", !trimmed)
-    if (!trimmed) { 
+    if (!trimmed) {
       setShowError(true); // show error if new value is only whitespace
-      if (type === "number") {
-        setEditing(false);
-      }
     }
     else {
       onSubmit(trimmed);
