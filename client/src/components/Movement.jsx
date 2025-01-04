@@ -1,11 +1,10 @@
 import Editable from "./Editable";
 import Variation from "./Variation";
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../api/api.js";
 import styles from "../styles/Movement.module.scss";
 import plus from "../assets/plus.svg";
 import X from "../assets/delete.svg";
-const URL = process.env.REACT_APP_API_URL;
 
 function Movement({ movement, setMovements }) {
     const [variations, setVariations] = useState([])
@@ -15,20 +14,18 @@ function Movement({ movement, setMovements }) {
         const fetchMovements = async () => {
             let res;
             try {
-                res = await axios.get(`${URL}/variations/movement/${movement.id}`);
+                res = await api.get(`/variations/movement/${movement.id}`);
             } catch (error) {
-                console.error(error)
+                return console.error(error)
             }
-            if (res) {
-                setVariations(res.data.data)
-            }
+            setVariations(res.data.data)
         }
         fetchMovements();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [movement.id])
 
     async function handleRemove() {
-        await axios.delete(`${URL}/movements/${movement.id}`);
+        await api.delete(`/movements/${movement.id}`);
         setMovements(prevMovements => (
             prevMovements.filter(m => m.id !== movement.id)
         ));
@@ -38,14 +35,13 @@ function Movement({ movement, setMovements }) {
         e.preventDefault();
         let res;
         try {
-            res = await axios.post(`${URL}/variations/${movement.id}`, {
+            res = await api.post(`/variations/${movement.id}`, {
                 label: "Variation"
             })
         } catch (error) {
             return console.error(error)
         }
         const key = res.data.data.variationId
-        console.log(key)
         setVariations(prevVariatons => (
             [...prevVariatons, { id: key, label: 'Variation', date: new Date() }]
         ))
@@ -60,7 +56,7 @@ function Movement({ movement, setMovements }) {
             ))
         ))
         try {
-            await axios.patch(`${URL}/movements/${movement.id}`, {
+            await api.patch(`/movements/${movement.id}`, {
                 label: change
             })
         } catch (error) {

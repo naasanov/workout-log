@@ -5,6 +5,7 @@ import users from './routes/users';
 import sections from './routes/sections';
 import movements from './routes/movements';
 import variations from './routes/variations';
+import auth from './routes/auth';
 
 dotenv.config()
 
@@ -14,17 +15,18 @@ app.use(express.urlencoded({ extended: false }))
 
 app.use(cors({
     credentials: true,
-    origin: "*",
+    origin: process.env.FRONTEND_URL,
     optionsSuccessStatus: 200
 }))
 
+app.use('/auth', auth);
 app.use('/users', users);
 app.use('/sections', sections);
 app.use('/movements', movements);
 app.use('/variations', variations);
 
 app.get('/', (req, res) => {
-    res.send("running correctly")
+    res.send("running")
 })
 
 const port = process.env.PORT || 4000;

@@ -67,8 +67,8 @@ function Editable({ value, onSubmit, className, type }) {
       setShowError(true); // show error if new value is only whitespace
     }
     else {
-      onSubmit(trimmed);
       setInput(trimmed);
+      onSubmit(trimmed);
       setEditing(false);
       setShowError(false);
     }

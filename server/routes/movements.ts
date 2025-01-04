@@ -5,8 +5,10 @@ import handleSqlError from '../utils/handleSqlError';
 import { validateId, validateLabel } from '../utils/validation';
 import SqlError from '../utils/sqlErrors';
 const { NO_REFERENCE_ERROR, WRONG_VALUE_ERROR } = SqlError;
+import { authenticateToken } from "./auth";
 
 const router = Router();
+router.use(authenticateToken);
 
 // POST
 router.post('/:sectionId', async (req, res): Promise<any> => {

@@ -5,12 +5,15 @@ import handleSqlError from '../utils/handleSqlError';
 import { validateLabel, validateId } from '../utils/validation';
 import SqlError from '../utils/sqlErrors';
 const { WRONG_TYPE_ERROR, NO_REFERENCE_ERROR, TOO_LONG_ERROR, WRONG_VALUE_ERROR } = SqlError;
+import { authenticateToken } from "./auth";
+import { User } from '../types';
 
 const router = Router();
+router.use(authenticateToken);
 
 // POST
-router.post('/:uuid', async (req, res): Promise<any> => {
-    const uuid = req.params.uuid;
+router.post('/', async (req, res): Promise<any> => {
+    const { uuid }: User = res.locals.user;
     const label = req.body.label;
     if (!validateLabel(label, res)) return;
 
@@ -37,8 +40,8 @@ router.post('/:uuid', async (req, res): Promise<any> => {
 })
 
 // GET many
-router.get('/user/:uuid', async (req, res): Promise<any> => {
-    const uuid = req.params.uuid;
+router.get('/user', async (req, res): Promise<any> => {
+    const { uuid }: User = res.locals.user;
     
     let data: RowDataPacket[];
     try {

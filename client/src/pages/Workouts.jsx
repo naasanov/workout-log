@@ -4,27 +4,27 @@ import { useUser } from '../context/UserProvider.jsx';
 import { useState, useEffect } from 'react';
 import styles from "../styles/Workouts.module.scss";
 import Header from '../components/Header.jsx';
-import axios from 'axios';
-const URL = process.env.REACT_APP_API_URL;
+import api from '../api/api.js';
+
 function Workouts() {
   const [sections, setSections] = useState([]);
-  const { user } = useUser();
+  const { user, setUser } = useUser();
 
   useEffect(() => {
     const fetchSections = async () => {
       if (!user) return;
-      let res;
+      let res, userRes;
       try {
-        res = await axios.get(`${URL}/sections/user/${user.uuid}`);
+        res = await api.get(`/sections/user`);
+        userRes = await api.get('/users');
       } catch (error) {
-        console.error(error)
+        return console.error(error)
       }
-      if (res) {
-        setSections(res.data.data)
-      }
+      setSections(res.data.data);
+      setUser(userRes.data.data);
     }
     fetchSections();
-  }, [user])
+  }, [user, setUser])
 
   return (
     <>

@@ -5,8 +5,7 @@ import styles from "../styles/Workouts.module.scss";
 import plus from "../assets/plus.svg";
 import openDropdown from "../assets/dropdown_open.svg";
 import X from "../assets/delete.svg";
-import axios from "axios";
-const URL = process.env.REACT_APP_API_URL;
+import api from "../api/api.js";
 
 function Section({ setSections, section }) {
     const [hovering, setHovering] = useState(false);
@@ -17,13 +16,11 @@ function Section({ setSections, section }) {
         const fetchMovements = async () => {
             let res;
             try {
-                res = await axios.get(`${URL}/movements/section/${section.id}`);
+                res = await api.get(`/movements/section/${section.id}`);
             } catch (error) {
-                console.error(error)
+                return console.error(error)
             }
-            if (res) {
-                setMovements(res.data.data)
-            }
+            setMovements(res.data.data)
         }
         fetchMovements();
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -31,7 +28,7 @@ function Section({ setSections, section }) {
 
     async function handleRemove() {
         try {
-            await axios.delete(`${URL}/sections/${section.id}`)
+            await api.delete(`/sections/${section.id}`)
         } catch (error) {
             return console.error(error)
         }
@@ -44,7 +41,7 @@ function Section({ setSections, section }) {
         e.preventDefault();
         let res;
         try {
-            res = await axios.post(`${URL}/movements/${section.id}`, {
+            res = await api.post(`/movements/${section.id}`, {
                 label: "Exercise"
             })
         } catch (error) {
@@ -65,7 +62,7 @@ function Section({ setSections, section }) {
             ))
         ))
         try {
-            await axios.patch(`${URL}/sections/${section.id}`, {
+            await api.patch(`/sections/${section.id}`, {
                 label: value
             })
         } catch (error) {

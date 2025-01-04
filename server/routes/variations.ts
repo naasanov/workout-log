@@ -6,8 +6,10 @@ import { validateId, validateVariation } from '../utils/validation';
 import { parseISO } from "date-fns";
 import SqlError from '../utils/sqlErrors';
 const { NO_REFERENCE_ERROR } = SqlError;
+import { authenticateToken } from "./auth";
 
 const router = Router();
+router.use(authenticateToken);
 
 // POST
 router.post('/:movementId', async (req, res): Promise<any> => {

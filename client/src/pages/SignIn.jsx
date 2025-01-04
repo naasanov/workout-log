@@ -1,11 +1,9 @@
 import { useState, useEffect } from "react";
 import { useUser } from "../context/UserProvider";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
-import axios from "axios";
+import api, { login } from "../api/api";
 import styles from "../styles/SignIn.module.scss";
-
-const { URL } = process.env.REACT_APP_API_URL
 
 function SignIn() {
     const [email, setEmail] = useState("");
@@ -14,6 +12,7 @@ function SignIn() {
     const [pwdErr, setPwdErr] = useState(false);
     const [message, setMessage] = useState("")
     const { setUser } = useUser();
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (email.trim() !== "") {
@@ -26,6 +25,7 @@ function SignIn() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        console.log("running submit")
         setMessage("")
 
         let error = false;
@@ -39,18 +39,17 @@ function SignIn() {
         }
         if (error) return;
 
-        let user;
+        let res;
         try {
-            user = await axios.get(`${URL}/users/${email}`, {
-                password
-            })
+            await login(email, password);
+            res = await api.get('/users');
         }
         catch (error) {
-            setMessage("Internal Server Error");
-            return;
+            return setMessage("Internal Server Error");
         }
 
-        if (user) setUser(user);
+        setUser(res.data.data);
+        navigate('/');
     }
 
     return (
@@ -58,16 +57,31 @@ function SignIn() {
             <Header />
             <div className={styles.signin}>
                 <span>Sign in to your workout log</span>
+
                 <div>
                     <form onSubmit={handleSubmit}>
                         <div className={styles.input}>
                             <label htmlFor="email">Email</label>
-                            <input className={emailErr && styles.error} value={email} onChange={e => setEmail(e.target.value)} type="text" id="email" />
+                            <input
+                                className={emailErr ? styles.error : null}
+                                value={email}
+                                onChange={e => setEmail(e.target.value)}
+                                type="text"
+                                id="email"
+                                autoComplete="username"
+                            />
                             {emailErr && <span>Please enter your email.</span>}
                         </div>
                         <div className={styles.input}>
                             <label htmlFor="password">Password</label>
-                            <input className={pwdErr && styles.error} value={password} onChange={e => setPassword(e.target.value)} type="password" id="password" />
+                            <input
+                                className={pwdErr ? styles.error : null}
+                                value={password}
+                                onChange={e => setPassword(e.target.value)}
+                                type="password"
+                                id="password"
+                                autoComplete="current-password"
+                            />
                             {pwdErr && <span>Please enter your password.</span>}
                         </div>
                         <div className={styles.message}>

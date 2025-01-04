@@ -1,27 +1,23 @@
 import { useError } from '../context/ErrorProvider';
 import styles from "../styles/Workouts.module.scss";
 import plus from "../assets/plus.svg";
-import axios from 'axios';
-import { useUser } from '../context/UserProvider';
-const URL = process.env.REACT_APP_API_URL;
+import api from '../api/api.js';
 
 function AddSection({ setSections }) {
     const setShowError = useError();
-    const { user } = useUser();
 
     async function handleSubmit(e) {
         e.preventDefault();
         const label = 'Muscle Group';
         let res;
         try {
-            res = await axios.post(`${URL}/sections/${user.uuid}`, {
+            res = await api.post(`/sections`, {
                 label
             })
         } catch (error) {
             return console.error(error)
         }
         const id = res.data.data.sectionId
-
         setSections(prevSections => [...prevSections, { id, label }]);
         setShowError(false);
     }

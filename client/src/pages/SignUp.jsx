@@ -1,11 +1,9 @@
 import { useState, useEffect } from "react";
 import { useUser } from "../context/UserProvider";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
-import axios from "axios";
+import api, { signup } from "../api/api";
 import styles from "../styles/SignIn.module.scss";
-
-const { URL } = process.env.REACT_APP_API_URL
 
 function SignIn() {
     const [email, setEmail] = useState("");
@@ -14,6 +12,7 @@ function SignIn() {
     const [pwdErr, setPwdErr] = useState(false);
     const [message, setMessage] = useState("")
     const { setUser } = useUser();
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (email.trim() !== "") {
@@ -41,17 +40,15 @@ function SignIn() {
 
         let res;
         try {
-            res = await axios.post(`${URL}/users`, {
-                email,
-                password
-            })
+            await signup(email, password);
+            res = await api.get('/users')
         }
         catch (error) {
-            setMessage("Internal Server Error");
-            return;
+            return setMessage("Internal Server Error");
         }
 
-        if (res) setUser(res.data);
+        setUser(res.data.data);
+        navigate('/');
     }
 
     return (

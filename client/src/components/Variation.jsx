@@ -3,8 +3,7 @@ import DateInput from './DateInput';
 import { useEffect, useState } from 'react';
 import styles from '../styles/Variation.module.scss';
 import { Delete, Dumbbell, Calender, Number } from './Icons';
-import axios from 'axios';
-const URL = process.env.REACT_APP_API_URL;
+import api from '../api/api.js';
 
 function Variation({ variation, setVariations }) {
   const [details, setDetails] = useState({});
@@ -26,7 +25,7 @@ function Variation({ variation, setVariations }) {
       ))
     ));
     try {
-      await axios.delete(`${URL}/variations/${variation.id}`)
+      await api.delete(`/variations/${variation.id}`)
     } catch (error) {
       console.error(error)
     }
@@ -41,7 +40,7 @@ function Variation({ variation, setVariations }) {
       ))
     ));
     try {
-      await axios.patch(`${URL}/variations/${variation.id}`, {
+      await api.patch(`/variations/${variation.id}`, {
         label: change
       })
     } catch (error) {
@@ -62,7 +61,7 @@ function Variation({ variation, setVariations }) {
     ));
 
     try {
-      await axios.patch(`${URL}/variations/${variation.id}`, {
+      await api.patch(`/variations/${variation.id}`, {
         [field]: change
       })
     } catch (error) {
