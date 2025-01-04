@@ -84,7 +84,7 @@
                     transition: 0.2s ease-in;
 
                     &:hover {
-                        background-color: $primary-dark;
+                        background-color: $button-hover
                     }
                 }
 
@@ -94,6 +94,10 @@
                     > a {
                         color: $primary;
                         text-decoration: none;
+
+                        &:hover {
+                            text-decoration: underline;
+                        }
                     }
                 }
             }

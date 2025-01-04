@@ -57,7 +57,7 @@ router.post('/login', async (req, res): Promise<any> => {
 
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === 'production',
     sameSite: "strict",
     path: "/",
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
@@ -109,7 +109,7 @@ router.post('/signup', async (req, res): Promise<any> => {
 
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === 'production',
     sameSite: "strict",
     path: "/",
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
@@ -125,7 +125,7 @@ router.post('/signup', async (req, res): Promise<any> => {
 })
 
 router.post('/token', async (req, res): Promise<any> => {
-  const refreshToken: string = req.cookies.refreshToken;
+  const refreshToken: string = req.cookies?.refreshToken;
   if (!refreshToken) {
     return res.status(401).json({ message: "Refresh token required" });
   }
@@ -133,9 +133,9 @@ router.post('/token', async (req, res): Promise<any> => {
   let result: RowDataPacket;
   try {
     [[result]] = await pool.query<RowDataPacket[]>(`
-            SELECT token, expires_at FROM tokens
-            WHERE token = ?
-        `, [refreshToken])
+      SELECT token, expires_at FROM tokens
+      WHERE token = ?
+    `, [refreshToken])
   } catch (error) {
     return handleSqlError(error, res);
   }
@@ -161,18 +161,17 @@ router.post('/token', async (req, res): Promise<any> => {
 })
 
 router.delete('/logout', async (req, res): Promise<any> => {
-  const { token } = req.body;
-  if (!token) {
-    return res.status(400).json({ message: "Request body must include token" });
+  const refreshToken: string = req.cookies.refreshToken;
+  if (!refreshToken) {
+    return res.status(401).json({ message: "Refresh token required" });
   }
 
   let data: ResultSetHeader;
   try {
     [data] = await pool.query<ResultSetHeader>(`
-            DELETE FROM tokens
-            WHERE token = ?
-            `, [token]
-    )
+      DELETE FROM tokens
+      WHERE token = ?
+    `, [refreshToken])
   } catch (error) {
     return handleSqlError(error, res);
   }
@@ -183,16 +182,16 @@ router.delete('/logout', async (req, res): Promise<any> => {
 
   res.clearCookie('refreshToken', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === 'production',
     sameSite: "strict",
-    path: "/"
+    path: "/",
   })
 
   res.status(200).json({ message: "Successfully logged out" });
 })
 
 function generateAccessToken(user: User): string {
-  return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET!, { expiresIn: '15m' });
+  return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET!, { expiresIn: '15s' });
 }
 
 export function authenticateToken(req: Request, res: Response, next: NextFunction): any {

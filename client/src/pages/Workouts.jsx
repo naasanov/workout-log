@@ -12,16 +12,16 @@ function Workouts() {
 
   useEffect(() => {
     const fetchSections = async () => {
-      if (!user) return;
-      let res, userRes;
+      if (!user) {
+        return setSections([])
+      };
+      let res;
       try {
         res = await api.get(`/sections/user`);
-        userRes = await api.get('/users');
       } catch (error) {
         return console.error(error)
       }
       setSections(res.data.data);
-      setUser(userRes.data.data);
     }
     fetchSections();
   }, [user, setUser])

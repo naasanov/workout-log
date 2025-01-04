@@ -1,6 +1,7 @@
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 const URL = process.env.REACT_APP_API_URL
+axios.defaults.withCredentials = true;
 
 const api = axios.create({
   withCredentials: true,
@@ -50,6 +51,15 @@ export async function signup(email, password) {
   });
   const { accessToken } = res.data.data;
   sessionStorage.setItem("accessToken", accessToken);
+}
+
+export async function logout() {
+  try {
+    await axios.delete(`${URL}/auth/logout`);
+  } catch (error) {
+    return console.error(error.response?.data?.message, error)
+  }
+  sessionStorage.removeItem("accessToken");
 }
 
 export default api;

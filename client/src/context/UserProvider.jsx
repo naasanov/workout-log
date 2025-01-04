@@ -7,11 +7,7 @@ export function useUser() {
 }
 
 function UserProvider({ children }) {
-  const [user, setUser] = useState({
-    "uuid": "22b856c2-c610-11ef-9524-581cf8f27efb",
-    "email": "test",
-    "password": "test"
-  });
+  const [user, setUser] = useState(null);
 
   return (
     <UserContext.Provider value={{ user, setUser }}>

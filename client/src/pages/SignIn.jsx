@@ -3,7 +3,7 @@ import { useUser } from "../context/UserProvider";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import api, { login } from "../api/api";
-import styles from "../styles/SignIn.module.scss";
+import styles from "../styles/Authentication.module.scss";
 
 function SignIn() {
     const [email, setEmail] = useState("");
@@ -25,7 +25,6 @@ function SignIn() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log("running submit")
         setMessage("")
 
         let error = false;
@@ -57,7 +56,6 @@ function SignIn() {
             <Header />
             <div className={styles.signin}>
                 <span>Sign in to your workout log</span>
-
                 <div>
                     <form onSubmit={handleSubmit}>
                         <div className={styles.input}>

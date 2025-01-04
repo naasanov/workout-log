@@ -3,7 +3,7 @@ import { useUser } from "../context/UserProvider";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import api, { signup } from "../api/api";
-import styles from "../styles/SignIn.module.scss";
+import styles from "../styles/Authentication.module.scss";
 
 function SignIn() {
     const [email, setEmail] = useState("");
