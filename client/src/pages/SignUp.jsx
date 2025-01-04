@@ -25,7 +25,7 @@ function SignIn() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setMessage("")
+        setMessage("");
 
         let error = false;
         if (email.trim() === "") {
@@ -44,7 +44,12 @@ function SignIn() {
             res = await api.get('/users')
         }
         catch (error) {
-            return setMessage("Internal Server Error");
+            if (error.response?.status === 409) {
+                return setMessage('Account with this email already exists')
+            }
+            else {
+                return setMessage("Internal Server Error");
+            }
         }
 
         setUser(res.data.data);
@@ -60,12 +65,28 @@ function SignIn() {
                     <form onSubmit={handleSubmit}>
                         <div className={styles.input}>
                             <label htmlFor="email">Email</label>
-                            <input className={emailErr && styles.error} value={email} onChange={e => setEmail(e.target.value)} type="text" id="email" />
+                            <input
+                                className={emailErr ? styles.error : null}
+                                value={email}
+                                onChange={e => setEmail(e.target.value)}
+                                type="text"
+                                id="email"
+                                name="email"
+                                autoComplete="username"
+                            />
                             {emailErr && <span>Please enter your email.</span>}
                         </div>
                         <div className={styles.input}>
                             <label htmlFor="password">Password</label>
-                            <input className={pwdErr && styles.error} value={password} onChange={e => setPassword(e.target.value)} type="password" id="password" />
+                            <input
+                                className={pwdErr ? styles.error : null}
+                                value={password}
+                                onChange={e => setPassword(e.target.value)}
+                                type="password"
+                                id="password"
+                                name="password"
+                                autoComplete="new-password"
+                            />
                             {pwdErr && <span>Please enter your password.</span>}
                         </div>
                         <div className={styles.message}>

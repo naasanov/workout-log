@@ -68,6 +68,7 @@ function SignIn() {
                                 onChange={e => setEmail(e.target.value)}
                                 type="text"
                                 id="email"
+                                name="email"
                                 autoComplete="username"
                             />
                             {emailErr && <span>Please enter your email.</span>}
@@ -80,6 +81,7 @@ function SignIn() {
                                 onChange={e => setPassword(e.target.value)}
                                 type="password"
                                 id="password"
+                                name="password"
                                 autoComplete="current-password"
                             />
                             {pwdErr && <span>Please enter your password.</span>}

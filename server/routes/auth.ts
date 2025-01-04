@@ -87,7 +87,7 @@ router.post('/signup', async (req, res): Promise<any> => {
       VALUES (?, ?)
     `, [email, hashedPassword]);
     [[data]] = await pool.query<RowDataPacket[]>(`
-      SELECT BIN_TO_UUID(user_uuid) FROM users
+      SELECT BIN_TO_UUID(user_uuid) as uuid FROM users
       WHERE email = ?
     `, [email])
   } catch (error) {
