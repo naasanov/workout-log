@@ -4,17 +4,16 @@ import { useUser } from '../context/UserProvider.jsx';
 import { useState, useEffect } from 'react';
 import styles from "../styles/Workouts.module.scss";
 import Header from '../components/Header.jsx';
-import api from '../api/api.js';
+import useApi from '../api/api.js';
 
 function Workouts() {
   const [sections, setSections] = useState([]);
-  const { user, setUser } = useUser();
+  const { user } = useUser();
+  const { api } = useApi();
 
   useEffect(() => {
     const fetchSections = async () => {
-      if (!user) {
-        return setSections([])
-      };
+      if (!user) return setSections([]);
       let res;
       try {
         res = await api.get(`/sections/user`);
@@ -24,7 +23,7 @@ function Workouts() {
       setSections(res.data.data);
     }
     fetchSections();
-  }, [user, setUser])
+  }, [user, api])
 
   return (
     <>
@@ -36,7 +35,9 @@ function Workouts() {
               key={s.id}
               section={s}
               setSections={setSections}
-            />))}
+            />
+          )
+          )}
         </div>
         <AddSection setSections={setSections} />
       </main>

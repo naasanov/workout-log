@@ -32,7 +32,7 @@ router.post('/login', async (req, res): Promise<any> => {
   let data: RowDataPacket;
   try {
     [[data]] = await pool.query<RowDataPacket[]>(`
-            SELECT BIN_TO_UUID(user_uuid) as uuid, password
+            SELECT BIN_TO_UUID(user_uuid) as uuid, password, email
             FROM users
             WHERE users.email = ?
         `, [email])
@@ -67,7 +67,11 @@ router.post('/login', async (req, res): Promise<any> => {
     message: "Logged in successfully",
     data: {
       accessToken,
-      refreshToken
+      refreshToken,
+      user: {
+        uuid: data.uuid,
+        email: data.email
+      }
     }
   })
 })
@@ -87,7 +91,7 @@ router.post('/signup', async (req, res): Promise<any> => {
       VALUES (?, ?)
     `, [email, hashedPassword]);
     [[data]] = await pool.query<RowDataPacket[]>(`
-      SELECT BIN_TO_UUID(user_uuid) as uuid FROM users
+      SELECT BIN_TO_UUID(user_uuid) as uuid, email FROM users
       WHERE email = ?
     `, [email])
   } catch (error) {
@@ -119,7 +123,11 @@ router.post('/signup', async (req, res): Promise<any> => {
     message: "User successfully created",
     data: {
       accessToken,
-      refreshToken
+      refreshToken,
+      user: {
+        uuid: data.uuid,
+        email: data.email
+      }
     }
   })
 })

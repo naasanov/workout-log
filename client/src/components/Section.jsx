@@ -5,12 +5,14 @@ import styles from "../styles/Workouts.module.scss";
 import plus from "../assets/plus.svg";
 import openDropdown from "../assets/dropdown_open.svg";
 import X from "../assets/delete.svg";
-import api from "../api/api.js";
+import useApi from "../api/api.js";
+import { v4 as uuid } from "uuid";
 
 function Section({ setSections, section }) {
     const [hovering, setHovering] = useState(false);
     const [showItems, setShowItems] = useState(true);
     const [movements, setMovements] = useState([]);
+    const { api } = useApi();
 
     useEffect(() => {
         const fetchMovements = async () => {
@@ -20,21 +22,21 @@ function Section({ setSections, section }) {
             } catch (error) {
                 return console.error(error)
             }
-            setMovements(res.data.data)
+            setMovements(res?.data.data ?? [])
         }
         fetchMovements();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [section.id])
 
     async function handleRemove() {
+        setSections(prevSections => (
+            prevSections.filter((item) => item.id !== section.id)
+        ));
         try {
             await api.delete(`/sections/${section.id}`)
         } catch (error) {
             return console.error(error)
         }
-        setSections(prevSections => (
-            prevSections.filter((item) => item.id !== section.id)
-        ));
     }
 
     async function handleMovementSubmit(e) {
@@ -47,7 +49,7 @@ function Section({ setSections, section }) {
         } catch (error) {
             return console.error(error)
         }
-        const key = res.data.data.movementId;
+        const key = res?.data.data.movementId ?? uuid();
         setMovements(prevMovements => (
             [...prevMovements, { id: key, label: 'Exercise' }]
         ))
@@ -103,7 +105,7 @@ function Section({ setSections, section }) {
                 <ul className={styles.movements} style={{ display: showItems ? 'block' : 'none' }}>
                     {movements.map((m) => (
                         <Movement
-                            key={m.id}
+                            key={m.id ?? uuid()}
                             movement={m}
                             setMovements={setMovements}
                             sectionId={section.id}

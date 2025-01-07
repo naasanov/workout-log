@@ -3,11 +3,13 @@ import DateInput from './DateInput';
 import { useEffect, useState } from 'react';
 import styles from '../styles/Variation.module.scss';
 import { Delete, Dumbbell, Calender, Number } from './Icons';
-import api from '../api/api.js';
+import useApi from '../api/api.js';
 
 function Variation({ variation, setVariations }) {
   const [details, setDetails] = useState({});
   const [showRemove, setShowRemove] = useState(false);
+  const { api } = useApi();
+
   useEffect(() => {
     if (variation) {
       setDetails({
@@ -65,7 +67,7 @@ function Variation({ variation, setVariations }) {
         [field]: change
       })
     } catch (error) {
-      console.error(error.response.data.message)
+      console.error(error.response?.data.message, error)
     }
   }
 

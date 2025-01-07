@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useUser } from "../context/UserProvider";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
-import api, { login } from "../api/api";
+import useApi from "../api/api";
 import styles from "../styles/Authentication.module.scss";
 
 function SignIn() {
@@ -13,6 +13,7 @@ function SignIn() {
     const [message, setMessage] = useState("")
     const { setUser } = useUser();
     const navigate = useNavigate();
+    const { api, login } = useApi();
 
     useEffect(() => {
         if (email.trim() !== "") {
@@ -46,8 +47,9 @@ function SignIn() {
         catch (error) {
             return setMessage("Internal Server Error");
         }
-
-        setUser(res.data.data);
+        console.log(res);
+        
+        setUser(res?.data.data);
         navigate('/');
     }
 

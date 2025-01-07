@@ -1,10 +1,12 @@
 import { useError } from '../context/ErrorProvider';
 import styles from "../styles/Workouts.module.scss";
 import plus from "../assets/plus.svg";
-import api from '../api/api.js';
+import useApi from '../api/api.js';
+import { v4 as uuid } from 'uuid';
 
 function AddSection({ setSections }) {
     const setShowError = useError();
+    const { api } = useApi();
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -17,7 +19,7 @@ function AddSection({ setSections }) {
         } catch (error) {
             return console.error(error)
         }
-        const id = res.data.data.sectionId
+        const id = res?.data.data.sectionId ?? uuid();
         setSections(prevSections => [...prevSections, { id, label }]);
         setShowError(false);
     }

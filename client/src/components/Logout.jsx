@@ -1,9 +1,10 @@
-import { logout } from "../api/api";
+import useApi from "../api/api";
 import { useUser } from "../context/UserProvider";
 import styles from "../styles/Header.module.scss";
 
 function Logout() {
-  const { setUser } = useUser()
+  const { setUser } = useUser();
+  const { logout } = useApi();
   const handleLogout = async () => {
     try {
       await logout();
