@@ -1,4 +1,5 @@
 import express from "express";
+import path from 'path';
 import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -15,6 +16,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+app.use(express.static(path.join(__dirname, "client", "build")))
 
 app.use(cors({
     credentials: true,
@@ -31,6 +33,10 @@ app.use('/api/variations', variations);
 app.get('/api', (req, res) => {
     res.send("running")
 })
+
+app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "client", "build", "index.html"));
+});
 
 const port = process.env.PORT || 4000;
 app.listen(port, () => {

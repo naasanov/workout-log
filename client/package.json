@@ -48,5 +48,6 @@
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
     "@babel/plugin-transform-private-property-in-object": "^7.24.7",
     "gh-pages": "^6.1.1"
-  }
+  },
+  "proxy": "http://localhost:4000"
 }
