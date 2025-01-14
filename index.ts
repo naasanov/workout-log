@@ -2,11 +2,13 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+
 import users from './routes/users';
 import sections from './routes/sections';
 import movements from './routes/movements';
 import variations from './routes/variations';
 import auth from './routes/auth';
+
 dotenv.config();
 
 const app = express();
