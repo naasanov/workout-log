@@ -46,14 +46,12 @@ function Variation({ variation, setVariations }) {
   }
 
   async function handleDetailEdit(field, change) {
-    console.log("before validation: ", change)
     if (field === "weight") {
       change = parseFloat(change);
     }
     else if (field === "reps") {
       change = parseInt(change);
     }
-    console.log("after validation: ", change)
 
     setDetails(prevDetails => (
       { ...prevDetails, [field]: change }
