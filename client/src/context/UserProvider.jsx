@@ -1,5 +1,5 @@
-import { createContext, useContext, useState } from "react";
-
+import { createContext, useContext, useEffect, useState } from "react";
+import { isLoggedIn } from '../api/authApi.js';
 const UserContext = createContext();
 
 export function useUser() {
@@ -8,6 +8,12 @@ export function useUser() {
 
 function UserProvider({ children }) {
   const [user, setUser] = useState(null);
+  useEffect(() => {
+    const fetchUser = async () => {
+      setUser(await isLoggedIn() ? {} : null);
+    }
+    fetchUser();
+  }, [])
 
   return (
     <UserContext.Provider value={{ user, setUser }}>

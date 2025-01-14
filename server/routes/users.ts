@@ -151,7 +151,7 @@ router.get('/uuid/:uuid', async (req, res): Promise<any> => {
 router.patch('/', async (req, res): Promise<any> => {
     const { uuid }: User = res.locals.user;
     if ('user_uuid' in req.body) {
-        return res.status(403).json({ message: "Forbidden" });
+        return res.status(400).json({ message: "Field not allowed" });
     }
 
     let data: ResultSetHeader;

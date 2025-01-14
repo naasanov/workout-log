@@ -11,6 +11,57 @@ const { DUPLICATE_ERROR } = SqlError;
 dotenv.config();
 const router = Router();
 
+const validateRefreshToken = async (refreshToken: string): Promise<[status: number, json: Object]> => {
+  if (!refreshToken) return [401, { message: "Refresh token required" }]
+
+  let result: RowDataPacket;
+  try {
+    [[result]] = await pool.query<RowDataPacket[]>(`
+      SELECT token, expires_at FROM tokens
+      WHERE token = ?
+    `, [refreshToken])
+  } catch (error) {
+    const [status, message] = handleSqlError(error) as [number, string];
+    return [status, { message }]
+  }
+
+  if (!result) {
+    return [401, { message: "Unauthorized refresh token" }];
+  }
+  else if (new Date(result.expires_at) < new Date()) {
+    return [401, { message: "Refresh token expired" }];
+  }
+
+  try {
+    const user = await new Promise<User>((resolve, reject) => {
+      jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET!, (err, user) => {
+        if (err) return reject(new Error("Forbidden refresh token. Did not pass verfication"));
+        else resolve(user as User);
+      })
+    })
+    const { uuid } = user as User;
+    const accessToken = generateAccessToken({ uuid });
+    return [201, {
+      message: "Successfully created access token",
+      data: { accessToken }
+    }]
+  } catch (error) {
+    if (error instanceof Error) return [403, { message: error.message }];
+    else throw error;
+  }
+}
+
+router.get('/logged-in', async (req, res): Promise<any> => {
+  const refreshToken: string = req.cookies?.refreshToken;
+  const [status, json] = await validateRefreshToken(refreshToken);
+  if (status >= 400) {
+    res.status(200).json({ ...json, data: { signedIn: false } })
+  }
+  else {
+    res.status(200).json({ message: "Refresh token validated. User is logged in", data: { signedIn: true } })
+  }
+})
+
 router.post('/login', async (req, res): Promise<any> => {
   const { email, password } = req.body;
 
@@ -134,38 +185,8 @@ router.post('/signup', async (req, res): Promise<any> => {
 
 router.post('/token', async (req, res): Promise<any> => {
   const refreshToken: string = req.cookies?.refreshToken;
-  if (!refreshToken) {
-    return res.status(401).json({ message: "Refresh token required" });
-  }
-
-  let result: RowDataPacket;
-  try {
-    [[result]] = await pool.query<RowDataPacket[]>(`
-      SELECT token, expires_at FROM tokens
-      WHERE token = ?
-    `, [refreshToken])
-  } catch (error) {
-    return handleSqlError(error, res);
-  }
-
-  if (!result) {
-    return res.status(401).json({ message: "Unauthorized refresh token" })
-  }
-  else if (new Date(result.expires_at) < new Date()) {
-    return res.status(401).json({ message: "Refresh token expired" });
-  }
-
-  jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET!, (err, user) => {
-    if (err) {
-      return res.status(403).json({ message: "Forbidden refresh token. Did not pass verification" });
-    }
-    const { uuid } = user as User;
-    const accessToken = generateAccessToken({ uuid });
-    res.status(201).json({
-      message: "Successfully created access token",
-      data: { accessToken }
-    })
-  })
+  const [status, json] = await validateRefreshToken(refreshToken);
+  res.status(status).json(json);
 })
 
 router.delete('/logout', async (req, res): Promise<any> => {
@@ -199,7 +220,7 @@ router.delete('/logout', async (req, res): Promise<any> => {
 })
 
 function generateAccessToken(user: User): string {
-  return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET!, { expiresIn: '15s' });
+  return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET!, { expiresIn: '15m' });
 }
 
 export function authenticateToken(req: Request, res: Response, next: NextFunction): any {

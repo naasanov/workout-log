@@ -5,6 +5,7 @@ import Logout from "./Logout";
 
 function Header() {
   const { user } = useUser();
+
   return (
     <header className={styles.header}>
       <Link to="/">

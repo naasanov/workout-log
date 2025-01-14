@@ -36,7 +36,7 @@ function getSqlError(error: unknown) {
  * * [key in SqlError]?: [number, string];  
  *   fallback?: [number, string];
  */
-function handleSqlError(error: unknown, res: Response, errorMap?: ErrorMap) {
+function handleSqlError(error: unknown, res?: Response, errorMap?: ErrorMap): undefined | [number, string] {
     console.log(error);
     const sqlError = getSqlError(error);
     const fallback = errorMap?.fallback ?? [500, "Internal Server Error"];
@@ -44,7 +44,8 @@ function handleSqlError(error: unknown, res: Response, errorMap?: ErrorMap) {
     const mapping = errorMap?.[sqlError?.code as SqlError];
     const [status, message] = mapping ?? fallback;
 
-    res.status(status).json({ message })
+    if (res) res.status(status).json({ message })
+    else return [status, message];
 }
 
 export default handleSqlError;

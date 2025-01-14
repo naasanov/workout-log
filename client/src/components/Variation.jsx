@@ -3,12 +3,13 @@ import DateInput from './DateInput';
 import { useEffect, useState } from 'react';
 import styles from '../styles/Variation.module.scss';
 import { Delete, Dumbbell, Calender, Number } from './Icons';
-import useApi from '../api/api.js';
+import clientApi from '../api/clientApi.js';
+import useAuth from '../hooks/useAuth.js';
 
 function Variation({ variation, setVariations }) {
   const [details, setDetails] = useState({});
   const [showRemove, setShowRemove] = useState(false);
-  const { api } = useApi();
+  const { withAuth } = useAuth();
 
   useEffect(() => {
     if (variation) {
@@ -26,11 +27,7 @@ function Variation({ variation, setVariations }) {
         v.id !== variation.id
       ))
     ));
-    try {
-      await api.delete(`/variations/${variation.id}`)
-    } catch (error) {
-      console.error(error)
-    }
+    await withAuth(() => clientApi.delete(`/variations/${variation.id}`))
   }
 
   async function handleLabelEdit(change) {
@@ -41,34 +38,32 @@ function Variation({ variation, setVariations }) {
           : v
       ))
     ));
-    try {
-      await api.patch(`/variations/${variation.id}`, {
+    await withAuth(() => (
+      clientApi.patch(`/variations/${variation.id}`, {
         label: change
       })
-    } catch (error) {
-      console.error(error)
-    }
+    ))
   }
 
   async function handleDetailEdit(field, change) {
+    console.log("before validation: ", change)
     if (field === "weight") {
       change = parseFloat(change);
     }
     else if (field === "reps") {
       change = parseInt(change);
     }
+    console.log("after validation: ", change)
 
     setDetails(prevDetails => (
       { ...prevDetails, [field]: change }
     ));
 
-    try {
-      await api.patch(`/variations/${variation.id}`, {
+    await withAuth(() => (
+      clientApi.patch(`/variations/${variation.id}`, {
         [field]: change
       })
-    } catch (error) {
-      console.error(error.response?.data.message, error)
-    }
+    ))
   }
 
   return (
