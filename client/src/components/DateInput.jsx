@@ -35,15 +35,15 @@ function DateInput({ date, onSubmit }) {
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
-      if (inputRef.current && onSubmit && !inputRef.current.contains(e.target)) {
+      if (editing && inputRef.current && onSubmit && !inputRef.current.contains(e.target)) {
         handleSubmit(input);
       }
     };
 
     document.addEventListener('click', handleOutsideClick, true);
     return () => document.removeEventListener('click', handleOutsideClick, true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date, input]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, input, editing]);
 
   const handleSubmit = (newDate) => {
     if (newDate instanceof Date) {
