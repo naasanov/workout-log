@@ -22,13 +22,13 @@ app.use(cors({
     optionsSuccessStatus: 200
 }))
 
-app.use('/auth', auth);
-app.use('/users', users);
-app.use('/sections', sections);
-app.use('/movements', movements);
-app.use('/variations', variations);
+app.use('/api/auth', auth);
+app.use('/api/users', users);
+app.use('/api/sections', sections);
+app.use('/api/movements', movements);
+app.use('/api/variations', variations);
 
-app.get('/', (req, res) => {
+app.get('/api', (req, res) => {
     res.send("running")
 })
 
