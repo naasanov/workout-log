@@ -20,7 +20,8 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
-    "mysql2": "^3.11.3"
+    "mysql2": "^3.11.3",
+    "typescript": "^5.7.3"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
@@ -30,8 +31,7 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.10.4",
     "nodemon": "^3.1.7",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.6.2"
+    "ts-node": "^10.9.2"
   },
   "engines": {
     "node": "23.5.0"
