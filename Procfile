@@ -1,1 +1,1 @@
-web: tsc && node dist/index.js
+web: ls client/build && tsc && node dist/index.js
