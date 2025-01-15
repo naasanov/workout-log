@@ -1,7 +1,6 @@
 {
   "name": "workout-log",
   "version": "0.1.0",
-  "homepage": "https://naasanov.github.io/workout-log",
   "private": true,
   "dependencies": {
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
