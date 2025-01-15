@@ -31,12 +31,12 @@ app.use('/api/movements', movements);
 app.use('/api/variations', variations);
 
 app.get('/api', (req, res) => {
-    res.send("running")
+    res.send("running");
 })
 
 app.get("*", (req, res) => {
-    console.log("get client")
-    res.sendFile(path.join(__dirname, "client", "build", "index.html"));
+    console.log("get client");
+    res.sendFile(path.join(__dirname, "..", "client", "build", "index.html"));
 });
 
 const port = process.env.PORT || 4000;
