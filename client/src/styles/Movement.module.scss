@@ -39,13 +39,24 @@
 }
 
 .variations {
-  display: grid;
-  grid-template-columns: min-content min-content min-content auto min-content min-content;
   width: 100%;
-  padding: 5px 0 1rem 1.5rem;
 
   &:empty {
     padding: 17px 0 0 0;
+  }
+
+  @media (max-width: $mobile-width) {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 8px 0 2rem 0;
+  }
+
+  @media (min-width: $mobile-width) {
+    display: grid;
+    grid-template-columns: min-content min-content min-content auto min-content min-content;  
+    gap: 0px 20px;
+    padding: 5px 0 1rem 1.5rem;
   }
 }
 

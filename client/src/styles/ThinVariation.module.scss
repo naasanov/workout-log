@@ -1,0 +1,20 @@
+.variation {
+  display: flex;
+  flex-direction: column;
+
+  section {
+    display: flex;
+
+    .variationName {
+      margin-right: auto;
+    }
+
+    .remove {
+      margin-left: 10px;
+    }
+
+    .weight {
+      margin-right: 20px;
+    }
+  }
+}

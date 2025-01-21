@@ -1,5 +1,5 @@
 import Editable from "./Editable";
-import Variation from "./Variation";
+import Variation from "./variation/Variation";
 import { useEffect, useState } from "react";
 import useAuth from '../hooks/useAuth.js';
 import clientApi from "../api/clientApi.js";
@@ -65,17 +65,24 @@ function Movement({ movement, setMovements }) {
   return (
     <li className={styles.section}>
       <div className={styles.header} onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
+        {/* label */}
         <Editable className={styles.sectionPart} value={movement.label} onSubmit={handleNameEdit} />
+        
+        {/* add item button */}
         <div className={`${styles.sectionPart} ${styles.addItem}`} style={{ display: hovering ? 'block' : 'none' }}>
           <button onClick={handleVariationSubmit}>Add Variation</button>
           <img src={plus} alt="plus" />
         </div>
+        
+        {/* remove item button */}
         <div className={styles.sectionPart} style={{ display: hovering ? 'block' : 'none' }}>
           <button className={styles.icon} onClick={handleRemove}>
             <img src={X} alt="delete" />
           </button>
         </div>
       </div>
+      
+      {/* variations */}
       <div className={styles.variations}>
         {variations.map(v => <Variation key={v.id} variation={v} setVariations={setVariations} />)}
       </div>
