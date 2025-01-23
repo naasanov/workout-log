@@ -1,14 +1,14 @@
-import Movement from "../Movement.jsx";
-import Editable from "../Editable.jsx";
+import Movement from "./Movement.jsx";
+import Editable from "./Editable.jsx";
 import { useState, useEffect } from "react";
-import styles from "../../styles/Workouts.module.scss";
-import plus from "../../assets/plus.svg";
-import openDropdown from "../../assets/dropdown_open.svg";
-import X from "../../assets/delete.svg";
-import useAuth from '../../hooks/useAuth.js';
-import clientApi from "../../api/clientApi.js";
+import styles from "../styles/Workouts.module.scss";
+import plus from "../assets/plus.svg";
+import openDropdown from "../assets/dropdown_open.svg";
+import X from "../assets/delete.svg";
+import useAuth from '../hooks/useAuth.js';
+import clientApi from "../api/clientApi.js";
 import { v4 as uuid } from "uuid";
-import useIsMobile from "../../hooks/useIsMobile.js";
+import useIsMobile from "../hooks/useIsMobile.js";
 
 function Section({ setSections, section }) {
   const [hovering, setHovering] = useState(false);

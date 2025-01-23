@@ -1,4 +1,4 @@
-import Section from '../components/section/Section.jsx';
+import Section from '../components/Section.jsx';
 import AddSection from '../components/AddSection.jsx';
 import { useState, useEffect } from 'react';
 import styles from "../styles/Workouts.module.scss";
