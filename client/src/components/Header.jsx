@@ -8,8 +8,8 @@ function Header() {
 
   return (
     <header className={styles.header}>
-      <Link to="/">
-        <span className={styles.title}>Workout Log</span>
+      <Link to="/" className={styles.logo}>
+        <span className={styles.title}>Peak</span>
       </Link>
       <div className={styles.authLinks}>
         {user == null
