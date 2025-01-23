@@ -9,35 +9,76 @@ import clientApi from "../api/clientApi";
 function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [emailErr, setEmailErr] = useState(false);
-  const [pwdErr, setPwdErr] = useState(false);
+  const [emailMessage, setEmailMessage] = useState(null);
+  const [pwdMessage, setPwdMessage] = useState(null);
   const [message, setMessage] = useState("")
   const { setUser } = useUser();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (email.trim() !== "") {
-      setEmailErr(false);
+      setEmailMessage(null);
     }
     if (password.trim() !== "") {
-      setPwdErr(false);
+      setPwdMessage(null);
     }
   }, [email, password])
+
+  const validateEmail = () => {
+    if (email.trim() === "") {
+      setEmailMessage("Please enter an email");
+      return false;
+    }
+    else if (!/^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email)) {
+      setEmailMessage("Please enter a valid email");
+      return false;
+    }
+    return true;
+  }
+
+  /** Password requirements:
+   * - At least 8 characters
+   * - At least one uppercase letter
+   * - At least one lowercase letter
+   * - At least one number
+   * - At lesat one symbol
+   */
+  const validatePassword = () => {
+    let msg = null;
+    if (password.trim() === "") {
+      msg = "Please enter a password";
+    }
+    else if (password.trim().length < 8) {
+      msg = "Password must be at least 8 characters";
+    }
+    else if (!/[A-Z]/.test(password)) {
+      msg = "Password must include an uppercase letter";
+    }
+    else if (!/[a-z]/.test(password)) {
+      msg = "Password must include a lowercase letter";
+    }
+    else if (!/\d/.test(password)) {
+      msg = "Password must include a number";
+    }
+    else if (!/[^\w\s]/.test(password)) {
+      msg = "Password must include a symbol";
+    }
+    if (msg !== null) {
+      setPwdMessage(msg);
+      return false;
+    }
+    return true;
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
 
-    let error = false;
-    if (email.trim() === "") {
-      setEmailErr(true);
-      error = true;
+    const emailValid = validateEmail();
+    const passwordValid = validatePassword();
+    if (!emailValid || !passwordValid) {
+      return;
     }
-    if (password.trim() === "") {
-      setPwdErr(true);
-      error = true;
-    }
-    if (error) return;
 
     let res;
     try {
@@ -67,7 +108,7 @@ function SignIn() {
             <div className={styles.input}>
               <label htmlFor="email">Email</label>
               <input
-                className={emailErr ? styles.error : null}
+                className={emailMessage ? styles.error : null}
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 type="text"
@@ -75,12 +116,12 @@ function SignIn() {
                 name="email"
                 autoComplete="username"
               />
-              {emailErr && <span>Please enter your email.</span>}
+              {emailMessage && <span>{emailMessage}</span>}
             </div>
             <div className={styles.input}>
               <label htmlFor="password">Password</label>
               <input
-                className={pwdErr ? styles.error : null}
+                className={pwdMessage ? styles.error : null}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 type="password"
@@ -88,7 +129,7 @@ function SignIn() {
                 name="password"
                 autoComplete="new-password"
               />
-              {pwdErr && <span>Please enter your password.</span>}
+              {pwdMessage && <span>{pwdMessage}</span>}
             </div>
             <div className={styles.message}>
               <span>{message}</span>

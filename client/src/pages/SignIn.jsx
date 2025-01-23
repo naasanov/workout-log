@@ -8,32 +8,43 @@ import { login } from "../api/authApi";
 function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [emailErr, setEmailErr] = useState(false);
-  const [pwdErr, setPwdErr] = useState(false);
+  const [emailMessage, setEmailMessage] = useState(null);
+  const [pwdMessage, setPwdMessage] = useState(null);
   const [message, setMessage] = useState("")
   const { setUser } = useUser();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (email.trim() !== "") {
-      setEmailErr(false);
+      setEmailMessage(null);
     }
     if (password.trim() !== "") {
-      setPwdErr(false);
+      setPwdMessage(null);
     }
   }, [email, password])
+
+  const validateEmail = () => {
+    if (email.trim() === "") {
+      setEmailMessage("Please enter an email");
+      return false;
+    }
+    else if (!/^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email)) {
+      setEmailMessage("Please enter a valid email");
+      return false;
+    }
+    return true;
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("")
 
     let error = false;
-    if (email.trim() === "") {
-      setEmailErr(true);
+    if (!validateEmail()) {
       error = true;
     }
     if (password.trim() === "") {
-      setPwdErr(true);
+      setPwdMessage("Please enter a password");
       error = true;
     }
     if (error) return;
@@ -43,6 +54,9 @@ function SignIn() {
       loggedUser = await login(email, password);
     }
     catch (error) {
+      if (error.response?.status === 401) {
+        return setMessage("Incorrect email or password");
+      }
       return setMessage("Internal Server Error");
     }
 
@@ -56,11 +70,11 @@ function SignIn() {
       <div className={styles.signin}>
         <span>Sign in to your workout log</span>
         <div>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} method="post" >
             <div className={styles.input}>
               <label htmlFor="email">Email</label>
               <input
-                className={emailErr ? styles.error : null}
+                className={emailMessage ? styles.error : null}
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 type="text"
@@ -68,12 +82,12 @@ function SignIn() {
                 name="email"
                 autoComplete="username"
               />
-              {emailErr && <span>Please enter your email.</span>}
+              {emailMessage && <span>{emailMessage}</span>}
             </div>
             <div className={styles.input}>
               <label htmlFor="password">Password</label>
               <input
-                className={pwdErr ? styles.error : null}
+                className={pwdMessage ? styles.error : null}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 type="password"
@@ -81,7 +95,7 @@ function SignIn() {
                 name="password"
                 autoComplete="current-password"
               />
-              {pwdErr && <span>Please enter your password.</span>}
+              {pwdMessage && <span>{pwdMessage}</span>}
             </div>
             <div className={styles.message}>
               <span>{message}</span>
