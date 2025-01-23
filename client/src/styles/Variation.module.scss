@@ -57,13 +57,13 @@
   border-radius: 100px;
   cursor: pointer;
 
+  .icon {
+    padding-right: 0px;
+  }
+
   &:hover {
     background-color: $primary-translucent;
   }
-}
-
-.remove {
-  padding-right: 1px;
 }
 
 .icon {
@@ -72,4 +72,14 @@
   vertical-align: center;
   color: $primary;
   width: auto;
+}
+
+.noRemove {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  background-color: transparent;
+  border: none;
+  border-radius: 100px;
 }

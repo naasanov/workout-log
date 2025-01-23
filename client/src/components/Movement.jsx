@@ -88,7 +88,7 @@ function Movement({ movement, setMovements }) {
 
       {/* variations */}
       <div className={styles.variations}>
-        {variations.map(v => <Variation key={v.id} variation={v} setVariations={setVariations} />)}
+        {variations.map(v => <Variation key={v.id} variation={v} setVariations={setVariations} removeAllowed={variations.length > 1}/>)}
         {/* add item button */}
         {isMobile && (
           <div className={styles.addItem}>

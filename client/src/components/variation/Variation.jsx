@@ -5,7 +5,7 @@ import useIsMobile from '../../hooks/useIsMobile.js';
 import ThinVariation from './ThinVariation.jsx';
 import WideVariation from './WideVariation.jsx';
 
-function Variation({ variation, setVariations }) {
+function Variation({ variation, setVariations, removeAllowed }) {
   const { isMobile } = useIsMobile();
   const [details, setDetails] = useState({});
   const [showRemove, setShowRemove] = useState(isMobile);
@@ -66,7 +66,7 @@ function Variation({ variation, setVariations }) {
     ))
   }
 
-  const props = { variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove, setShowRemove }
+  const props = { variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove, setShowRemove, removeAllowed }
   return (
     isMobile
     ? <ThinVariation {...props} />

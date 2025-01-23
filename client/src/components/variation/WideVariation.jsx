@@ -3,7 +3,7 @@ import styles from "../../styles/Variation.module.scss";
 import { Dumbbell, Number, Delete, Calender } from "../Icons";
 import DateInput from "../DateInput";
 
-function WideVariation({ variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove, setShowRemove }) {
+function WideVariation({ variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove, setShowRemove, removeAllowed }) {
   const hoverProps = {
     onMouseEnter: () => setShowRemove(true),
     onMouseLeave: () => setShowRemove(false)
@@ -51,11 +51,18 @@ function WideVariation({ variation, details, handleLabelEdit, handleDetailEdit, 
       </div>
 
       {/* remove */}
-      <div {...hoverProps} className={`${styles.part} ${styles.remove}`}>
-        <button className={styles.delete} onClick={handleRemove}>
-          <Delete style={{ width: showRemove ? 'auto' : '0px' }} className={styles.icon} />
-        </button>
-      </div>
+      {removeAllowed
+        ? (
+          <div {...hoverProps} className={styles.part}>
+            <button className={styles.delete} onClick={handleRemove}>
+              <Delete style={{ width: showRemove ? 'auto' : '0px' }} className={styles.icon} />
+            </button>
+          </div>
+        )
+        : (
+          <div className={styles.noRemove} />
+        )
+      }
     </>
   );
 }

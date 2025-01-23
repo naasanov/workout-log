@@ -4,7 +4,7 @@ import mobileStyles from "../../styles/ThinVariation.module.scss";
 import { Dumbbell, Number, Delete, Calender } from "../Icons";
 import DateInput from "../DateInput";
 
-function ThinVariation({ variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove }) {
+function ThinVariation({ variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove, removeAllowed }) {
   return (
     <div className={mobileStyles.variation}>
       <section>
@@ -23,11 +23,13 @@ function ThinVariation({ variation, details, handleLabelEdit, handleDetailEdit, 
         </div>
 
         {/* remove */}
-        <div className={`${styles.part} ${styles.remove} ${mobileStyles.remove}`}>
-          <button className={styles.delete} onClick={handleRemove}>
-            <Delete className={styles.icon} />
-          </button>
-        </div>
+        {removeAllowed && (
+          <div className={`${styles.part} ${styles.remove} ${mobileStyles.remove}`}>
+            <button className={styles.delete} onClick={handleRemove}>
+              <Delete className={styles.icon} />
+            </button>
+          </div>
+        )}
       </section>
 
       <section>
