@@ -1,19 +1,21 @@
-import Movement from "./Movement";
-import Editable from "./Editable";
+import Movement from "../Movement.jsx";
+import Editable from "../Editable.jsx";
 import { useState, useEffect } from "react";
-import styles from "../styles/Workouts.module.scss";
-import plus from "../assets/plus.svg";
-import openDropdown from "../assets/dropdown_open.svg";
-import X from "../assets/delete.svg";
-import useAuth from '../hooks/useAuth.js';
-import clientApi from "../api/clientApi.js";
+import styles from "../../styles/Workouts.module.scss";
+import plus from "../../assets/plus.svg";
+import openDropdown from "../../assets/dropdown_open.svg";
+import X from "../../assets/delete.svg";
+import useAuth from '../../hooks/useAuth.js';
+import clientApi from "../../api/clientApi.js";
 import { v4 as uuid } from "uuid";
+import useIsMobile from "../../hooks/useIsMobile.js";
 
 function Section({ setSections, section }) {
   const [hovering, setHovering] = useState(false);
   const [showItems, setShowItems] = useState(true);
   const [movements, setMovements] = useState([]);
   const { withAuth } = useAuth();
+  const { isMobile } = useIsMobile();
 
   useEffect(() => {
     const fetchMovements = async () => {
@@ -58,30 +60,40 @@ function Section({ setSections, section }) {
   return (
     <section>
       <div className={styles.section} onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
-        <div className={styles.sectionPart}>
-          <Editable
-            className={styles.item}
-            value={section.label}
-            onSubmit={handleEditSubmit}
-          />
-          {hovering && showItems && (
+        <div className={styles.sectionHeader}>
+          <div className={styles.sectionPart}>
+            <Editable
+              className={styles.item}
+              value={section.label}
+              onSubmit={handleEditSubmit}
+            />
+            {(hovering && showItems && !isMobile) && (
+              <div className={styles.addItem} >
+                <button type='button' onClick={handleMovementSubmit}>Add Exercise</button>
+                <img src={plus} alt="plus" />
+              </div>
+            )}
+          </div>
+          <div className={`${styles.sectionPart} ${styles.remove}`}>
+            {(hovering || isMobile) &&
+              <button type='button' onClick={handleRemove} className={styles.icon}>
+                <img src={X} alt="delete" />
+              </button>
+            }
+            {movements.length > 0 &&
+              <button type='button' onClick={() => setShowItems(prev => !prev)} className={styles.icon}>
+                <img src={openDropdown} alt="dropdown" className={showItems ? styles.open : styles.closed} />
+              </button>
+            }
+          </div>
+        </div>
+        <div className={styles.mobileAdd}>
+          {showItems && isMobile && (
             <div className={styles.addItem} >
               <button type='button' onClick={handleMovementSubmit}>Add Exercise</button>
               <img src={plus} alt="plus" />
             </div>
           )}
-        </div>
-        <div className={styles.sectionPart}>
-          {hovering &&
-            <button type='button' onClick={handleRemove} className={styles.icon}>
-              <img src={X} alt="delete" />
-            </button>
-          }
-          {movements.length > 0 &&
-            <button type='button' onClick={() => setShowItems(prev => !prev)} className={styles.icon}>
-              <img src={openDropdown} alt="dropdown" className={showItems ? styles.open : styles.closed} />
-            </button>
-          }
         </div>
       </div>
       {

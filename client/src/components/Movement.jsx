@@ -7,11 +7,13 @@ import styles from "../styles/Movement.module.scss";
 import plus from "../assets/plus.svg";
 import X from "../assets/delete.svg";
 import { v4 as uuid } from "uuid";
+import useIsMobile from "../hooks/useIsMobile.js";
 
 function Movement({ movement, setMovements }) {
   const [variations, setVariations] = useState([])
   const [hovering, setHovering] = useState(false);
   const { withAuth } = useAuth();
+  const { isMobile } = useIsMobile();
 
   useEffect(() => {
     const fetchMovements = async () => {
@@ -67,24 +69,33 @@ function Movement({ movement, setMovements }) {
       <div className={styles.header} onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
         {/* label */}
         <Editable className={styles.sectionPart} value={movement.label} onSubmit={handleNameEdit} />
-        
+
         {/* add item button */}
-        <div className={`${styles.sectionPart} ${styles.addItem}`} style={{ display: hovering ? 'block' : 'none' }}>
-          <button onClick={handleVariationSubmit}>Add Variation</button>
-          <img src={plus} alt="plus" />
-        </div>
-        
+        {!isMobile && (
+          <div className={`${styles.sectionPart} ${styles.addItem}`} style={{ display: hovering ? 'block' : 'none' }}>
+            <button onClick={handleVariationSubmit}>Add Variation</button>
+            <img src={plus} alt="plus" />
+          </div>
+        )}
+
         {/* remove item button */}
-        <div className={styles.sectionPart} style={{ display: hovering ? 'block' : 'none' }}>
+        <div className={styles.sectionPart} style={{ display: (hovering || isMobile) ? 'block' : 'none' }}>
           <button className={styles.icon} onClick={handleRemove}>
             <img src={X} alt="delete" />
           </button>
         </div>
       </div>
-      
+
       {/* variations */}
       <div className={styles.variations}>
         {variations.map(v => <Variation key={v.id} variation={v} setVariations={setVariations} />)}
+        {/* add item button */}
+        {isMobile && (
+          <div className={styles.addItem}>
+            <button onClick={handleVariationSubmit}>Add Variation</button>
+            <img src={plus} alt="plus" />
+          </div>
+        )}
       </div>
     </li>
   )
