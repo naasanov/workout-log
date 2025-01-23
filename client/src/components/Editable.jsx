@@ -94,7 +94,7 @@ function Editable({ value, onSubmit, className, type }) {
               />
             </form>
           )
-          : <span onClick={() => setEditing(true)}>{value}</span>
+          : <span onClick={() => setEditing(true)} style={{ cursor: "pointer" }}>{value}</span>
       }
     </div>
   );
