@@ -26,6 +26,12 @@ function Section({ setSections, section }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section.id])
 
+  useEffect(() => {
+    withAuth(() => {
+      clientApi.patch(`/sections/${section.id}`, { is_open: showItems })
+    })
+  }, [showItems])
+
   async function handleRemove() {
     setSections(prevSections => (
       prevSections.filter((item) => item.id !== section.id)

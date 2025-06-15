@@ -91,8 +91,33 @@ function validateVariation(body: any, res?: Response) {
     return valid;
 }
 
+
+/**
+ * Validation function meant to be used in section endpoints. This function does not check for present values, only validates those that are present.
+ * 
+ * @param body - Request body containing any combination of the fields pertaining to section (label, is_open)
+ * @param res - Optionally include the Response object to automatically send an error response upon detection of invalid data
+ * @returns A boolean describing whether the request body is valid or not
+ */
+function validateSection(body: any, res?: Response) {
+    if (Object.keys(body).length === 0) {
+        res?.status(400).json({ message: "Request body cannot be empty" });
+        return false;
+    }
+    
+    const { label, is_open } = body;
+    if (label !== undefined && !validateLabel(label, res)) {
+        return false;
+    }
+    if (is_open !== undefined && !(typeof is_open === 'boolean')) {
+        res?.status(400).json({ message: "is_open must be a boolean" });
+        return false;
+    }
+    return true;
+}
+
 function isValidISO(date: string) {
     return isValid(parseISO(date));
 }
 
-export { validateId, validateLabel, isValidISO, validateVariation };
+export { validateId, validateLabel, isValidISO, validateVariation, validateSection };

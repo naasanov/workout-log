@@ -2,7 +2,7 @@ import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { Router } from 'express';
 import pool from '../database';
 import handleSqlError from '../utils/handleSqlError';
-import { validateLabel, validateId } from '../utils/validation';
+import { validateLabel, validateId, validateSection } from '../utils/validation';
 import SqlError from '../utils/sqlErrors';
 const { WRONG_TYPE_ERROR, NO_REFERENCE_ERROR, TOO_LONG_ERROR, WRONG_VALUE_ERROR } = SqlError;
 import { authenticateToken } from "./auth";
@@ -105,16 +105,24 @@ router.get('/section/:sectionId', async (req, res): Promise<any> => {
 // PATCH
 router.patch('/:sectionId', async (req, res): Promise<any> => {
     const sectionId = req.params.sectionId;
-    const label = req.body.label;
-    if (!validateId(sectionId, res) || !validateLabel(label, res)) return;
+    if (!validateId(sectionId, res)) return;
+
+    const allowedFields = ['label', 'is_open'];
+    const invalidFields = Object.keys(req.body).filter(key => !allowedFields.includes(key));
+    if (invalidFields.length > 0) {
+        return res.status(400).json({
+            message: `Invalid fields: ${invalidFields.join(', ')}. Allowed fields are: ${allowedFields.join(', ')}.`
+        });
+    }
+    if (!validateSection(req.body, res)) return;
 
     let data: ResultSetHeader;
     try {
         [data] = await pool.query<ResultSetHeader>(`
             UPDATE sections
-            SET label = ?
+            SET ?
             WHERE section_id = ?
-            `, [label, sectionId]
+            `, [req.body, sectionId]
         )
     } catch (error) {
         return handleSqlError(error, res, {
