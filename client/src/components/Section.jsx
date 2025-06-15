@@ -65,7 +65,7 @@ function Section({ setSections, section }) {
       ))
     ));
     await withAuth(() => (
-      clientApi.patch(`/sections/${section.id}`, { is_open: !showItems })
+      clientApi.patch(`/sections/${section.id}`, { is_open: !section.showItems })
     ))
   }
 
@@ -79,7 +79,7 @@ function Section({ setSections, section }) {
               value={section.label}
               onSubmit={handleEditSubmit}
             />
-            {(hovering && showItems && !isMobile) && (
+            {(hovering && section.showItems && !isMobile) && (
               <div className={styles.addItem} >
                 <button type='button' onClick={handleMovementSubmit}>Add Exercise</button>
                 <img src={plus} alt="plus" />
@@ -94,13 +94,13 @@ function Section({ setSections, section }) {
             }
             {movements.length > 0 &&
               <button type='button' onClick={handleDropdownClick} className={styles.icon}>
-                <img src={openDropdown} alt="dropdown" className={showItems ? styles.open : styles.closed} />
+                <img src={openDropdown} alt="dropdown" className={section.showItems ? styles.open : styles.closed} />
               </button>
             }
           </div>
         </div>
         <div className={styles.mobileAdd}>
-          {showItems && isMobile && (
+          {section.showItems && isMobile && (
             <div className={styles.addItem} >
               <button type='button' onClick={handleMovementSubmit}>Add Exercise</button>
               <img src={plus} alt="plus" />
@@ -109,7 +109,7 @@ function Section({ setSections, section }) {
         </div>
       </div>
       {
-        <ul className={styles.movements} style={{ display: showItems ? 'block' : 'none' }}>
+        <ul className={styles.movements} style={{ display: section.showItems ? 'block' : 'none' }}>
           {movements.map((m) => (
             <Movement
               key={m.id ?? uuid()}
