@@ -63,7 +63,7 @@ router.get('/user', async (req, res): Promise<any> => {
             SELECT 
                 section_id as id, 
                 label,
-                CAST(is_open AS BOOLEAN) AS showItems
+                is_open AS showItems
             FROM sections
             WHERE user_uuid = UUID_TO_BIN(?)
         `, [uuid])
@@ -73,7 +73,10 @@ router.get('/user', async (req, res): Promise<any> => {
     }
 
     res.status(200).json({
-        data,
+        data: data.map(section => ({
+            ...section,
+            showItems: section.showItems === 1 // convert MySQL boolean to JS boolean
+        })),
         message: `Successfully retrieved all sections for user with id ${uuid}`
     })
 })
