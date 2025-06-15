@@ -18,7 +18,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(cors({
     credentials: true,
-    origin: process.env.FRONTEND_URL || "http://localhost:4000",
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
     optionsSuccessStatus: 200
 }))
 app.use(express.static(path.join(__dirname, "..", "client", "build")))

@@ -26,12 +26,6 @@ function Section({ setSections, section }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section.id])
 
-  useEffect(() => {
-    withAuth(() => {
-      clientApi.patch(`/sections/${section.id}`, { is_open: showItems })
-    })
-  }, [showItems])
-
   async function handleRemove() {
     setSections(prevSections => (
       prevSections.filter((item) => item.id !== section.id)
@@ -63,6 +57,13 @@ function Section({ setSections, section }) {
     ))
   }
 
+  async function handleDropdownClick() {
+    setShowItems(prev => !prev);
+    await withAuth(() => (
+      clientApi.patch(`/sections/${section.id}`, { is_open: !showItems })
+    ))
+  }
+
   return (
     <section>
       <div className={styles.section} onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
@@ -87,7 +88,7 @@ function Section({ setSections, section }) {
               </button>
             }
             {movements.length > 0 &&
-              <button type='button' onClick={() => setShowItems(prev => !prev)} className={styles.icon}>
+              <button type='button' onClick={handleDropdownClick} className={styles.icon}>
                 <img src={openDropdown} alt="dropdown" className={showItems ? styles.open : styles.closed} />
               </button>
             }
