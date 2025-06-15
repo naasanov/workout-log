@@ -60,7 +60,7 @@ function Section({ setSections, section }) {
     setSections(prevSections => (
       prevSections.map(s => (
         s.id === section.id
-          ? { ...s, is_open: !s.is_open }
+          ? { ...s, showItems: !s.showItems }
           : s
       ))
     ));
