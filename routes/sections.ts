@@ -60,7 +60,7 @@ router.get('/user', async (req, res): Promise<any> => {
 
     try {
         [data] = await pool.query<RowDataPacket[]>(`
-            SELECT section_id as id, label
+            SELECT section_id as id, label, is_open as showItems
             FROM sections
             WHERE user_uuid = UUID_TO_BIN(?)
         `, [uuid])

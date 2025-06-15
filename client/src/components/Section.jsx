@@ -12,7 +12,6 @@ import useIsMobile from "../hooks/useIsMobile.js";
 
 function Section({ setSections, section }) {
   const [hovering, setHovering] = useState(false);
-  const [showItems, setShowItems] = useState(true);
   const [movements, setMovements] = useState([]);
   const { withAuth } = useAuth();
   const { isMobile } = useIsMobile();
@@ -58,7 +57,13 @@ function Section({ setSections, section }) {
   }
 
   async function handleDropdownClick() {
-    setShowItems(prev => !prev);
+    setSections(prevSections => (
+      prevSections.map(s => (
+        s.id === section.id
+          ? { ...s, is_open: !s.is_open }
+          : s
+      ))
+    ));
     await withAuth(() => (
       clientApi.patch(`/sections/${section.id}`, { is_open: !showItems })
     ))
