@@ -27,3 +27,11 @@ CREATE TABLE variations (
   `date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (movement_id) REFERENCES movements(movement_id) ON DELETE CASCADE
 );
+
+CREATE TABLE tokens (
+  token_id INT AUTO_INCREMENT PRIMARY KEY,
+  user_uuid BINARY(16) NOT NULL,
+  token TEXT NOT NULL,
+  expires_at DATETIME NOT NULL,
+  FOREIGN KEY (user_uuid) REFERENCES users(user_uuid) ON DELETE CASCADE
+);

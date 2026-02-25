@@ -34,6 +34,7 @@ function Section({ setSections, section }) {
 
   async function handleMovementSubmit(e) {
     e.preventDefault();
+    const isFirst = movements.length === 0;
     const res = await withAuth(() => (
       clientApi.post(`/movements/${section.id}`, { label: "Exercise" })
     ));
@@ -41,6 +42,12 @@ function Section({ setSections, section }) {
     setMovements(prevMovements => (
       [...prevMovements, { id: key, label: 'Exercise' }]
     ))
+    if (isFirst) {
+      setSections(prevSections => (
+        prevSections.map(s => s.id === section.id ? { ...s, showItems: true } : s)
+      ));
+      await withAuth(() => clientApi.patch(`/sections/${section.id}`, { is_open: true }));
+    }
   }
 
   async function handleEditSubmit(value) {
@@ -79,7 +86,7 @@ function Section({ setSections, section }) {
               value={section.label}
               onSubmit={handleEditSubmit}
             />
-            {(hovering && section.showItems && !isMobile) && (
+            {(hovering && (section.showItems || movements.length === 0) && !isMobile) && (
               <div className={styles.addItem} >
                 <button type='button' onClick={handleMovementSubmit}>Add Exercise</button>
                 <img src={plus} alt="plus" />
@@ -100,7 +107,7 @@ function Section({ setSections, section }) {
           </div>
         </div>
         <div className={styles.mobileAdd}>
-          {section.showItems && isMobile && (
+          {(section.showItems || movements.length === 0) && isMobile && (
             <div className={styles.addItem} >
               <button type='button' onClick={handleMovementSubmit}>Add Exercise</button>
               <img src={plus} alt="plus" />
