@@ -4,11 +4,13 @@ import useAuth from '../../hooks/useAuth.js';
 import useIsMobile from '../../hooks/useIsMobile.js';
 import ThinVariation from './ThinVariation.jsx';
 import WideVariation from './WideVariation.jsx';
+import ConfirmModal from '../ConfirmModal.jsx';
 
 function Variation({ variation, setVariations, removeAllowed }) {
   const { isMobile } = useIsMobile();
   const [details, setDetails] = useState({});
   const [showRemove, setShowRemove] = useState(isMobile);
+  const [showConfirm, setShowConfirm] = useState(false);
   const { withAuth } = useAuth();
 
   useEffect(() => {
@@ -30,6 +32,19 @@ function Variation({ variation, setVariations, removeAllowed }) {
       ))
     ));
     await withAuth(() => clientApi.delete(`/variations/${variation.id}`))
+  }
+
+  function handleRemoveClick() {
+    setShowConfirm(true);
+  }
+
+  async function handleConfirmRemove() {
+    setShowConfirm(false);
+    await handleRemove();
+  }
+
+  function handleCancelRemove() {
+    setShowConfirm(false);
   }
 
   async function handleLabelEdit(change) {
@@ -75,11 +90,21 @@ function Variation({ variation, setVariations, removeAllowed }) {
     ))
   }
 
-  const props = { variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove, setShowRemove, removeAllowed }
+  const props = { variation, details, handleLabelEdit, handleDetailEdit, handleRemove: handleRemoveClick, showRemove, setShowRemove, removeAllowed }
   return (
-    isMobile
-    ? <ThinVariation {...props} />
-    : <WideVariation {...props} />
+    <>
+      {showConfirm && (
+        <ConfirmModal
+          message="Delete this variation?"
+          onConfirm={handleConfirmRemove}
+          onCancel={handleCancelRemove}
+        />
+      )}
+      {isMobile
+        ? <ThinVariation {...props} />
+        : <WideVariation {...props} />
+      }
+    </>
   )
 }
 

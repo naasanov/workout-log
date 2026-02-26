@@ -1,5 +1,6 @@
 import Editable from "./Editable";
 import Variation from "./variation/Variation";
+import ConfirmModal from "./ConfirmModal";
 import { useEffect, useState } from "react";
 import useAuth from '../hooks/useAuth.js';
 import clientApi from "../api/clientApi.js";
@@ -12,6 +13,7 @@ import useIsMobile from "../hooks/useIsMobile.js";
 function Movement({ movement, setMovements }) {
   const [variations, setVariations] = useState([])
   const [hovering, setHovering] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const { withAuth } = useAuth();
   const { isMobile } = useIsMobile();
 
@@ -33,6 +35,19 @@ function Movement({ movement, setMovements }) {
       prevMovements.filter(m => m.id !== movement.id)
     ));
     await withAuth(() => clientApi.delete(`/movements/${movement.id}`))
+  }
+
+  function handleRemoveClick() {
+    setShowConfirm(true);
+  }
+
+  async function handleConfirmRemove() {
+    setShowConfirm(false);
+    await handleRemove();
+  }
+
+  function handleCancelRemove() {
+    setShowConfirm(false);
   }
 
   async function handleVariationSubmit(e) {
@@ -66,6 +81,13 @@ function Movement({ movement, setMovements }) {
 
   return (
     <li className={styles.section}>
+      {showConfirm && (
+        <ConfirmModal
+          message="Delete this exercise?"
+          onConfirm={handleConfirmRemove}
+          onCancel={handleCancelRemove}
+        />
+      )}
       <div className={styles.header} onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
         {/* label */}
         <Editable className={styles.sectionPart} value={movement.label} onSubmit={handleNameEdit} />
@@ -80,7 +102,7 @@ function Movement({ movement, setMovements }) {
 
         {/* remove item button */}
         <div className={styles.sectionPart} style={{ display: (hovering || isMobile) ? 'block' : 'none' }}>
-          <button className={styles.icon} onClick={handleRemove}>
+          <button className={styles.icon} onClick={handleRemoveClick}>
             <img src={X} alt="delete" />
           </button>
         </div>
