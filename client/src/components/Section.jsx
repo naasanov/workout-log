@@ -1,5 +1,6 @@
 import Movement from "./Movement.jsx";
 import Editable from "./Editable.jsx";
+import ConfirmModal from "./ConfirmModal.jsx";
 import { useState, useEffect } from "react";
 import styles from "../styles/Workouts.module.scss";
 import plus from "../assets/plus.svg";
@@ -13,6 +14,7 @@ import useIsMobile from "../hooks/useIsMobile.js";
 function Section({ setSections, section }) {
   const [hovering, setHovering] = useState(false);
   const [movements, setMovements] = useState([]);
+  const [showConfirm, setShowConfirm] = useState(false);
   const { withAuth } = useAuth();
   const { isMobile } = useIsMobile();
 
@@ -30,6 +32,19 @@ function Section({ setSections, section }) {
       prevSections.filter((item) => item.id !== section.id)
     ));
     await withAuth(() => clientApi.delete(`/sections/${section.id}`))
+  }
+
+  function handleRemoveClick() {
+    setShowConfirm(true);
+  }
+
+  async function handleConfirmRemove() {
+    setShowConfirm(false);
+    await handleRemove();
+  }
+
+  function handleCancelRemove() {
+    setShowConfirm(false);
   }
 
   async function handleMovementSubmit(e) {
@@ -78,6 +93,13 @@ function Section({ setSections, section }) {
 
   return (
     <section>
+      {showConfirm && (
+        <ConfirmModal
+          message="Delete this section?"
+          onConfirm={handleConfirmRemove}
+          onCancel={handleCancelRemove}
+        />
+      )}
       <div className={styles.section} onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
         <div className={styles.sectionHeader}>
           <div className={styles.sectionPart}>
@@ -95,7 +117,7 @@ function Section({ setSections, section }) {
           </div>
           <div className={`${styles.sectionPart} ${styles.remove}`}>
             {(hovering || isMobile) &&
-              <button type='button' onClick={handleRemove} className={styles.icon}>
+              <button type='button' onClick={handleRemoveClick} className={styles.icon}>
                 <img src={X} alt="delete" />
               </button>
             }
