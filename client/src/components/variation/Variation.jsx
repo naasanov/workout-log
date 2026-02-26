@@ -33,6 +33,7 @@ function Variation({ variation, setVariations, removeAllowed }) {
   }
 
   async function handleLabelEdit(change) {
+    const today = new Date();
     setVariations(prevVariations => (
       prevVariations.map(v => (
         v.id === variation.id
@@ -40,9 +41,11 @@ function Variation({ variation, setVariations, removeAllowed }) {
           : v
       ))
     ));
+    setDetails(prevDetails => ({ ...prevDetails, date: today }));
     await withAuth(() => (
       clientApi.patch(`/variations/${variation.id}`, {
-        label: change
+        label: change,
+        date: today.toISOString()
       })
     ))
   }
@@ -55,13 +58,19 @@ function Variation({ variation, setVariations, removeAllowed }) {
       change = parseInt(change);
     }
 
-    setDetails(prevDetails => (
-      { ...prevDetails, [field]: change }
-    ));
+    const today = new Date();
+    const dateUpdate = field === "date" ? {} : { date: today };
+
+    setDetails(prevDetails => ({
+      ...prevDetails,
+      [field]: change,
+      ...dateUpdate
+    }));
 
     await withAuth(() => (
       clientApi.patch(`/variations/${variation.id}`, {
-        [field]: change
+        [field]: change,
+        ...(field === "date" ? {} : { date: today.toISOString() })
       })
     ))
   }
