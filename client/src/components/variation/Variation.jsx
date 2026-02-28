@@ -5,12 +5,14 @@ import useIsMobile from '../../hooks/useIsMobile.js';
 import ThinVariation from './ThinVariation.jsx';
 import WideVariation from './WideVariation.jsx';
 import ConfirmModal from '../ConfirmModal.jsx';
+import WeightGraphModal from '../WeightGraphModal.jsx';
 
 function Variation({ variation, setVariations, removeAllowed }) {
   const { isMobile } = useIsMobile();
   const [details, setDetails] = useState({});
   const [showRemove, setShowRemove] = useState(isMobile);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showGraph, setShowGraph] = useState(false);
   const { withAuth } = useAuth();
 
   useEffect(() => {
@@ -90,7 +92,7 @@ function Variation({ variation, setVariations, removeAllowed }) {
     ))
   }
 
-  const props = { variation, details, handleLabelEdit, handleDetailEdit, handleRemove: handleRemoveClick, showRemove, setShowRemove, removeAllowed }
+  const props = { variation, details, handleLabelEdit, handleDetailEdit, handleRemove: handleRemoveClick, showRemove, setShowRemove, removeAllowed, onGraphOpen: () => setShowGraph(true) }
   return (
     <>
       {showConfirm && (
@@ -98,6 +100,12 @@ function Variation({ variation, setVariations, removeAllowed }) {
           message="Delete this variation?"
           onConfirm={handleConfirmRemove}
           onCancel={handleCancelRemove}
+        />
+      )}
+      {showGraph && (
+        <WeightGraphModal
+          variation={variation}
+          onClose={() => setShowGraph(false)}
         />
       )}
       {isMobile
