@@ -28,6 +28,14 @@ CREATE TABLE variations (
   FOREIGN KEY (movement_id) REFERENCES movements(movement_id) ON DELETE CASCADE
 );
 
+CREATE TABLE variation_history (
+  history_id INT AUTO_INCREMENT PRIMARY KEY,
+  variation_id INT NOT NULL,
+  weight FLOAT NULL,
+  date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (variation_id) REFERENCES variations(variation_id) ON DELETE CASCADE
+);
+
 CREATE TABLE tokens (
   token_id INT AUTO_INCREMENT PRIMARY KEY,
   user_uuid BINARY(16) NOT NULL,

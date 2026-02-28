@@ -1,9 +1,9 @@
 import Editable from "../Editable";
 import styles from "../../styles/Variation.module.scss";
-import { Dumbbell, Number, Delete, Calender } from "../Icons";
+import { Dumbbell, Number, Delete, Calender, Chart } from "../Icons";
 import DateInput from "../DateInput";
 
-function WideVariation({ variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove, setShowRemove, removeAllowed }) {
+function WideVariation({ variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove, setShowRemove, removeAllowed, onGraphOpen }) {
   const hoverProps = {
     onMouseEnter: () => setShowRemove(true),
     onMouseLeave: () => setShowRemove(false)
@@ -48,6 +48,13 @@ function WideVariation({ variation, details, handleLabelEdit, handleDetailEdit, 
           date={details.date}
           onSubmit={change => handleDetailEdit("date", change)}
         />
+      </div>
+
+      {/* graph */}
+      <div {...hoverProps}>
+        <button className={styles.graphBtn} onClick={onGraphOpen}>
+          <Chart className={styles.icon} />
+        </button>
       </div>
 
       {/* remove */}

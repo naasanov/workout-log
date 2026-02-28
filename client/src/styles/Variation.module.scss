@@ -73,6 +73,27 @@
   width: auto;
 }
 
+.graphBtn {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  border: none;
+  border-radius: 100px;
+  cursor: pointer;
+  color: $primary;
+
+  &:hover {
+    background-color: $primary-translucent;
+  }
+
+  .icon {
+    padding-right: 0px;
+  }
+}
+
 .noRemove {
   display: flex;
   width: 40px;

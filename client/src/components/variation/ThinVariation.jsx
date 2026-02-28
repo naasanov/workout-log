@@ -1,10 +1,10 @@
 import Editable from "../Editable";
 import styles from "../../styles/Variation.module.scss";
 import mobileStyles from "../../styles/ThinVariation.module.scss";
-import { Dumbbell, Number, Delete, Calender } from "../Icons";
+import { Dumbbell, Number, Delete, Calender, Chart } from "../Icons";
 import DateInput from "../DateInput";
 
-function ThinVariation({ variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove, removeAllowed }) {
+function ThinVariation({ variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove, removeAllowed, onGraphOpen }) {
   return (
     <div className={mobileStyles.variation}>
       <section>
@@ -20,6 +20,13 @@ function ThinVariation({ variation, details, handleLabelEdit, handleDetailEdit, 
             date={details.date}
             onSubmit={change => handleDetailEdit("date", change)}
           />
+        </div>
+
+        {/* graph */}
+        <div className={`${styles.part} ${mobileStyles.graphBtn}`}>
+          <button className={styles.graphBtn} onClick={onGraphOpen}>
+            <Chart className={styles.icon} />
+          </button>
         </div>
 
         {/* remove */}

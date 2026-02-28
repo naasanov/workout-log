@@ -105,6 +105,29 @@ router.get('/variation/:variationId', async (req, res): Promise<any> => {
     })
 })
 
+// GET history
+router.get('/history/:variationId', async (req, res): Promise<any> => {
+    const variationId = req.params.variationId;
+    if (!validateId(variationId, res)) return;
+
+    let data: RowDataPacket[];
+    try {
+        [data] = await pool.query<RowDataPacket[]>(`
+            SELECT weight, date
+            FROM variation_history
+            WHERE variation_id = ?
+            ORDER BY date ASC
+        `, [variationId]);
+    } catch (error) {
+        return handleSqlError(error, res);
+    }
+
+    res.status(200).json({
+        data,
+        message: `Successfully retrieved history for variation with id ${variationId}`
+    });
+})
+
 // PATCH
 router.patch('/:variationId', async (req, res): Promise<any> => {
     // req.body should be in the form { label?: string, weight?: number, reps?: number, date?: Date };
@@ -137,6 +160,18 @@ router.patch('/:variationId', async (req, res): Promise<any> => {
 
     if (data.affectedRows === 0) {
         return res.status(404).json({ message: `No variation with id ${variationId}` });
+    }
+
+    if ('weight' in req.body && req.body.weight != null) {
+        const historyDate = req.body.date ?? new Date();
+        try {
+            await pool.query<ResultSetHeader>(`
+                INSERT INTO variation_history (variation_id, weight, date)
+                VALUES (?, ?, ?)
+            `, [variationId, req.body.weight, historyDate]);
+        } catch (_) {
+            // history logging is best-effort; don't fail the request
+        }
     }
 
     res.status(200).json({ message: `Successfully updated ${Object.keys(req.body).join(', ')} of variation with id ${variationId}` });
