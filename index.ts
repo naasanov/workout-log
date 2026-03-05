@@ -10,6 +10,7 @@ import movements from './routes/movements';
 import variations from './routes/variations';
 import auth from './routes/auth';
 import bodyWeight from './routes/bodyWeight';
+import apiV1 from './routes/apiV1';
 
 dotenv.config();
 
@@ -30,6 +31,7 @@ app.use('/api/sections', sections);
 app.use('/api/movements', movements);
 app.use('/api/variations', variations);
 app.use('/api/body-weight', bodyWeight);
+app.use('/api/v1', apiV1);
 
 app.get('/api', (req, res) => {
     res.send("running");
