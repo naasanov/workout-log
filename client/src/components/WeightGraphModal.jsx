@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
 import clientApi from '../api/clientApi.js';
 import useAuth from '../hooks/useAuth.js';
 import styles from '../styles/WeightGraphModal.module.scss';
+
+const WEIGHT_COLOR = '#70EB70';
+const REPS_COLOR = '#70C5EB';
 
 function WeightGraphModal({ variation, onClose }) {
   const [history, setHistory] = useState([]);
@@ -16,7 +19,8 @@ function WeightGraphModal({ variation, onClose }) {
       if (res?.data?.data) {
         setHistory(
           res.data.data.map(entry => ({
-            weight: entry.weight,
+            weight: entry.weight ?? null,
+            reps: entry.reps ?? null,
             date: format(new Date(entry.date), 'MMM d'),
             rawDate: new Date(entry.date).getTime()
           }))
@@ -26,6 +30,15 @@ function WeightGraphModal({ variation, onClose }) {
     }
     fetchHistory();
   }, [variation.id]);
+
+  const hasWeight = history.some(e => e.weight != null);
+  const hasReps = history.some(e => e.reps != null);
+
+  const tooltipFormatter = (value, name) => {
+    if (name === 'weight') return [`${value} lbs`, 'Weight'];
+    if (name === 'reps') return [value, 'Reps'];
+    return [value, name];
+  };
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -40,13 +53,13 @@ function WeightGraphModal({ variation, onClose }) {
         ) : history.length < 2 ? (
           <p className={styles.empty}>
             {history.length === 0
-              ? 'No weight history yet. Update the weight to start tracking.'
-              : 'Only one data point recorded. Update the weight again to see a trend.'}
+              ? 'No history yet. Update the weight to start tracking.'
+              : 'Only one data point recorded. Update again to see a trend.'}
           </p>
         ) : (
           <div className={styles.chartWrap}>
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={history} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height={280}>
+              <ComposedChart data={history} margin={{ top: 10, right: hasReps ? 48 : 16, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                 <XAxis
                   dataKey="date"
@@ -54,13 +67,29 @@ function WeightGraphModal({ variation, onClose }) {
                   axisLine={{ stroke: '#575757' }}
                   tickLine={false}
                 />
-                <YAxis
-                  tick={{ fill: '#EBEDE9', fontSize: 12, fontFamily: 'Sarabun, sans-serif' }}
-                  axisLine={{ stroke: '#575757' }}
-                  tickLine={false}
-                  width={48}
-                  tickFormatter={v => `${v}`}
-                />
+                {hasWeight && (
+                  <YAxis
+                    yAxisId="weight"
+                    orientation="left"
+                    tick={{ fill: WEIGHT_COLOR, fontSize: 12, fontFamily: 'Sarabun, sans-serif' }}
+                    axisLine={{ stroke: '#575757' }}
+                    tickLine={false}
+                    width={48}
+                    unit=" lbs"
+                  />
+                )}
+                {hasReps && (
+                  <YAxis
+                    yAxisId="reps"
+                    orientation="right"
+                    tick={{ fill: REPS_COLOR, fontSize: 12, fontFamily: 'Sarabun, sans-serif' }}
+                    axisLine={{ stroke: '#575757' }}
+                    tickLine={false}
+                    width={40}
+                    allowDecimals={false}
+                    unit=" reps"
+                  />
+                )}
                 <Tooltip
                   contentStyle={{
                     backgroundColor: '#282B28',
@@ -69,19 +98,38 @@ function WeightGraphModal({ variation, onClose }) {
                     color: '#EBEDE9',
                     fontFamily: 'Sarabun, sans-serif',
                   }}
-                  formatter={(value) => [`${value} lbs`, 'Weight']}
+                  formatter={tooltipFormatter}
                 />
-                <Line
-                  type="monotone"
-                  dataKey="weight"
-                  stroke="#70EB70"
-                  strokeWidth={2}
-                  dot={{ fill: '#70EB70', r: 4 }}
-                  activeDot={{ r: 6 }}
+                <Legend
+                  wrapperStyle={{ fontFamily: 'Sarabun, sans-serif', fontSize: 13, color: '#EBEDE9' }}
+                  formatter={(value) => value === 'weight' ? 'Weight' : 'Reps'}
                 />
-              </LineChart>
+                {hasWeight && (
+                  <Line
+                    yAxisId="weight"
+                    type="monotone"
+                    dataKey="weight"
+                    stroke={WEIGHT_COLOR}
+                    strokeWidth={2}
+                    dot={{ fill: WEIGHT_COLOR, r: 4 }}
+                    activeDot={{ r: 6 }}
+                    connectNulls
+                  />
+                )}
+                {hasReps && (
+                  <Line
+                    yAxisId="reps"
+                    type="monotone"
+                    dataKey="reps"
+                    stroke={REPS_COLOR}
+                    strokeWidth={2}
+                    dot={{ fill: REPS_COLOR, r: 4 }}
+                    activeDot={{ r: 6 }}
+                    connectNulls
+                  />
+                )}
+              </ComposedChart>
             </ResponsiveContainer>
-            <p className={styles.yLabel}>lbs</p>
           </div>
         )}
       </div>

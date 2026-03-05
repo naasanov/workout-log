@@ -113,7 +113,7 @@ router.get('/history/:variationId', async (req, res): Promise<any> => {
     let data: RowDataPacket[];
     try {
         [data] = await pool.query<RowDataPacket[]>(`
-            SELECT weight, date
+            SELECT weight, reps, date
             FROM variation_history
             WHERE variation_id = ?
             ORDER BY date ASC
@@ -164,11 +164,12 @@ router.patch('/:variationId', async (req, res): Promise<any> => {
 
     if ('weight' in req.body && req.body.weight != null) {
         const historyDate = req.body.date ?? new Date();
+        const historyReps = 'reps' in req.body ? req.body.reps : null;
         try {
             await pool.query<ResultSetHeader>(`
-                INSERT INTO variation_history (variation_id, weight, date)
-                VALUES (?, ?, ?)
-            `, [variationId, req.body.weight, historyDate]);
+                INSERT INTO variation_history (variation_id, weight, reps, date)
+                VALUES (?, ?, ?, ?)
+            `, [variationId, req.body.weight, historyReps, historyDate]);
         } catch (_) {
             // history logging is best-effort; don't fail the request
         }
