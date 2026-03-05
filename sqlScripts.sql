@@ -32,9 +32,13 @@ CREATE TABLE variation_history (
   history_id INT AUTO_INCREMENT PRIMARY KEY,
   variation_id INT NOT NULL,
   weight FLOAT NULL,
+  reps INT NULL,
   date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (variation_id) REFERENCES variations(variation_id) ON DELETE CASCADE
 );
+
+-- Migration: add reps column to existing variation_history tables
+-- ALTER TABLE variation_history ADD COLUMN reps INT NULL AFTER weight;
 
 CREATE TABLE tokens (
   token_id INT AUTO_INCREMENT PRIMARY KEY,
