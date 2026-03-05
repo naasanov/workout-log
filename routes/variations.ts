@@ -165,10 +165,20 @@ router.patch('/:variationId', async (req, res): Promise<any> => {
     if ('weight' in req.body && req.body.weight != null) {
         const historyDate = req.body.date ?? new Date();
         try {
-            await pool.query<ResultSetHeader>(`
-                INSERT INTO variation_history (variation_id, weight, date)
-                VALUES (?, ?, ?)
-            `, [variationId, req.body.weight, historyDate]);
+            let latestHistory: RowDataPacket[];
+            [latestHistory] = await pool.query<RowDataPacket[]>(`
+                SELECT weight FROM variation_history
+                WHERE variation_id = ?
+                ORDER BY date DESC, history_id DESC
+                LIMIT 1
+            `, [variationId]);
+            const latestWeight = latestHistory.length > 0 ? latestHistory[0].weight : null;
+            if (latestWeight === null || latestWeight !== req.body.weight) {
+                await pool.query<ResultSetHeader>(`
+                    INSERT INTO variation_history (variation_id, weight, date)
+                    VALUES (?, ?, ?)
+                `, [variationId, req.body.weight, historyDate]);
+            }
         } catch (_) {
             // history logging is best-effort; don't fail the request
         }
