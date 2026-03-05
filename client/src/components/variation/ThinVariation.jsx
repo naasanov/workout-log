@@ -13,30 +13,31 @@ function ThinVariation({ variation, details, handleLabelEdit, handleDetailEdit, 
           <Editable value={variation.label} onSubmit={handleLabelEdit} />
         </div>
 
-        {/* date */}
-        <div className={styles.part}>
-          <Calender className={styles.icon} />
-          <DateInput
-            date={details.date}
-            onSubmit={change => handleDetailEdit("date", change)}
-          />
-        </div>
+        {/* date + graph + remove grouped for consistent right-alignment */}
+        <div className={mobileStyles.rightGroup}>
+          <div className={styles.part}>
+            <Calender className={styles.icon} />
+            <DateInput
+              date={details.date}
+              onSubmit={change => handleDetailEdit("date", change)}
+            />
+          </div>
 
-        {/* graph */}
-        <div className={`${styles.part} ${mobileStyles.graphBtn}`}>
           <button className={styles.graphBtn} onClick={onGraphOpen}>
             <Chart className={styles.icon} />
           </button>
-        </div>
 
-        {/* remove */}
-        {removeAllowed && (
-          <div className={`${styles.part} ${styles.remove} ${mobileStyles.remove}`}>
-            <button className={styles.delete} onClick={handleRemove}>
-              <Delete className={styles.icon} />
-            </button>
-          </div>
-        )}
+          {removeAllowed
+            ? (
+              <button className={styles.delete} onClick={handleRemove}>
+                <Delete className={styles.icon} />
+              </button>
+            )
+            : (
+              <div className={styles.noRemove} />
+            )
+          }
+        </div>
       </section>
 
       <section>

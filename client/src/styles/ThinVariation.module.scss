@@ -4,21 +4,21 @@
 
   section {
     display: flex;
+    align-items: center;
 
     .variationName {
       margin-right: auto;
-    }
-
-    .graphBtn {
-      margin-left: 4px;
-    }
-
-    .remove {
-      margin-left: 10px;
     }
 
     .weight {
       margin-right: 20px;
     }
   }
+}
+
+.rightGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
