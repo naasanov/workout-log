@@ -94,6 +94,13 @@
   }
 }
 
+.rightGroup {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
 .noRemove {
   display: flex;
   width: 40px;

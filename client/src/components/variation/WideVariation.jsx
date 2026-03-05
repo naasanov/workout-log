@@ -41,35 +41,31 @@ function WideVariation({ variation, details, handleLabelEdit, handleDetailEdit, 
       {/* whitespace */}
       <div {...hoverProps}></div>
 
-      {/* date */}
-      <div className={styles.part} {...hoverProps}>
-        <Calender className={styles.icon} />
-        <DateInput
-          date={details.date}
-          onSubmit={change => handleDetailEdit("date", change)}
-        />
-      </div>
+      {/* date + graph + remove grouped for right-alignment */}
+      <div className={styles.rightGroup} {...hoverProps}>
+        <div className={styles.part}>
+          <Calender className={styles.icon} />
+          <DateInput
+            date={details.date}
+            onSubmit={change => handleDetailEdit("date", change)}
+          />
+        </div>
 
-      {/* graph */}
-      <div {...hoverProps}>
         <button className={styles.graphBtn} onClick={onGraphOpen}>
           <Chart className={styles.icon} />
         </button>
-      </div>
 
-      {/* remove */}
-      {removeAllowed
-        ? (
-          <div {...hoverProps} className={styles.part}>
+        {removeAllowed
+          ? (
             <button className={styles.delete} onClick={handleRemove}>
               <Delete style={{ width: showRemove ? 'auto' : '0px' }} className={styles.icon} />
             </button>
-          </div>
-        )
-        : (
-          <div className={styles.noRemove} />
-        )
-      }
+          )
+          : (
+            <div className={styles.noRemove} />
+          )
+        }
+      </div>
     </>
   );
 }
