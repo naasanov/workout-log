@@ -1,5 +1,6 @@
 import Section from '../components/Section.jsx';
 import AddSection from '../components/AddSection.jsx';
+import BodyWeightTracker from '../components/BodyWeightTracker.jsx';
 import { useState, useEffect } from 'react';
 import styles from "../styles/Workouts.module.scss";
 import Header from '../components/Header.jsx';
@@ -23,6 +24,7 @@ function Workouts() {
     <>
       <Header />
       <main className={styles.container}>
+        <BodyWeightTracker />
         <div>
           {sections.map((s) => (
             <Section
