@@ -19,7 +19,7 @@ function ApiKeyModal({ onClose }) {
   }, []);
 
   async function fetchKeys() {
-    const res = await withAuth(() => clientApi.get('/api/v1/keys'));
+    const res = await withAuth(() => clientApi.get('/v1/keys'));
     if (res?.data?.data) setKeys(res.data.data);
     setLoading(false);
   }
@@ -28,7 +28,7 @@ function ApiKeyModal({ onClose }) {
     e.preventDefault();
     if (!label.trim()) return;
     setGenerating(true);
-    const res = await withAuth(() => clientApi.post('/api/v1/keys', { label: label.trim() }));
+    const res = await withAuth(() => clientApi.post('/v1/keys', { label: label.trim() }));
     if (res?.data?.data) {
       setNewKey(res.data.data.key);
       setKeys(prev => [{ id: res.data.data.id, label: label.trim(), created_at: new Date().toISOString(), last_used_at: null }, ...prev]);
@@ -38,7 +38,7 @@ function ApiKeyModal({ onClose }) {
   }
 
   async function handleDelete(id) {
-    await withAuth(() => clientApi.delete(`/api/v1/keys/${id}`));
+    await withAuth(() => clientApi.delete(`/v1/keys/${id}`));
     setKeys(prev => prev.filter(k => k.id !== id));
   }
 
