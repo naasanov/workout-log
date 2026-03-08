@@ -11,13 +11,42 @@
   }
 }
 
+.headingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
 .heading {
-  margin: 0 0 20px;
+  margin: 0;
   color: $text;
   font-family: $sarabun;
   font-size: 26px;
   font-weight: 500;
   letter-spacing: $sarabun-spacing;
+}
+
+.collapseBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: $primary;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 8px;
+
+  &:hover {
+    background-color: $primary-translucent;
+  }
+}
+
+.chevron {
+  width: 20px;
+  height: 20px;
+  color: $primary;
 }
 
 .form {
