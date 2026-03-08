@@ -58,7 +58,7 @@ function WideVariation({ variation, details, handleLabelEdit, handleDetailEdit, 
         {removeAllowed
           ? (
             <button className={styles.delete} onClick={handleRemove}>
-              <Delete style={{ width: showRemove ? 'auto' : '0px' }} className={styles.icon} />
+              <Delete style={{ visibility: showRemove ? 'visible' : 'hidden' }} className={styles.icon} />
             </button>
           )
           : (

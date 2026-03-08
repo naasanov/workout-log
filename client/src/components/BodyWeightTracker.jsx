@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import clientApi from '../api/clientApi.js';
 import useAuth from '../hooks/useAuth.js';
 import ConfirmModal from './ConfirmModal.jsx';
+import { DropdownClosed, DropdownOpen } from './Icons.jsx';
 import styles from '../styles/BodyWeightTracker.module.scss';
 
 function BodyWeightTracker() {
@@ -13,6 +14,7 @@ function BodyWeightTracker() {
   const [date, setDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
+  const [collapsed, setCollapsed] = useState(false);
   const { withAuth } = useAuth();
 
   useEffect(() => {
@@ -65,9 +67,14 @@ function BodyWeightTracker() {
 
   return (
     <section className={styles.container}>
-      <h2 className={styles.heading}>Body Weight</h2>
+      <div className={styles.headingRow}>
+        <h2 className={styles.heading}>Body Weight</h2>
+        <button className={styles.collapseBtn} onClick={() => setCollapsed(c => !c)} aria-label={collapsed ? 'Expand' : 'Collapse'}>
+          {collapsed ? <DropdownClosed className={styles.chevron} /> : <DropdownOpen className={styles.chevron} />}
+        </button>
+      </div>
 
-      <form className={styles.form} onSubmit={handleSubmit}>
+      {!collapsed && <><form className={styles.form} onSubmit={handleSubmit}>
         <input
           className={styles.input}
           type="number"
@@ -156,6 +163,7 @@ function BodyWeightTracker() {
           ))}
         </ul>
       )}
+      </>}
 
       {deleteId !== null && (
         <ConfirmModal

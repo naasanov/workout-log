@@ -5,7 +5,7 @@ export function Calender({ className }) {
 }
 
 export function Delete({ className, style }) {
-  return <svg style={style} className={className} id="ejWkiowfNcJ1" viewBox="0 0 415 415" shapeRendering="geometricPrecision" textRendering="geometricPrecision" project-id="eb80be3fa9da40e1932832c4e0a2ecce" export-id="b70805fd64ba4a0a9d9c4594c4ee41fd" cached="false"><rect width="139.268266" height="12.661857" rx="7.08" ry="7.08" transform="matrix(-1.52319-1.52319-2.97712 2.97712 332.413894 294.718086)" fill="currentColor" strokeWidth="0" /><rect width="139.268266" height="12.661857" rx="7.08" ry="7.08" transform="matrix(1.52319-1.52319-2.97712-2.97712 120.281915 332.413949)" fill="currentColor" strokeWidth="0" /></svg>
+  return <svg style={style} className={className} id="ejWkiowfNcJ1" width="20" height="20" viewBox="0 0 415 415" shapeRendering="geometricPrecision" textRendering="geometricPrecision" project-id="eb80be3fa9da40e1932832c4e0a2ecce" export-id="b70805fd64ba4a0a9d9c4594c4ee41fd" cached="false"><rect width="139.268266" height="12.661857" rx="7.08" ry="7.08" transform="matrix(-1.52319-1.52319-2.97712 2.97712 332.413894 294.718086)" fill="currentColor" strokeWidth="0" /><rect width="139.268266" height="12.661857" rx="7.08" ry="7.08" transform="matrix(1.52319-1.52319-2.97712-2.97712 120.281915 332.413949)" fill="currentColor" strokeWidth="0" /></svg>
 
 }
 
