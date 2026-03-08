@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import clientApi from '../api/clientApi.js';
 import useAuth from '../hooks/useAuth.js';
 import ConfirmModal from './ConfirmModal.jsx';
-import { DropdownClosed, DropdownOpen } from './Icons.jsx';
+import openDropdown from '../assets/dropdown_open.svg';
 import styles from '../styles/BodyWeightTracker.module.scss';
 
 function BodyWeightTracker() {
@@ -67,10 +67,10 @@ function BodyWeightTracker() {
 
   return (
     <section className={styles.container}>
-      <div className={styles.headingRow}>
+      <div className={`${styles.headingRow} ${collapsed ? styles.headingRowCollapsed : ''}`}>
         <h2 className={styles.heading}>Body Weight</h2>
         <button className={styles.collapseBtn} onClick={() => setCollapsed(c => !c)} aria-label={collapsed ? 'Expand' : 'Collapse'}>
-          {collapsed ? <DropdownClosed className={styles.chevron} /> : <DropdownOpen className={styles.chevron} />}
+          <img src={openDropdown} alt="toggle" className={collapsed ? styles.chevronClosed : styles.chevronOpen} />
         </button>
       </div>
 
@@ -107,7 +107,7 @@ function BodyWeightTracker() {
       ) : (
         <div className={styles.chartWrap}>
           <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+            <LineChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }} style={{ fontFamily: 'Sarabun, sans-serif' }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
               <XAxis
                 dataKey="date"
