@@ -1,7 +1,7 @@
 import styles from "../styles/Header.module.scss";
 import { Link } from "react-router-dom";
 import { useUser } from "../context/UserProvider";
-import Logout from "./Logout";
+import AccountMenu from "./AccountMenu";
 
 function Header() {
   const { user } = useUser();
@@ -19,7 +19,7 @@ function Header() {
               <Link to="/sign-in" className={styles.solidButton}>Sign In</Link>
             </>
           )
-          : <Logout />
+          : <AccountMenu />
         }
       </div>
     </header>

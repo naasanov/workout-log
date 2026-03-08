@@ -65,3 +65,75 @@
     }
   }
 }
+
+// --- Account menu dropdown ---
+
+.accountMenu {
+  position: relative;
+}
+
+.accountBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: $primary;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: rgba($primary, 0.1);
+  }
+}
+
+.profileIcon {
+  width: 24px;
+  height: 24px;
+  color: $primary;
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background-color: $surface;
+  border: 1px solid $surface-border;
+  border-radius: 10px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 140px;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.dropdownItem {
+  background: transparent;
+  border: none;
+  color: $text;
+  font-family: $sarabun;
+  font-size: 15px;
+  letter-spacing: $sarabun-spacing;
+  padding: 8px 14px;
+  border-radius: 7px;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background-color: rgba($primary, 0.12);
+    color: $primary;
+  }
+}
+
+.dropdownItemDanger {
+  &:hover {
+    background-color: rgba($error, 0.12);
+    color: $error;
+  }
+}
