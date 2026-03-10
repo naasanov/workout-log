@@ -11,7 +11,7 @@ function BodyWeightTracker() {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [weight, setWeight] = useState('');
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [submitting, setSubmitting] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -45,7 +45,7 @@ function BodyWeightTracker() {
       };
       setEntries(prev => [...prev, newEntry].sort((a, b) => new Date(a.date) - new Date(b.date)));
       setWeight('');
-      setDate('');
+      setDate(format(new Date(), 'yyyy-MM-dd'));
     }
     setSubmitting(false);
   }
