@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import clientApi from '../api/clientApi.js';
 import useAuth from '../hooks/useAuth.js';
 import ConfirmModal from './ConfirmModal.jsx';
-import openDropdown from '../assets/dropdown_open.svg';
+import CollapseButton from './CollapseButton.jsx';
 import styles from '../styles/BodyWeightTracker.module.scss';
 
 function BodyWeightTracker() {
@@ -69,9 +69,7 @@ function BodyWeightTracker() {
     <section className={styles.container}>
       <div className={`${styles.headingRow} ${collapsed ? styles.headingRowCollapsed : ''}`}>
         <h2 className={styles.heading}>Body Weight</h2>
-        <button className={styles.collapseBtn} onClick={() => setCollapsed(c => !c)} aria-label={collapsed ? 'Expand' : 'Collapse'}>
-          <img src={openDropdown} alt="toggle" className={collapsed ? styles.chevronClosed : styles.chevronOpen} />
-        </button>
+        <CollapseButton isOpen={!collapsed} onClick={() => setCollapsed(c => !c)} />
       </div>
 
       {!collapsed && <><form className={styles.form} onSubmit={handleSubmit}>

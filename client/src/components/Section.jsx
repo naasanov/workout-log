@@ -4,7 +4,7 @@ import ConfirmModal from "./ConfirmModal.jsx";
 import { useState, useEffect } from "react";
 import styles from "../styles/Workouts.module.scss";
 import plus from "../assets/plus.svg";
-import openDropdown from "../assets/dropdown_open.svg";
+import CollapseButton from "./CollapseButton.jsx";
 import X from "../assets/delete.svg";
 import useAuth from '../hooks/useAuth.js';
 import clientApi from "../api/clientApi.js";
@@ -122,9 +122,7 @@ function Section({ setSections, section }) {
               </button>
             }
             {movements.length > 0 &&
-              <button type='button' onClick={handleDropdownClick} className={styles.icon}>
-                <img src={openDropdown} alt="dropdown" className={section.showItems ? styles.open : styles.closed} />
-              </button>
+              <CollapseButton isOpen={section.showItems} onClick={handleDropdownClick} />
             }
           </div>
         </div>
