@@ -80,6 +80,14 @@
 
   &[type="date"] {
     color-scheme: dark;
+
+    &::-webkit-calendar-picker-indicator {
+      width: 16px;
+      height: 16px;
+      opacity: 0.6;
+      cursor: pointer;
+      filter: invert(1);
+    }
   }
 
   &::placeholder {
