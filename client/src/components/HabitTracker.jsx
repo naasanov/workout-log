@@ -178,12 +178,11 @@ function HabitTracker() {
     async function fetchTallies() {
       const res = await withAuth(() => clientApi.get(`/habits/${HABIT_NAME}`));
       if (res?.data?.data) {
-        // mysql2 returns DATE columns as Date objects — normalize to YYYY-MM-DD strings
+        // mysql2 DATE columns serialize to ISO strings through JSON (e.g. "2026-06-17T00:00:00.000Z")
+        // slice(0,10) normalizes both bare "YYYY-MM-DD" and ISO datetime strings to "YYYY-MM-DD"
         setRows(res.data.data.map(row => ({
           ...row,
-          date: row.date instanceof Date
-            ? `${row.date.getUTCFullYear()}-${String(row.date.getUTCMonth() + 1).padStart(2, '0')}-${String(row.date.getUTCDate()).padStart(2, '0')}`
-            : String(row.date),
+          date: String(row.date).slice(0, 10),
         })));
       }
       setLoading(false);
