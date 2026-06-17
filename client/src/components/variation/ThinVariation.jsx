@@ -1,28 +1,28 @@
 import Editable from "../Editable";
 import styles from "../../styles/Variation.module.scss";
 import mobileStyles from "../../styles/ThinVariation.module.scss";
-import { Dumbbell, Number, Delete, Calender, Chart } from "../Icons";
+import { Dumbbell, Number, Delete, Chart } from "../Icons";
 import DateInput from "../DateInput";
 
 function ThinVariation({ variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove, removeAllowed, onGraphOpen }) {
   return (
     <div className={mobileStyles.variation}>
       <section>
-        {/* variation label */}
-        <div className={`${styles.part} ${styles.variationName} ${mobileStyles.variationName}`}>
-          <Editable value={variation.label} onSubmit={handleLabelEdit} />
-        </div>
-
-        {/* date + graph + remove grouped for consistent right-alignment */}
-        <div className={mobileStyles.rightGroup}>
-          <div className={styles.part}>
-            <Calender className={styles.icon} />
+        {/* variation label + date subtext */}
+        <div className={`${styles.nameCell} ${mobileStyles.variationName}`}>
+          <div className={`${styles.part} ${styles.variationName}`}>
+            <Editable value={variation.label} onSubmit={handleLabelEdit} />
+          </div>
+          <div className={styles.dateSubtext}>
             <DateInput
               date={details.date}
               onSubmit={change => handleDetailEdit("date", change)}
             />
           </div>
+        </div>
 
+        {/* graph + remove grouped for consistent right-alignment */}
+        <div className={mobileStyles.rightGroup}>
           <button className={styles.graphBtn} onClick={onGraphOpen}>
             <Chart className={styles.icon} />
           </button>
