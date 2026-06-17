@@ -120,14 +120,14 @@ function HabitRow({ row, isToday, onIncrement, onDecrement, onRangeChange }) {
             aria-label="Decrement tally"
             disabled={row.count === 0}
           >
-            −
+            <span className={styles.adjustBtnIcon}>−</span>
           </button>
           <button
             className={styles.adjustBtn}
             onClick={() => onIncrement(row.date)}
             aria-label="Increment tally"
           >
-            +
+            <span className={styles.adjustBtnIcon}>+</span>
           </button>
         </div>
       </div>

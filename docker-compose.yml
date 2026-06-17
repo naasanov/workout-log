@@ -11,7 +11,12 @@ services:
       - "3306:3306"
     volumes:
       - db_data:/var/lib/mysql
-      - ./migrations:/docker-entrypoint-initdb.d
+      - ./migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_initial_schema.sql
+      - ./migrations/002_body_weight.sql:/docker-entrypoint-initdb.d/002_body_weight.sql
+      - ./migrations/003_api_keys.sql:/docker-entrypoint-initdb.d/003_api_keys.sql
+      - ./migrations/004_variation_history_reps.sql:/docker-entrypoint-initdb.d/004_variation_history_reps.sql
+      - ./migrations/005_habit_tallies.sql:/docker-entrypoint-initdb.d/005_habit_tallies.sql
+      - ./seeds/dev_user.sql:/docker-entrypoint-initdb.d/zzz_dev_user.sql
 
 volumes:
   db_data:
