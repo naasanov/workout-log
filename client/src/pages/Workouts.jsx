@@ -7,8 +7,14 @@ import Header from '../components/Header.jsx';
 import clientApi from '../api/clientApi.js';
 import useAuth from '../hooks/useAuth.js';
 
+const TABS = {
+  WORKOUTS: 'workouts',
+  BODY_WEIGHT: 'body-weight',
+};
+
 function Workouts() {
   const [sections, setSections] = useState([]);
+  const [activeTab, setActiveTab] = useState(TABS.WORKOUTS);
   const { withAuth } = useAuth();
 
   useEffect(() => {
@@ -24,17 +30,37 @@ function Workouts() {
     <>
       <Header />
       <main className={styles.container}>
-        <BodyWeightTracker />
-        <div>
-          {sections.map((s) => (
-            <Section
-              key={s.id}
-              section={s}
-              setSections={setSections}
-            />
-          ))}
-        </div>
-        <AddSection setSections={setSections} />
+        <nav className={styles.tabs}>
+          <button
+            className={`${styles.tab} ${activeTab === TABS.WORKOUTS ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab(TABS.WORKOUTS)}
+          >
+            Workouts
+          </button>
+          <button
+            className={`${styles.tab} ${activeTab === TABS.BODY_WEIGHT ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab(TABS.BODY_WEIGHT)}
+          >
+            Body Weight
+          </button>
+        </nav>
+
+        {activeTab === TABS.WORKOUTS && (
+          <div>
+            {sections.map((s) => (
+              <Section
+                key={s.id}
+                section={s}
+                setSections={setSections}
+              />
+            ))}
+            <AddSection setSections={setSections} />
+          </div>
+        )}
+
+        {activeTab === TABS.BODY_WEIGHT && (
+          <BodyWeightTracker />
+        )}
       </main>
     </>
   );

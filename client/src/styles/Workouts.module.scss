@@ -8,6 +8,43 @@
   }
 }
 
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid $surface;
+  padding-bottom: 0;
+}
+
+.tab {
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  padding: 10px 20px;
+  cursor: pointer;
+  color: rgba($text, 0.55);
+  font-family: $sarabun;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: $sarabun-spacing;
+  transition: color 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    color: $text;
+  }
+
+  @media (max-width: $mobile-width) {
+    font-size: 16px;
+    padding: 8px 14px;
+  }
+}
+
+.tabActive {
+  color: $primary;
+  border-bottom-color: $primary;
+}
+
 .sectionWrapper {
   display: flex;
   flex-direction: column;

@@ -4,7 +4,6 @@ import { format } from 'date-fns';
 import clientApi from '../api/clientApi.js';
 import useAuth from '../hooks/useAuth.js';
 import ConfirmModal from './ConfirmModal.jsx';
-import CollapseButton from './CollapseButton.jsx';
 import styles from '../styles/BodyWeightTracker.module.scss';
 
 function BodyWeightTracker() {
@@ -14,7 +13,6 @@ function BodyWeightTracker() {
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [submitting, setSubmitting] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
-  const [collapsed, setCollapsed] = useState(false);
   const { withAuth } = useAuth();
 
   useEffect(() => {
@@ -67,12 +65,7 @@ function BodyWeightTracker() {
 
   return (
     <section className={styles.container}>
-      <div className={`${styles.headingRow} ${collapsed ? styles.headingRowCollapsed : ''}`}>
-        <h2 className={styles.heading}>Body Weight</h2>
-        <CollapseButton isOpen={!collapsed} onClick={() => setCollapsed(c => !c)} />
-      </div>
-
-      {!collapsed && <><form className={styles.form} onSubmit={handleSubmit}>
+      <form className={styles.form} onSubmit={handleSubmit}>
         <input
           className={styles.input}
           type="number"
@@ -161,7 +154,6 @@ function BodyWeightTracker() {
           ))}
         </ul>
       )}
-      </>}
 
       {deleteId !== null && (
         <ConfirmModal
