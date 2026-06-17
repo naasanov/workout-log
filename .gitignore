@@ -11,6 +11,15 @@ node_modules
 
 # production
 /client/build
+/dist
+
+# test artifacts
+/client/test-results/
+/client/e2e/*.png
+/client/e2e/*.jpg
+
+# playwright
+.playwright-mcp/
 
 # misc
 /.env
