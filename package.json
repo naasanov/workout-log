@@ -4,7 +4,7 @@
   "description": "",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsgo",
     "start": "node dist/index.js",
     "dev": "nodemon index.ts",
     "migrate": "node scripts/migrate.js",
@@ -31,6 +31,7 @@
     "typescript": "^5.7.3"
   },
   "devDependencies": {
+    "@typescript/native-preview": "^7.0.0-dev.20260617.2",
     "nodemon": "^3.1.7",
     "ts-node": "^10.9.2"
   },
