@@ -75,11 +75,38 @@ function formatDateLabel(dateStr) {
   return format(d, 'MMM d, yyyy');
 }
 
+// Converts "HH:mm" or "HH:mm:ss" (24h) to "h:mm AM/PM" for display
+function to12h(timeStr) {
+  if (!timeStr) return '';
+  const parts = timeStr.split(':');
+  let h = parseInt(parts[0], 10);
+  const min = parts[1];
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${min} ${ampm}`;
+}
+
+// Converts "h:mm AM/PM" or "h:mm am/pm" user input back to "HH:mm" for storage.
+// Returns null if the input is empty, or undefined if it's invalid.
+function to24h(input) {
+  if (!input) return null;
+  const m = input.trim().match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
+  if (!m) return undefined; // invalid
+  let h = parseInt(m[1], 10);
+  const min = m[2];
+  const ampm = m[3].toUpperCase();
+  if (h < 1 || h > 12 || parseInt(min, 10) > 59) return undefined;
+  if (ampm === 'AM') {
+    h = h === 12 ? 0 : h;
+  } else {
+    h = h === 12 ? 12 : h + 12;
+  }
+  return `${String(h).padStart(2, '0')}:${min}`;
+}
+
 function formatTime(timeStr) {
   if (!timeStr) return '';
-  // timeStr may come as "HH:mm:ss" from MySQL TIME column
-  const parts = timeStr.split(':');
-  return `${parts[0]}:${parts[1]}`;
+  return to12h(timeStr);
 }
 
 function HabitRow({ row, isToday, onIncrement, onDecrement, onRangeChange }) {
@@ -95,15 +122,25 @@ function HabitRow({ row, isToday, onIncrement, onDecrement, onRangeChange }) {
   function handleRangeStartBlur() {
     const val = rangeStart.trim();
     if (val === (formatTime(row.range_start) || '')) return;
-    if (val && !/^\d{2}:\d{2}$/.test(val)) return; // invalid — ignore
-    onRangeChange(row.date, { range_start: val || null });
+    if (!val) {
+      onRangeChange(row.date, { range_start: null });
+      return;
+    }
+    const val24 = to24h(val);
+    if (val24 === undefined) return; // invalid — ignore
+    onRangeChange(row.date, { range_start: val24 });
   }
 
   function handleRangeEndBlur() {
     const val = rangeEnd.trim();
     if (val === (formatTime(row.range_end) || '')) return;
-    if (val && !/^\d{2}:\d{2}$/.test(val)) return; // invalid — ignore
-    onRangeChange(row.date, { range_end: val || null });
+    if (!val) {
+      onRangeChange(row.date, { range_end: null });
+      return;
+    }
+    const val24 = to24h(val);
+    if (val24 === undefined) return; // invalid — ignore
+    onRangeChange(row.date, { range_end: val24 });
   }
 
   const hasRange = rangeStart || rangeEnd;
@@ -120,14 +157,19 @@ function HabitRow({ row, isToday, onIncrement, onDecrement, onRangeChange }) {
             aria-label="Decrement tally"
             disabled={row.count === 0}
           >
-            <span className={styles.adjustBtnIcon}>−</span>
+            <svg className={styles.adjustBtnIcon} viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
           </button>
           <button
             className={styles.adjustBtn}
             onClick={() => onIncrement(row.date)}
             aria-label="Increment tally"
           >
-            <span className={styles.adjustBtnIcon}>+</span>
+            <svg className={styles.adjustBtnIcon} viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <line x1="8" y1="2" x2="8" y2="14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+              <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
           </button>
         </div>
       </div>
@@ -144,22 +186,22 @@ function HabitRow({ row, isToday, onIncrement, onDecrement, onRangeChange }) {
           <input
             className={styles.rangeInput}
             type="text"
-            placeholder="HH:mm"
+            placeholder="h:mm AM"
             value={rangeStart}
             onChange={e => setRangeStart(e.target.value)}
             onBlur={handleRangeStartBlur}
-            maxLength={5}
+            maxLength={8}
             aria-label="Range start time"
           />
           <span className={styles.rangeSep}>–</span>
           <input
             className={styles.rangeInput}
             type="text"
-            placeholder="HH:mm"
+            placeholder="h:mm AM"
             value={rangeEnd}
             onChange={e => setRangeEnd(e.target.value)}
             onBlur={handleRangeEndBlur}
-            maxLength={5}
+            maxLength={8}
             aria-label="Range end time"
           />
         </div>
