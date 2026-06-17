@@ -1,0 +1,232 @@
+@import "variables";
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+// ── Big tap button ─────────────────────────────────────────────────────────────
+.addTallyBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 20px 0;
+  background-color: $primary;
+  color: $background;
+  border: none;
+  border-radius: $border-radius;
+  font-family: $sarabun;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: $sarabun-spacing;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+
+  &:active {
+    background-color: $primary-dark;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: $mobile-width) {
+    font-size: 20px;
+    padding: 18px 0;
+  }
+}
+
+.addTallyPlus {
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1;
+
+  @media (max-width: $mobile-width) {
+    font-size: 24px;
+  }
+}
+
+// ── Day rows ───────────────────────────────────────────────────────────────────
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.row {
+  background-color: $surface;
+  border-radius: $border-radius;
+  padding: 14px 20px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  @media (max-width: $mobile-width) {
+    padding: 12px 14px 10px;
+  }
+}
+
+.todayRow {
+  border: 2px solid $primary;
+}
+
+// ── Row top: date · count · +/- ───────────────────────────────────────────────
+.rowTop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dateLabel {
+  font-family: $sarabun;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: $sarabun-spacing;
+  color: $text;
+  flex: 1;
+  min-width: 0;
+
+  @media (max-width: $mobile-width) {
+    font-size: 15px;
+  }
+}
+
+.countBadge {
+  font-family: $sarabun;
+  font-size: 22px;
+  font-weight: 700;
+  color: $primary;
+  letter-spacing: $sarabun-spacing;
+  min-width: 28px;
+  text-align: right;
+
+  @media (max-width: $mobile-width) {
+    font-size: 20px;
+  }
+}
+
+.adjustBtns {
+  display: flex;
+  gap: 4px;
+}
+
+.adjustBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background-color: transparent;
+  border: 2px solid $surface-border;
+  border-radius: 8px;
+  color: $text;
+  font-family: $sarabun;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  padding: 0;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+
+  &:active {
+    background-color: $primary-translucent;
+    border-color: $primary;
+    color: $primary;
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: $mobile-width) {
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+  }
+}
+
+// ── Tally marks ────────────────────────────────────────────────────────────────
+.tallyRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.tallyWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.tallyGroup {
+  width: 36px;
+  height: 24px;
+  color: $primary;
+  display: block;
+  flex-shrink: 0;
+}
+
+// ── Time range ─────────────────────────────────────────────────────────────────
+.rangeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rangeLabel {
+  font-family: $sarabun;
+  font-size: 13px;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.55);
+  white-space: nowrap;
+}
+
+.rangeInput {
+  background-color: transparent;
+  color: $text;
+  border: none;
+  border-bottom: 2px solid $surface-border;
+  font-family: $sarabun;
+  font-size: 14px;
+  letter-spacing: $sarabun-spacing;
+  width: 52px;
+  text-align: center;
+  padding: 2px 0;
+
+  &:focus {
+    outline: none;
+    border-bottom-color: $primary;
+  }
+
+  &::placeholder {
+    color: rgba($text, 0.35);
+    font-size: 12px;
+  }
+}
+
+.rangeSep {
+  color: rgba($text, 0.55);
+  font-family: $sarabun;
+  font-size: 14px;
+}
+
+// ── Empty state ────────────────────────────────────────────────────────────────
+.empty {
+  margin: 0;
+  color: $text;
+  font-family: $sarabun;
+  font-size: 16px;
+  font-weight: 300;
+  letter-spacing: $sarabun-spacing;
+  opacity: 0.7;
+}
