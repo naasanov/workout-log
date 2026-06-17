@@ -1,0 +1,45 @@
+CREATE TABLE IF NOT EXISTS users (
+  user_uuid BINARY(16) PRIMARY KEY DEFAULT (UUID_TO_BIN(UUID())),
+  email VARCHAR(254) NOT NULL UNIQUE,
+  `password` VARCHAR(60) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sections (
+  section_id INT AUTO_INCREMENT PRIMARY KEY,
+  user_uuid BINARY(16) NOT NULL,
+  label VARCHAR(50) NOT NULL,
+  FOREIGN KEY (user_uuid) REFERENCES users(user_uuid) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS movements (
+  movement_id INT AUTO_INCREMENT PRIMARY KEY,
+  section_id INT NOT NULL,
+  label VARCHAR(50) NOT NULL,
+  FOREIGN KEY (section_id) REFERENCES sections(section_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS variations (
+  variation_id INT AUTO_INCREMENT PRIMARY KEY,
+  movement_id INT NOT NULL,
+  label VARCHAR(50) NOT NULL DEFAULT '',
+  weight FLOAT NULL,
+  reps INT NOT NULL DEFAULT 0,
+  `date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (movement_id) REFERENCES movements(movement_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS variation_history (
+  history_id INT AUTO_INCREMENT PRIMARY KEY,
+  variation_id INT NOT NULL,
+  weight FLOAT NULL,
+  date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (variation_id) REFERENCES variations(variation_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS tokens (
+  token_id INT AUTO_INCREMENT PRIMARY KEY,
+  user_uuid BINARY(16) NOT NULL,
+  token TEXT NOT NULL,
+  expires_at DATETIME NOT NULL,
+  FOREIGN KEY (user_uuid) REFERENCES users(user_uuid) ON DELETE CASCADE
+);
