@@ -42,7 +42,7 @@
 
 .tabActive {
   color: $primary;
-  border-bottom-color: $primary;
+  border-bottom-color: $primary-border;
 }
 
 .sectionWrapper {
@@ -98,7 +98,7 @@
     background-color: transparent;
     color: $text;
     border: none;
-    border-bottom: solid 3px $primary;
+    border-bottom: solid 3px $primary-border;
     letter-spacing: $sarabun-spacing;
 
     &:focus {
