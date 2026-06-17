@@ -59,7 +59,7 @@
 
 .newKeyBox {
   background-color: rgba($primary, 0.08);
-  border: 1px solid rgba($primary, 0.3);
+  border: 1px solid rgba($primary-border, 0.5);
   border-radius: 10px;
   padding: 16px;
   display: flex;
@@ -123,7 +123,7 @@
   background-color: transparent;
   color: $text;
   border: none;
-  border-bottom: 3px solid $primary;
+  border-bottom: 3px solid $primary-border;
   padding: 4px 4px;
   font-family: $sarabun;
   font-size: 16px;
