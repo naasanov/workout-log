@@ -178,7 +178,13 @@ function HabitTracker() {
     async function fetchTallies() {
       const res = await withAuth(() => clientApi.get(`/habits/${HABIT_NAME}`));
       if (res?.data?.data) {
-        setRows(res.data.data);
+        // mysql2 returns DATE columns as Date objects — normalize to YYYY-MM-DD strings
+        setRows(res.data.data.map(row => ({
+          ...row,
+          date: row.date instanceof Date
+            ? `${row.date.getUTCFullYear()}-${String(row.date.getUTCMonth() + 1).padStart(2, '0')}-${String(row.date.getUTCDate()).padStart(2, '0')}`
+            : String(row.date),
+        })));
       }
       setLoading(false);
     }

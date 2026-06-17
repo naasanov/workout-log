@@ -17,7 +17,14 @@ const TABS = {
 function Workouts() {
   const [sections, setSections] = useState([]);
   const [activeTab, setActiveTab] = useState(TABS.WORKOUTS);
-  const { withAuth } = useAuth();
+  const { withAuth, user } = useAuth();
+
+  // Reset to Workouts tab if user logs out while on an auth-only tab
+  useEffect(() => {
+    if (!user && activeTab !== TABS.WORKOUTS) {
+      setActiveTab(TABS.WORKOUTS);
+    }
+  }, [user, activeTab]);
 
   useEffect(() => {
     const fetchSections = async () => {
@@ -39,18 +46,22 @@ function Workouts() {
           >
             Workouts
           </button>
-          <button
-            className={`${styles.tab} ${activeTab === TABS.BODY_WEIGHT ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab(TABS.BODY_WEIGHT)}
-          >
-            Body Weight
-          </button>
-          <button
-            className={`${styles.tab} ${activeTab === TABS.HABITS ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab(TABS.HABITS)}
-          >
-            Habits
-          </button>
+          {user && (
+            <>
+              <button
+                className={`${styles.tab} ${activeTab === TABS.BODY_WEIGHT ? styles.tabActive : ''}`}
+                onClick={() => setActiveTab(TABS.BODY_WEIGHT)}
+              >
+                Body Weight
+              </button>
+              <button
+                className={`${styles.tab} ${activeTab === TABS.HABITS ? styles.tabActive : ''}`}
+                onClick={() => setActiveTab(TABS.HABITS)}
+              >
+                Habits
+              </button>
+            </>
+          )}
         </nav>
 
         {activeTab === TABS.WORKOUTS && (

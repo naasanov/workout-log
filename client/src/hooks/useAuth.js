@@ -10,7 +10,7 @@ function useAuth() {
     },
     [user]
   )
-  return { withAuth }
+  return { withAuth, user }
 }
 
 export default useAuth;
