@@ -128,7 +128,6 @@
   font-family: $sarabun;
   font-size: 22px;
   font-weight: 400;
-  line-height: 1;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   padding: 0;
@@ -150,6 +149,11 @@
     height: 40px;
     font-size: 24px;
   }
+}
+
+.adjustBtnIcon {
+  display: block;
+  line-height: 1;
 }
 
 // ── Tally marks ────────────────────────────────────────────────────────────────
