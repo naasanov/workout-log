@@ -1,6 +1,7 @@
 import Section from '../components/Section.jsx';
 import AddSection from '../components/AddSection.jsx';
 import BodyWeightTracker from '../components/BodyWeightTracker.jsx';
+import HabitTracker from '../components/HabitTracker.jsx';
 import { useState, useEffect } from 'react';
 import styles from "../styles/Workouts.module.scss";
 import Header from '../components/Header.jsx';
@@ -10,6 +11,7 @@ import useAuth from '../hooks/useAuth.js';
 const TABS = {
   WORKOUTS: 'workouts',
   BODY_WEIGHT: 'body-weight',
+  HABITS: 'habits',
 };
 
 function Workouts() {
@@ -43,6 +45,12 @@ function Workouts() {
           >
             Body Weight
           </button>
+          <button
+            className={`${styles.tab} ${activeTab === TABS.HABITS ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab(TABS.HABITS)}
+          >
+            Habits
+          </button>
         </nav>
 
         {activeTab === TABS.WORKOUTS && (
@@ -60,6 +68,10 @@ function Workouts() {
 
         {activeTab === TABS.BODY_WEIGHT && (
           <BodyWeightTracker />
+        )}
+
+        {activeTab === TABS.HABITS && (
+          <HabitTracker />
         )}
       </main>
     </>
