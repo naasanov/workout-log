@@ -42,9 +42,22 @@
   }
 }
 
+.nameCell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 .variationName {
   font-style: italic;
   padding-right: 40px;
+}
+
+.dateSubtext {
+  font-size: 14px;
+  opacity: 0.55;
+  padding-left: 2px;
+  margin-top: -2px;
 }
 
 .delete {

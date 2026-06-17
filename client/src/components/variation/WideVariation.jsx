@@ -1,6 +1,6 @@
 import Editable from "../Editable";
 import styles from "../../styles/Variation.module.scss";
-import { Dumbbell, Number, Delete, Calender, Chart } from "../Icons";
+import { Dumbbell, Number, Delete, Chart } from "../Icons";
 import DateInput from "../DateInput";
 
 function WideVariation({ variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove, setShowRemove, removeAllowed, onGraphOpen }) {
@@ -11,9 +11,17 @@ function WideVariation({ variation, details, handleLabelEdit, handleDetailEdit, 
 
   return (
     <>
-      {/* variation label */}
-      <div className={`${styles.part} ${styles.variationName}`} {...hoverProps}>
-        <Editable value={variation.label} onSubmit={handleLabelEdit} />
+      {/* variation label + date subtext */}
+      <div className={styles.nameCell} {...hoverProps}>
+        <div className={`${styles.part} ${styles.variationName}`}>
+          <Editable value={variation.label} onSubmit={handleLabelEdit} />
+        </div>
+        <div className={styles.dateSubtext}>
+          <DateInput
+            date={details.date}
+            onSubmit={change => handleDetailEdit("date", change)}
+          />
+        </div>
       </div>
 
       {/* weight */}
@@ -41,16 +49,8 @@ function WideVariation({ variation, details, handleLabelEdit, handleDetailEdit, 
       {/* whitespace */}
       <div {...hoverProps}></div>
 
-      {/* date + graph + remove grouped for right-alignment */}
+      {/* graph + remove grouped for right-alignment */}
       <div className={styles.rightGroup} {...hoverProps}>
-        <div className={styles.part}>
-          <Calender className={styles.icon} />
-          <DateInput
-            date={details.date}
-            onSubmit={change => handleDetailEdit("date", change)}
-          />
-        </div>
-
         <button className={styles.graphBtn} onClick={onGraphOpen}>
           <Chart className={styles.icon} />
         </button>
