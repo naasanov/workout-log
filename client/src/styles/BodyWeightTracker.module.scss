@@ -4,56 +4,10 @@
   background-color: $surface;
   border-radius: $border-radius;
   padding: 24px 32px;
-  margin-bottom: 2rem;
 
   @media (max-width: $mobile-width) {
     padding: 20px 16px;
   }
-}
-
-.headingRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.headingRowCollapsed {
-  margin-bottom: 0;
-}
-
-.heading {
-  margin: 0;
-  color: $text;
-  font-family: $sarabun;
-  font-size: 26px;
-  font-weight: 500;
-  letter-spacing: $sarabun-spacing;
-}
-
-.collapseBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 8px;
-
-  &:hover {
-    background-color: $primary-translucent;
-  }
-}
-
-.chevronOpen {
-  transform: rotate(0deg);
-  transition: transform 0.2s ease;
-}
-
-.chevronClosed {
-  transform: rotate(90deg);
-  transition: transform 0.2s ease;
 }
 
 .form {
