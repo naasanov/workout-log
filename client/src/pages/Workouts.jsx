@@ -3,6 +3,7 @@ import AddSection from '../components/AddSection.jsx';
 import BodyWeightTracker from '../components/BodyWeightTracker.jsx';
 import HabitTracker from '../components/HabitTracker.jsx';
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import styles from "../styles/Workouts.module.scss";
 import Header from '../components/Header.jsx';
 import clientApi from '../api/clientApi.js';
@@ -14,17 +15,27 @@ const TABS = {
   HABITS: 'habits',
 };
 
+const VALID_TABS = new Set(Object.values(TABS));
+
 function Workouts() {
   const [sections, setSections] = useState([]);
-  const [activeTab, setActiveTab] = useState(TABS.WORKOUTS);
   const { withAuth, user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Reset to Workouts tab if user logs out while on an auth-only tab
+  // Derive active tab from URL; fall back to WORKOUTS for unknown values
+  const tabParam = searchParams.get('tab');
+  const activeTab = VALID_TABS.has(tabParam) ? tabParam : TABS.WORKOUTS;
+
+  // If a non-logged-in user lands on an auth-only tab, redirect to Workouts
   useEffect(() => {
     if (!user && activeTab !== TABS.WORKOUTS) {
-      setActiveTab(TABS.WORKOUTS);
+      setSearchParams({ tab: TABS.WORKOUTS }, { replace: true });
     }
-  }, [user, activeTab]);
+  }, [user, activeTab, setSearchParams]);
+
+  const switchTab = (tab) => {
+    setSearchParams({ tab }, { replace: false });
+  };
 
   useEffect(() => {
     const fetchSections = async () => {
@@ -42,7 +53,7 @@ function Workouts() {
         <nav className={styles.tabs}>
           <button
             className={`${styles.tab} ${activeTab === TABS.WORKOUTS ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab(TABS.WORKOUTS)}
+            onClick={() => switchTab(TABS.WORKOUTS)}
           >
             Workouts
           </button>
@@ -50,13 +61,13 @@ function Workouts() {
             <>
               <button
                 className={`${styles.tab} ${activeTab === TABS.BODY_WEIGHT ? styles.tabActive : ''}`}
-                onClick={() => setActiveTab(TABS.BODY_WEIGHT)}
+                onClick={() => switchTab(TABS.BODY_WEIGHT)}
               >
                 Body Weight
               </button>
               <button
                 className={`${styles.tab} ${activeTab === TABS.HABITS ? styles.tabActive : ''}`}
-                onClick={() => setActiveTab(TABS.HABITS)}
+                onClick={() => switchTab(TABS.HABITS)}
               >
                 Habits
               </button>
@@ -64,25 +75,28 @@ function Workouts() {
           )}
         </nav>
 
-        {activeTab === TABS.WORKOUTS && (
-          <div>
-            {sections.map((s) => (
-              <Section
-                key={s.id}
-                section={s}
-                setSections={setSections}
-              />
-            ))}
-            <AddSection setSections={setSections} />
+        {/* All panels stay mounted to preserve in-memory state; hidden via CSS */}
+        <div style={{ display: activeTab === TABS.WORKOUTS ? undefined : 'none' }}>
+          {sections.map((s) => (
+            <Section
+              key={s.id}
+              section={s}
+              setSections={setSections}
+            />
+          ))}
+          <AddSection setSections={setSections} />
+        </div>
+
+        {user && (
+          <div style={{ display: activeTab === TABS.BODY_WEIGHT ? undefined : 'none' }}>
+            <BodyWeightTracker />
           </div>
         )}
 
-        {activeTab === TABS.BODY_WEIGHT && (
-          <BodyWeightTracker />
-        )}
-
-        {activeTab === TABS.HABITS && (
-          <HabitTracker />
+        {user && (
+          <div style={{ display: activeTab === TABS.HABITS ? undefined : 'none' }}>
+            <HabitTracker />
+          </div>
         )}
       </main>
     </>
