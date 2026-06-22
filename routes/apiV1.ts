@@ -462,4 +462,138 @@ router.get('/summary', async (req, res): Promise<any> => {
     res.status(200).json({ data, message: "Summary retrieved successfully" });
 });
 
+// ---------------------------------------------------------------------------
+// Habits (tallies)
+// ---------------------------------------------------------------------------
+
+// GET distinct habit names for the user (discover what habits exist)
+router.get('/habits', async (req, res): Promise<any> => {
+    const { uuid } = res.locals.user;
+
+    let rows: RowDataPacket[];
+    try {
+        [rows] = await pool.query<RowDataPacket[]>(`
+            SELECT DISTINCT habit_name
+            FROM habit_tallies
+            WHERE user_uuid = UUID_TO_BIN(?)
+            ORDER BY habit_name ASC
+        `, [uuid]);
+    } catch (error) {
+        return handleSqlError(error, res);
+    }
+
+    const data = rows.map(r => r.habit_name);
+    res.status(200).json({ data, message: "Successfully retrieved habits" });
+});
+
+// GET all tally rows for a habit (sorted descending by date)
+router.get('/habits/:habitName', async (req, res): Promise<any> => {
+    const { uuid } = res.locals.user;
+    const habitName = req.params.habitName?.trim();
+    if (!habitName) {
+        return res.status(400).json({ message: "habitName must be a non-empty string" });
+    }
+
+    let data: RowDataPacket[];
+    try {
+        [data] = await pool.query<RowDataPacket[]>(`
+            SELECT id, habit_name, date, count, range_start, range_end
+            FROM habit_tallies
+            WHERE user_uuid = UUID_TO_BIN(?) AND habit_name = ?
+            ORDER BY date DESC
+        `, [uuid, habitName]);
+    } catch (error) {
+        return handleSqlError(error, res);
+    }
+
+    res.status(200).json({
+        data,
+        message: `Successfully retrieved habit tallies for ${habitName}`
+    });
+});
+
+// POST a tally — upserts: creates with count=1 or increments count and pushes range_end
+router.post('/habits/:habitName/tally', async (req, res): Promise<any> => {
+    const { uuid } = res.locals.user;
+    const habitName = req.params.habitName?.trim();
+    if (!habitName) {
+        return res.status(400).json({ message: "habitName must be a non-empty string" });
+    }
+
+    // Optionally accept the device's local time so we store the correct local date/time
+    const { localTime, localDate } = req.body as { localTime?: string; localDate?: string };
+
+    // Validate localTime is HH:mm
+    const timeValue = localTime && /^\d{2}:\d{2}$/.test(localTime) ? localTime : null;
+    // Validate localDate is YYYY-MM-DD
+    const dateValue = localDate && /^\d{4}-\d{2}-\d{2}$/.test(localDate) ? localDate : null;
+
+    // Fallback: use current UTC time/date if client values missing (e.g. empty body)
+    const now = new Date();
+    const fallbackDate = now.toISOString().slice(0, 10);
+    const fallbackTime = now.toTimeString().slice(0, 5);
+
+    const todayDate = dateValue ?? fallbackDate;
+    const currentTime = timeValue ?? fallbackTime;
+
+    let existingRows: RowDataPacket[];
+    try {
+        [existingRows] = await pool.query<RowDataPacket[]>(`
+            SELECT id, count, range_start, range_end
+            FROM habit_tallies
+            WHERE user_uuid = UUID_TO_BIN(?) AND habit_name = ? AND date = ?
+        `, [uuid, habitName, todayDate]);
+    } catch (error) {
+        return handleSqlError(error, res);
+    }
+
+    if (existingRows.length === 0) {
+        // No row for the date — insert with count=1 and range_start=range_end=currentTime
+        let result: ResultSetHeader;
+        try {
+            [result] = await pool.query<ResultSetHeader>(`
+                INSERT INTO habit_tallies (user_uuid, habit_name, date, count, range_start, range_end)
+                VALUES (UUID_TO_BIN(?), ?, ?, 1, ?, ?)
+            `, [uuid, habitName, todayDate, currentTime, currentTime]);
+        } catch (error) {
+            return handleSqlError(error, res);
+        }
+
+        return res.status(201).json({
+            data: {
+                id: result.insertId,
+                date: todayDate,
+                count: 1,
+                range_start: currentTime,
+                range_end: currentTime
+            },
+            message: `Tally added for ${habitName} on ${todayDate}`
+        });
+    } else {
+        // Row exists — increment count and push range_end forward
+        const existing = existingRows[0];
+        const newCount = existing.count + 1;
+        try {
+            await pool.query<ResultSetHeader>(`
+                UPDATE habit_tallies
+                SET count = ?, range_end = ?
+                WHERE id = ?
+            `, [newCount, currentTime, existing.id]);
+        } catch (error) {
+            return handleSqlError(error, res);
+        }
+
+        return res.status(200).json({
+            data: {
+                id: existing.id,
+                date: todayDate,
+                count: newCount,
+                range_start: existing.range_start,
+                range_end: currentTime
+            },
+            message: `Tally incremented for ${habitName} on ${todayDate}`
+        });
+    }
+});
+
 export default router;
