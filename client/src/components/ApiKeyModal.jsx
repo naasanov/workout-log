@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
 import clientApi from '../api/clientApi.js';
 import useAuth from '../hooks/useAuth.js';
@@ -48,7 +49,7 @@ function ApiKeyModal({ onClose }) {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  return (
+  return createPortal(
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={e => e.stopPropagation()}>
         <div className={styles.header}>
@@ -100,7 +101,8 @@ function ApiKeyModal({ onClose }) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

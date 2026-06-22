@@ -26,9 +26,11 @@ function Workouts() {
   const tabParam = searchParams.get('tab');
   const activeTab = VALID_TABS.has(tabParam) ? tabParam : TABS.WORKOUTS;
 
-  // If a non-logged-in user lands on an auth-only tab, redirect to Workouts
+  // If a non-logged-in user lands on an auth-only tab, redirect to Workouts.
+  // Only act once auth has RESOLVED to logged-out (user === null); while
+  // user === undefined (still loading) we leave the URL untouched.
   useEffect(() => {
-    if (!user && activeTab !== TABS.WORKOUTS) {
+    if (user === null && activeTab !== TABS.WORKOUTS) {
       setSearchParams({ tab: TABS.WORKOUTS }, { replace: true });
     }
   }, [user, activeTab, setSearchParams]);
