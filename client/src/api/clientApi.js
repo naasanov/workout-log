@@ -1,6 +1,8 @@
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
-const URL = import.meta.env.VITE_API_URL;
+// In production the client is served same-origin as the API, so default to the
+// relative `/api` base; local dev overrides this via VITE_API_URL in .env.local.
+const URL = import.meta.env.VITE_API_URL || '/api';
 axios.defaults.withCredentials = true;
 
 const clientApi = axios.create({

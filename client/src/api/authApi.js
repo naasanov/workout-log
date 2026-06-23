@@ -1,5 +1,6 @@
 import axios from "axios";
-const URL = import.meta.env.VITE_API_URL
+// Same-origin `/api` by default in production; VITE_API_URL overrides for local dev.
+const URL = import.meta.env.VITE_API_URL || '/api'
 
 const authApi = axios.create({
   withCredentials: true,
