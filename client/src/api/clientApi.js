@@ -1,6 +1,6 @@
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
-const URL = process.env.REACT_APP_API_URL;
+const URL = import.meta.env.VITE_API_URL;
 axios.defaults.withCredentials = true;
 
 const clientApi = axios.create({
@@ -36,10 +36,39 @@ clientApi.interceptors.request.use(
   }
 )
 
+// Track whether a token-refresh is already in flight so concurrent 401s
+// don't each trigger a separate refresh call.
+let refreshingPromise = null;
+
 clientApi.interceptors.response.use(
   response => response,
-  error => {
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Only attempt refresh on a 401 that hasn't already been retried.
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        // Deduplicate concurrent refresh calls.
+        if (!refreshingPromise) {
+          refreshingPromise = refreshToken().finally(() => {
+            refreshingPromise = null;
+          });
+        }
+        const newToken = await refreshingPromise;
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return clientApi(originalRequest);
+      } catch (refreshError) {
+        // Refresh failed (e.g. refresh token expired) — propagate the original error.
+        console.error(error.response?.data?.message, error);
+        return Promise.reject(error);
+      }
+    }
+
+    // All other errors: log and reject so callers receive a thrown error.
     console.error(error.response?.data?.message, error);
+    return Promise.reject(error);
   }
 )
 

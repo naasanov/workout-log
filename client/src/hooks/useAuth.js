@@ -6,7 +6,12 @@ function useAuth() {
   const withAuth = useCallback(
     async (fn) => {
       if (!user) return null;
-      else return await fn()
+      try {
+        return await fn();
+      } catch (error) {
+        console.error('[withAuth] request failed:', error);
+        return null;
+      }
     },
     [user]
   )

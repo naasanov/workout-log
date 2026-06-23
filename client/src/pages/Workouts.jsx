@@ -8,6 +8,7 @@ import styles from "../styles/Workouts.module.scss";
 import Header from '../components/Header.jsx';
 import clientApi from '../api/clientApi.js';
 import useAuth from '../hooks/useAuth.js';
+import { useQuery } from '@tanstack/react-query';
 
 const TABS = {
   WORKOUTS: 'workouts',
@@ -19,16 +20,17 @@ const VALID_TABS = new Set(Object.values(TABS));
 
 function Workouts() {
   const [sections, setSections] = useState([]);
-  const { withAuth, user } = useAuth();
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Derive active tab from URL; fall back to WORKOUTS for unknown values
   const tabParam = searchParams.get('tab');
   const activeTab = VALID_TABS.has(tabParam) ? tabParam : TABS.WORKOUTS;
 
-  // If a non-logged-in user lands on an auth-only tab, redirect to Workouts
+  // If a confirmed-logged-out user lands on an auth-only tab, redirect to Workouts.
+  // user === null means definitively logged out; undefined means still loading — don't redirect yet.
   useEffect(() => {
-    if (!user && activeTab !== TABS.WORKOUTS) {
+    if (user === null && activeTab !== TABS.WORKOUTS) {
       setSearchParams({ tab: TABS.WORKOUTS }, { replace: true });
     }
   }, [user, activeTab, setSearchParams]);
@@ -37,14 +39,23 @@ function Workouts() {
     setSearchParams({ tab }, { replace: false });
   };
 
+  const sectionsQuery = useQuery({
+    queryKey: ['sections'],
+    queryFn: async () => {
+      const res = await clientApi.get('/sections/user');
+      return res.data.data ?? [];
+    },
+    // Only run once auth is resolved and the user is logged in
+    enabled: user !== undefined && user !== null,
+  });
+
+  // Sync query data into local state so child components can do optimistic updates
+  // via setSections without requiring full query invalidation on every mutation.
   useEffect(() => {
-    const fetchSections = async () => {
-      const res = await withAuth(() => clientApi.get(`/sections/user`));
-      const sections = res?.data.data;
-      setSections(sections ?? []);
+    if (sectionsQuery.data) {
+      setSections(sectionsQuery.data);
     }
-    fetchSections();
-  }, [withAuth])
+  }, [sectionsQuery.data]);
 
   return (
     <>

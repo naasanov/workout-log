@@ -2,6 +2,7 @@ import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { Router } from 'express';
 import pool from '../database';
 import handleSqlError from '../utils/handleSqlError';
+import withTransaction from '../utils/withTransaction';
 import { validateId, validateLabel } from '../utils/validation';
 import SqlError from '../utils/sqlErrors';
 const { NO_REFERENCE_ERROR, WRONG_VALUE_ERROR } = SqlError;
@@ -17,29 +18,26 @@ router.post('/:sectionId', async (req, res): Promise<any> => {
 
     if (!validateId(sectionId, res) || !validateLabel(label, res)) return;
 
-    let result: ResultSetHeader;
+    let movementId: number;
     try {
-        [result] = await pool.query<ResultSetHeader>(`
-            INSERT INTO movements (section_id, label)
-            VALUES (?, ?)
-            `, [sectionId, label])
-        }
-    catch (error) {
+        movementId = await withTransaction(async (conn) => {
+            const [result] = await conn.query<ResultSetHeader>(`
+                INSERT INTO movements (section_id, label)
+                VALUES (?, ?)
+                `, [sectionId, label]);
+            const id = result.insertId;
+            await conn.query<ResultSetHeader>(`
+                INSERT INTO variations (movement_id, label)
+                VALUES (?, ?)
+                `, [id, "Variation"]);
+            return id;
+        });
+    } catch (error) {
         return handleSqlError(error, res, {
             [NO_REFERENCE_ERROR]: [404, `Section with id ${sectionId} not found`],
-        })
+        });
     }
-    const movementId = result.insertId;
 
-    try {
-        await pool.query<ResultSetHeader>(`
-            INSERT INTO variations (movement_id, label)
-            VALUES (?, ?)
-            `, [movementId, "Variation"])
-    } catch (error) {
-        return handleSqlError(error, res)
-    }
-    
     res.status(201).json({
         data: { movementId },
         message: `Successfullly created movement with id ${movementId}`
