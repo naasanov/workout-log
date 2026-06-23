@@ -1,0 +1,379 @@
+@import "../../styles/variables";
+
+// ---- Container ----
+.container {
+  padding: 16px 14px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+// ---- Date nav ----
+.dateNav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.arrowBtn {
+  min-width: 44px;
+  min-height: 44px;
+  background: transparent;
+  border: 2px solid rgba($surface-border, 0.7);
+  border-radius: 10px;
+  color: $text;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &:active {
+    background-color: rgba($primary, 0.12);
+    border-color: $primary-border;
+  }
+}
+
+.arrowIcon {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.dateInput {
+  flex: 1;
+  min-height: 44px;
+  background: transparent;
+  color: $text;
+  border: 2px solid rgba($surface-border, 0.7);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-family: $sarabun;
+  font-size: 16px;
+  letter-spacing: $sarabun-spacing;
+  text-align: center;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: $primary-border;
+  }
+
+  // Webkit date picker icon color
+  &::-webkit-calendar-picker-indicator {
+    filter: invert(1) opacity(0.4);
+    cursor: pointer;
+  }
+}
+
+// ---- Actions row ----
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.addBtn {
+  flex: 1 1 auto;
+  min-height: 48px;
+  padding: 10px 18px;
+  background-color: $primary;
+  color: $background;
+  border: none;
+  border-radius: $border-radius;
+  font-family: $sarabun;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: $sarabun-spacing;
+  cursor: pointer;
+
+  &:active {
+    background-color: $primary-dark;
+  }
+}
+
+.aiBtn {
+  flex: 0 1 auto;
+  min-height: 48px;
+  padding: 10px 18px;
+  background-color: transparent;
+  color: rgba($text, 0.4);
+  border: 2px dashed rgba($surface-border, 0.5);
+  border-radius: $border-radius;
+  font-family: $sarabun;
+  font-size: 15px;
+  letter-spacing: $sarabun-spacing;
+  cursor: not-allowed;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.aiBadge {
+  font-size: 11px;
+  background-color: rgba($primary, 0.12);
+  color: rgba($primary, 0.6);
+  border-radius: 6px;
+  padding: 2px 6px;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.settingsBtn {
+  min-width: 48px;
+  min-height: 48px;
+  background: transparent;
+  border: 2px solid rgba($surface-border, 0.7);
+  border-radius: $border-radius;
+  color: rgba($text, 0.75);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    background-color: rgba($primary, 0.12);
+    border-color: $primary-border;
+    color: $primary;
+  }
+}
+
+.settingsIcon {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+// ---- Totals card ----
+.totalsCard {
+  background-color: $surface;
+  border-radius: $border-radius;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.caloriesRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.caloriesBig {
+  font-family: $sarabun;
+  font-size: 36px;
+  font-weight: 700;
+  color: $text;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+
+.caloriesUnit {
+  font-family: $sarabun;
+  font-size: 15px;
+  color: rgba($text, 0.5);
+  letter-spacing: $sarabun-spacing;
+}
+
+.caloriesGoal {
+  font-family: $sarabun;
+  font-size: 15px;
+  color: rgba($text, 0.5);
+  letter-spacing: $sarabun-spacing;
+}
+
+// ---- Progress bar (shared) ----
+.progressTrack {
+  width: 100%;
+  height: 8px;
+  background-color: rgba($text, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 4px;
+  background-color: $primary;
+  transition: width 0.3s ease;
+  max-width: 100%;
+}
+
+.progressFillOver {
+  background-color: $error;
+}
+
+// ---- Macros row ----
+.macrosRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.macroItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.macroHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.macroName {
+  font-family: $sarabun;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.65);
+  text-transform: uppercase;
+}
+
+.macroValue {
+  font-family: $sarabun;
+  font-size: 13px;
+  color: rgba($text, 0.85);
+  letter-spacing: $sarabun-spacing;
+}
+
+// ---- Meal group ----
+.mealGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mealHeader {
+  font-family: $sarabun;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: rgba($text, 0.45);
+  text-transform: uppercase;
+  padding: 0 2px;
+}
+
+// ---- Entry row ----
+.entryRow {
+  background-color: $surface;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.entryTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.entryName {
+  flex: 1;
+  font-family: $sarabun;
+  font-size: 16px;
+  font-weight: 600;
+  color: $text;
+  letter-spacing: $sarabun-spacing;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.entryCalories {
+  font-family: $sarabun;
+  font-size: 15px;
+  font-weight: 700;
+  color: $primary;
+  letter-spacing: $sarabun-spacing;
+  flex-shrink: 0;
+}
+
+.entryBtns {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.editBtn,
+.deleteBtn {
+  min-width: 36px;
+  min-height: 36px;
+  background: transparent;
+  border: 1px solid rgba($surface-border, 0.6);
+  border-radius: 8px;
+  color: rgba($text, 0.5);
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  font-family: $sarabun;
+  letter-spacing: $sarabun-spacing;
+
+  &:active {
+    color: $primary;
+    border-color: $primary-border;
+    background-color: rgba($primary, 0.08);
+  }
+}
+
+.deleteBtn {
+  &:active {
+    color: $error;
+    border-color: rgba($error, 0.5);
+    background-color: rgba($error, 0.08);
+  }
+}
+
+.macroChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  font-family: $sarabun;
+  font-size: 12px;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.55);
+  background-color: rgba($text, 0.07);
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+
+// ---- Empty / loading states ----
+.emptyDay {
+  text-align: center;
+  font-family: $sarabun;
+  font-size: 15px;
+  color: rgba($text, 0.4);
+  letter-spacing: $sarabun-spacing;
+  padding: 32px 0 8px;
+}
+
+.errorMsg {
+  font-family: $sarabun;
+  font-size: 14px;
+  color: $error;
+  letter-spacing: $sarabun-spacing;
+  padding: 8px 0;
+}
+
+.loadingMsg {
+  font-family: $sarabun;
+  font-size: 14px;
+  color: rgba($text, 0.5);
+  letter-spacing: $sarabun-spacing;
+  padding: 8px 0;
+}

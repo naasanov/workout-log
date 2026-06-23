@@ -1,0 +1,78 @@
+@import "../../styles/variables";
+
+// Full-screen overlay rendered on top of everything (z-index above modals).
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background-color: rgba(0, 0, 0, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  max-width: 400px;
+  padding: 24px 16px;
+}
+
+.viewfinder {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 1 / 1;
+}
+
+.video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+  display: block; // iOS Safari: must be block inside a flex/positioned parent
+}
+
+.reticle {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+// SVG is a flex child of .reticle — use display: block to avoid iOS Safari quirk
+.reticleSvg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hint {
+  margin: 0;
+  color: rgba($text, 0.75);
+  font-family: $sarabun;
+  font-size: 15px;
+  letter-spacing: $sarabun-spacing;
+  text-align: center;
+}
+
+.closeBtn {
+  min-height: 48px; // Minimum tap target for mobile
+  min-width: 120px;
+  padding: 10px 28px;
+  background-color: transparent;
+  color: $text;
+  border: 2px solid $surface-border;
+  border-radius: $border-radius;
+  font-family: $sarabun;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  cursor: pointer;
+
+  &:active {
+    background-color: rgba($text, 0.1);
+  }
+}

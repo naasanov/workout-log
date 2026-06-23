@@ -1,0 +1,406 @@
+@import "../../styles/variables";
+
+// Modal content override — tall enough to scroll on small screens.
+.modalContent {
+  max-width: 560px !important;
+  max-height: 92dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+// Editor layout
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px 20px 20px;
+
+  @media (max-width: $mobile-width) {
+    padding: 16px 14px 16px;
+    gap: 16px;
+  }
+}
+
+// Header
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  margin: 0;
+  font-family: $sarabun;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: $sarabun-spacing;
+  color: $text;
+}
+
+// Meal selector — segmented button group
+.mealSelector {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mealBtn {
+  flex: 1 1 auto;
+  min-height: 44px; // mobile tap target
+  padding: 8px 12px;
+  background-color: transparent;
+  color: rgba($text, 0.65);
+  border: 2px solid $surface-border;
+  border-radius: 10px;
+  font-family: $sarabun;
+  font-size: 15px;
+  letter-spacing: $sarabun-spacing;
+  cursor: pointer;
+  transition: border-color 0.1s, color 0.1s, background-color 0.1s;
+
+  &:active {
+    background-color: $primary-translucent;
+  }
+}
+
+.mealBtnActive {
+  border-color: $primary-border;
+  color: $primary;
+  font-weight: 600;
+}
+
+// Field
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldLabel {
+  font-family: $sarabun;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.6);
+  text-transform: uppercase;
+}
+
+// Shared input style
+.input {
+  background-color: transparent;
+  color: $text;
+  border: none;
+  border-bottom: 2px solid $primary-border;
+  padding: 6px 4px;
+  font-family: $sarabun;
+  font-size: 16px;
+  letter-spacing: $sarabun-spacing;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px; // mobile tap target
+
+  &::placeholder {
+    color: rgba($text, 0.4);
+  }
+
+  &:focus {
+    outline: none;
+    border-bottom-color: $primary;
+  }
+}
+
+.inputSmall {
+  @extend .input;
+  font-size: 14px;
+  min-height: 36px;
+  width: 70px;
+  text-align: right;
+  padding: 4px 2px;
+
+  &[readonly] {
+    color: rgba($text, 0.55);
+    border-bottom-style: dashed;
+  }
+}
+
+// Ingredients section
+.ingredientsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ingredientsLabel {
+  font-family: $sarabun;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.6);
+  text-transform: uppercase;
+}
+
+.ingredientsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+// Single ingredient row
+.row {
+  background-color: rgba($background, 0.5);
+  border: 1px solid rgba($surface-border, 0.5);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+// Row: name + barcode button in one line
+.rowNameWrap {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  position: relative;
+}
+
+.rowNameInputWrap {
+  flex: 1;
+  position: relative;
+}
+
+.barcodeBtn {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px; // mobile tap target
+  padding: 8px;
+  background-color: transparent;
+  border: 2px solid $surface-border;
+  border-radius: 8px;
+  color: rgba($text, 0.7);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    color: $primary;
+    border-color: $primary-border;
+  }
+}
+
+// SVG icon: display:block is required — avoids iOS Safari flex-child misrender
+.barcodeIcon {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+// Row: nutrient fields in a flex row
+.rowNutrients {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: flex-end;
+}
+
+.nutrientLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: $sarabun;
+  font-size: 11px;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.55);
+}
+
+.removeRowBtn {
+  margin-left: auto;
+  align-self: flex-end;
+  min-width: 36px;
+  min-height: 36px;
+  background: transparent;
+  border: none;
+  color: rgba($text, 0.45);
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 4px 8px;
+
+  &:active {
+    color: $error;
+    background-color: rgba($error, 0.12);
+  }
+}
+
+.rowHint {
+  margin: 0;
+  font-family: $sarabun;
+  font-size: 11px;
+  color: rgba($text, 0.4);
+  letter-spacing: $sarabun-spacing;
+}
+
+// Search dropdown
+.dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 200;
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  background-color: $surface;
+  border: 1px solid $surface-border;
+  border-radius: 10px;
+  max-height: 240px;
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.dropdownItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  cursor: pointer;
+
+  &:active {
+    background-color: rgba($primary, 0.12);
+  }
+}
+
+.dropdownName {
+  font-family: $sarabun;
+  font-size: 15px;
+  color: $text;
+  letter-spacing: $sarabun-spacing;
+}
+
+.dropdownMeta {
+  font-family: $sarabun;
+  font-size: 12px;
+  color: rgba($text, 0.5);
+  letter-spacing: $sarabun-spacing;
+}
+
+.dropdownHint {
+  padding: 10px 14px;
+  font-family: $sarabun;
+  font-size: 14px;
+  color: rgba($text, 0.5);
+  letter-spacing: $sarabun-spacing;
+}
+
+// Add ingredient button
+.addRowBtn {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 8px 16px;
+  background-color: transparent;
+  color: $primary;
+  border: 2px dashed $primary-border;
+  border-radius: 10px;
+  font-family: $sarabun;
+  font-size: 15px;
+  letter-spacing: $sarabun-spacing;
+  cursor: pointer;
+
+  &:active {
+    background-color: $primary-translucent;
+  }
+}
+
+// Live totals
+.totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 12px 14px;
+  background-color: rgba($primary, 0.07);
+  border: 1px solid rgba($primary-border, 0.4);
+  border-radius: 10px;
+  align-items: center;
+}
+
+.totalsLabel {
+  font-family: $sarabun;
+  font-size: 13px;
+  font-weight: 700;
+  color: $primary;
+  letter-spacing: $sarabun-spacing;
+  text-transform: uppercase;
+  margin-right: 4px;
+}
+
+.totalsStat {
+  font-family: $sarabun;
+  font-size: 14px;
+  color: rgba($text, 0.85);
+  letter-spacing: $sarabun-spacing;
+
+  strong {
+    color: $text;
+    font-weight: 600;
+  }
+}
+
+// Error message
+.errorMsg {
+  margin: 0;
+  font-family: $sarabun;
+  font-size: 14px;
+  color: $error;
+  letter-spacing: $sarabun-spacing;
+}
+
+// Footer
+.footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+// Shared button base
+%btn-base {
+  min-height: 48px; // mobile tap target
+  padding: 10px 24px;
+  border-radius: $border-radius;
+  font-family: $sarabun;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  cursor: pointer;
+  border: none;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.saveBtn {
+  @extend %btn-base;
+  background-color: $primary;
+  color: $background;
+
+  &:not(:disabled):active {
+    background-color: $primary-dark;
+  }
+}
+
+.cancelBtn {
+  @extend %btn-base;
+  background-color: transparent;
+  color: rgba($text, 0.75);
+  border: 2px solid $surface-border;
+}
+
+.denyBtn {
+  @extend %btn-base;
+  background-color: transparent;
+  color: $error;
+  border: 2px solid rgba($error, 0.5);
+}

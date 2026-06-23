@@ -2,6 +2,7 @@ import Section from '../components/Section.jsx';
 import AddSection from '../components/AddSection.jsx';
 import BodyWeightTracker from '../components/BodyWeightTracker.jsx';
 import HabitTracker from '../components/HabitTracker.jsx';
+import NutritionTracker from '../features/nutrition/NutritionTracker';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import styles from "../styles/Workouts.module.scss";
@@ -14,6 +15,7 @@ const TABS = {
   WORKOUTS: 'workouts',
   BODY_WEIGHT: 'body-weight',
   HABITS: 'habits',
+  NUTRITION: 'nutrition',
 };
 
 const VALID_TABS = new Set(Object.values(TABS));
@@ -82,6 +84,12 @@ function Workouts() {
               >
                 Habits
               </button>
+              <button
+                className={`${styles.tab} ${activeTab === TABS.NUTRITION ? styles.tabActive : ''}`}
+                onClick={() => switchTab(TABS.NUTRITION)}
+              >
+                Nutrition
+              </button>
             </>
           )}
         </nav>
@@ -107,6 +115,12 @@ function Workouts() {
         {user && (
           <div style={{ display: activeTab === TABS.HABITS ? undefined : 'none' }}>
             <HabitTracker />
+          </div>
+        )}
+
+        {user && (
+          <div style={{ display: activeTab === TABS.NUTRITION ? undefined : 'none' }}>
+            <NutritionTracker />
           </div>
         )}
       </main>
