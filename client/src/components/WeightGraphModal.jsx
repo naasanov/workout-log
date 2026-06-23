@@ -1,38 +1,49 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
 import clientApi from '../api/clientApi.js';
-import useAuth from '../hooks/useAuth.js';
+import { useUser } from '../context/UserProvider.jsx';
+import Modal from './Modal.jsx';
 import styles from '../styles/WeightGraphModal.module.scss';
 
+/**
+ * WeightGraphModal — weight-over-time chart for a variation.
+ *
+ * Props (unchanged):
+ *   variation {object} — must have .id and .label
+ *   onClose   {fn}     — called to close the modal
+ *
+ * Data logic: unchanged (React Query useQuery).
+ */
 function WeightGraphModal({ variation, onClose }) {
-  const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const { withAuth } = useAuth();
+  const { user } = useUser();
 
-  useEffect(() => {
-    async function fetchHistory() {
-      const res = await withAuth(() => clientApi.get(`/variations/history/${variation.id}`));
-      if (res?.data?.data) {
-        setHistory(
-          res.data.data.map(entry => ({
-            weight: entry.weight,
-            date: format(new Date(entry.date), 'MMM d'),
-            rawDate: new Date(entry.date).getTime()
-          }))
-        );
-      }
-      setLoading(false);
-    }
-    fetchHistory();
-  }, [variation.id]);
+  // ── React Query data logic (untouched) ──────────────────────────────────────
+  const { data: history = [], isLoading: loading } = useQuery({
+    queryKey: ['variationHistory', variation.id],
+    queryFn: async () => {
+      const res = await clientApi.get(`/variations/history/${variation.id}`);
+      return res.data.data.map(entry => ({
+        weight: entry.weight,
+        date: format(new Date(entry.date), 'MMM d'),
+        rawDate: new Date(entry.date).getTime()
+      }));
+    },
+    enabled: !!user,
+  });
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+    <Modal
+      open={true}
+      onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}
+      title={variation.label || 'Variation'}
+      showTitle={false}
+      contentClassName={styles.modalContent}
+    >
+      <div className={styles.modal}>
         <div className={styles.header}>
           <span className={styles.title}>{variation.label || 'Variation'}</span>
-          <button className={styles.close} onClick={onClose}>✕</button>
+          <button className={styles.close} onClick={onClose} aria-label="Close">✕</button>
         </div>
 
         {loading ? (
@@ -85,7 +96,7 @@ function WeightGraphModal({ variation, onClose }) {
           </div>
         )}
       </div>
-    </div>
+    </Modal>
   );
 }
 

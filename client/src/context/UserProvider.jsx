@@ -7,11 +7,17 @@ export function useUser() {
 }
 
 function UserProvider({ children }) {
-  // `undefined` = auth not yet resolved (loading); `null` = definitively logged out; `{}` = logged in
+  // undefined = auth check in progress (loading)
+  // null     = definitively logged out
+  // {}       = logged in
   const [user, setUser] = useState(undefined);
   useEffect(() => {
     const fetchUser = async () => {
-      setUser(await isLoggedIn() ? {} : null);
+      try {
+        setUser(await isLoggedIn() ? {} : null);
+      } catch {
+        setUser(null);
+      }
     }
     fetchUser();
   }, [])

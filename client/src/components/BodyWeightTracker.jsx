@@ -1,61 +1,77 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
 import clientApi from '../api/clientApi.js';
 import useAuth from '../hooks/useAuth.js';
 import ConfirmModal from './ConfirmModal.jsx';
 import styles from '../styles/BodyWeightTracker.module.scss';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 function BodyWeightTracker() {
-  const [entries, setEntries] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [weight, setWeight] = useState('');
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
-  const [submitting, setSubmitting] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
-  const { withAuth } = useAuth();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    async function fetchEntries() {
-      const res = await withAuth(() => clientApi.get('/body-weight'));
-      if (res?.data?.data) {
-        setEntries(res.data.data);
-      }
-      setLoading(false);
-    }
-    fetchEntries();
-  }, [withAuth]);
+  const entriesQuery = useQuery({
+    queryKey: ['body-weight'],
+    queryFn: async () => {
+      const res = await clientApi.get('/body-weight');
+      return res.data.data ?? [];
+    },
+    enabled: user !== undefined && user !== null,
+  });
+
+  const entries = entriesQuery.data ?? [];
+  const loading = entriesQuery.isLoading;
+
+  const addMutation = useMutation({
+    mutationFn: async ({ weight, date }) => {
+      const body = { weight: Number(weight) };
+      if (date) body.date = new Date(date).toISOString();
+      const res = await clientApi.post('/body-weight', body);
+      return res.data.data;
+    },
+    onSuccess: (data, { weight, date }) => {
+      const newEntry = {
+        id: data.id,
+        weight: Number(weight),
+        date: date ? new Date(date).toISOString() : new Date().toISOString(),
+      };
+      queryClient.setQueryData(['body-weight'], (prev) =>
+        [...(prev ?? []), newEntry].sort((a, b) => new Date(a.date) - new Date(b.date))
+      );
+      setWeight('');
+      setDate(format(new Date(), 'yyyy-MM-dd'));
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id) => {
+      await clientApi.delete(`/body-weight/${id}`);
+      return id;
+    },
+    onSuccess: (id) => {
+      queryClient.setQueryData(['body-weight'], (prev) =>
+        (prev ?? []).filter(e => e.id !== id)
+      );
+    },
+  });
 
   async function handleSubmit(e) {
     e.preventDefault();
     if (!weight || isNaN(Number(weight)) || Number(weight) <= 0) return;
-    setSubmitting(true);
-
-    const body = { weight: Number(weight) };
-    if (date) body.date = new Date(date).toISOString();
-
-    const res = await withAuth(() => clientApi.post('/body-weight', body));
-    if (res?.data?.data) {
-      const newEntry = {
-        id: res.data.data.id,
-        weight: Number(weight),
-        date: date ? new Date(date).toISOString() : new Date().toISOString(),
-      };
-      setEntries(prev => [...prev, newEntry].sort((a, b) => new Date(a.date) - new Date(b.date)));
-      setWeight('');
-      setDate(format(new Date(), 'yyyy-MM-dd'));
-    }
-    setSubmitting(false);
+    addMutation.mutate({ weight, date });
   }
 
   async function handleDelete() {
     const id = deleteId;
     setDeleteId(null);
-    const res = await withAuth(() => clientApi.delete(`/body-weight/${id}`));
-    if (res !== undefined) {
-      setEntries(prev => prev.filter(e => e.id !== id));
-    }
+    deleteMutation.mutate(id);
   }
+
+  const submitting = addMutation.isPending;
 
   const chartData = entries.map(e => ({
     weight: e.weight,

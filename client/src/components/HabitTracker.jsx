@@ -3,6 +3,7 @@ import { format, parseISO } from 'date-fns';
 import clientApi from '../api/clientApi.js';
 import useAuth from '../hooks/useAuth.js';
 import styles from '../styles/HabitTracker.module.scss';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const HABIT_NAME = 'nail-biting';
 
@@ -211,26 +212,55 @@ function HabitRow({ row, isToday, onIncrement, onDecrement, onRangeChange }) {
 }
 
 function HabitTracker() {
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const { withAuth } = useAuth();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    async function fetchTallies() {
-      const res = await withAuth(() => clientApi.get(`/habits/${HABIT_NAME}`));
-      if (res?.data?.data) {
-        // mysql2 DATE columns serialize to ISO strings through JSON (e.g. "2026-06-17T00:00:00.000Z")
-        // slice(0,10) normalizes both bare "YYYY-MM-DD" and ISO datetime strings to "YYYY-MM-DD"
-        setRows(res.data.data.map(row => ({
-          ...row,
-          date: String(row.date).slice(0, 10),
-        })));
-      }
-      setLoading(false);
-    }
-    fetchTallies();
-  }, [withAuth]);
+  const talliesQuery = useQuery({
+    queryKey: ['habits', HABIT_NAME],
+    queryFn: async () => {
+      const res = await clientApi.get(`/habits/${HABIT_NAME}`);
+      // mysql2 DATE columns serialize to ISO strings through JSON (e.g. "2026-06-17T00:00:00.000Z")
+      // slice(0,10) normalizes both bare "YYYY-MM-DD" and ISO datetime strings to "YYYY-MM-DD"
+      return res.data.data.map(row => ({
+        ...row,
+        date: String(row.date).slice(0, 10),
+      }));
+    },
+    enabled: user !== undefined && user !== null,
+  });
+
+  const rows = talliesQuery.data ?? [];
+  const loading = talliesQuery.isLoading;
+
+  const addTallyMutation = useMutation({
+    mutationFn: async ({ localDate, localTime }) => {
+      const res = await clientApi.post(`/habits/${HABIT_NAME}/tally`, { localDate, localTime });
+      return res.data.data;
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['habits', HABIT_NAME], (prev) => {
+        const list = prev ?? [];
+        const existing = list.find(r => r.date === updated.date);
+        if (existing) {
+          return list.map(r => r.date === updated.date ? { ...r, ...updated } : r);
+        } else {
+          return [updated, ...list];
+        }
+      });
+    },
+  });
+
+  const patchTallyMutation = useMutation({
+    mutationFn: async ({ date, fields }) => {
+      await clientApi.patch(`/habits/${HABIT_NAME}/${date}`, fields);
+      return { date, fields };
+    },
+    onSuccess: ({ date, fields }) => {
+      queryClient.setQueryData(['habits', HABIT_NAME], (prev) =>
+        (prev ?? []).map(r => r.date === date ? { ...r, ...fields } : r)
+      );
+    },
+  });
 
   // Ensure today's row is always present in local state
   const today = getTodayLocalDate();
@@ -240,49 +270,33 @@ function HabitTracker() {
     : [{ date: today, count: 0, range_start: null, range_end: null }, ...rows];
 
   async function handleAddTally() {
-    if (submitting) return;
-    setSubmitting(true);
-
+    if (addTallyMutation.isPending) return;
     const localDate = getTodayLocalDate();
     const localTime = getNowLocalTime();
-
-    const res = await withAuth(() =>
-      clientApi.post(`/habits/${HABIT_NAME}/tally`, { localDate, localTime })
-    );
-
-    if (res?.data?.data) {
-      const updated = res.data.data;
-      setRows(prev => {
-        const existing = prev.find(r => r.date === updated.date);
-        if (existing) {
-          return prev.map(r => r.date === updated.date ? { ...r, ...updated } : r);
-        } else {
-          return [updated, ...prev];
-        }
-      });
-    }
-
-    setSubmitting(false);
+    addTallyMutation.mutate({ localDate, localTime });
   }
 
   async function handleIncrement(date) {
     const row = displayRows.find(r => r.date === date);
     if (!row) return;
     const newCount = row.count + 1;
-    const res = await withAuth(() =>
-      clientApi.patch(`/habits/${HABIT_NAME}/${date}`, { count: newCount })
-    );
-    if (res !== undefined) {
-      setRows(prev => {
-        const existing = prev.find(r => r.date === date);
-        if (existing) {
-          return prev.map(r => r.date === date ? { ...r, count: newCount } : r);
-        } else {
-          // Row was client-only (today with count 0) — need to create it first via tally endpoint
-          // This path is unusual; just reflect count change locally
-          return [{ date, count: newCount, range_start: null, range_end: null }, ...prev];
-        }
-      });
+    // Optimistic update
+    queryClient.setQueryData(['habits', HABIT_NAME], (prev) => {
+      const list = prev ?? [];
+      const existing = list.find(r => r.date === date);
+      if (existing) {
+        return list.map(r => r.date === date ? { ...r, count: newCount } : r);
+      } else {
+        return [{ date, count: newCount, range_start: null, range_end: null }, ...list];
+      }
+    });
+    try {
+      await clientApi.patch(`/habits/${HABIT_NAME}/${date}`, { count: newCount });
+    } catch {
+      // Roll back on failure
+      queryClient.setQueryData(['habits', HABIT_NAME], (prev) =>
+        (prev ?? []).map(r => r.date === date ? { ...r, count: row.count } : r)
+      );
     }
   }
 
@@ -290,29 +304,30 @@ function HabitTracker() {
     const row = displayRows.find(r => r.date === date);
     if (!row || row.count === 0) return;
     const newCount = row.count - 1;
-    const res = await withAuth(() =>
-      clientApi.patch(`/habits/${HABIT_NAME}/${date}`, { count: newCount })
+    // Optimistic update
+    queryClient.setQueryData(['habits', HABIT_NAME], (prev) =>
+      (prev ?? []).map(r => r.date === date ? { ...r, count: newCount } : r)
     );
-    if (res !== undefined) {
-      setRows(prev => prev.map(r => r.date === date ? { ...r, count: newCount } : r));
+    try {
+      await clientApi.patch(`/habits/${HABIT_NAME}/${date}`, { count: newCount });
+    } catch {
+      // Roll back on failure
+      queryClient.setQueryData(['habits', HABIT_NAME], (prev) =>
+        (prev ?? []).map(r => r.date === date ? { ...r, count: row.count } : r)
+      );
     }
   }
 
   const handleRangeChange = useCallback(async (date, fields) => {
-    const res = await withAuth(() =>
-      clientApi.patch(`/habits/${HABIT_NAME}/${date}`, fields)
-    );
-    if (res !== undefined) {
-      setRows(prev => prev.map(r => r.date === date ? { ...r, ...fields } : r));
-    }
-  }, [withAuth]);
+    patchTallyMutation.mutate({ date, fields });
+  }, [patchTallyMutation]);
 
   return (
     <section className={styles.container}>
       <button
         className={styles.addTallyBtn}
         onClick={handleAddTally}
-        disabled={submitting}
+        disabled={addTallyMutation.isPending}
       >
         <span className={styles.addTallyPlus}>+</span> Add Tally
       </button>

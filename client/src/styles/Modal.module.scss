@@ -1,0 +1,79 @@
+@import "variables";
+
+// Radix Dialog overlay — fills the viewport behind the panel
+.overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: 999;
+  // Fade-in animation provided by Radix data attributes
+  &[data-state="open"] {
+    animation: fadeIn 120ms ease;
+  }
+  &[data-state="closed"] {
+    animation: fadeOut 100ms ease;
+  }
+}
+
+// Radix Dialog content — the panel itself
+.content {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  background-color: $surface;
+  border-radius: $border-radius;
+  width: 90%;
+
+  // Default sizing; callers can override via contentClassName
+  max-width: 480px;
+
+  // Clip scroll within the panel
+  display: flex;
+  flex-direction: column;
+
+  &:focus {
+    outline: none;
+  }
+
+  &[data-state="open"] {
+    animation: slideIn 140ms ease;
+  }
+  &[data-state="closed"] {
+    animation: slideOut 100ms ease;
+  }
+}
+
+// Visually hidden title (accessible but invisible when the modal has its own header)
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translate(-50%, -48%); }
+  to   { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+@keyframes slideOut {
+  from { opacity: 1; transform: translate(-50%, -50%); }
+  to   { opacity: 0; transform: translate(-50%, -48%); }
+}

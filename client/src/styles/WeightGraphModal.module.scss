@@ -1,22 +1,14 @@
 @import "variables";
 
-.overlay {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
+// Sizing override applied to Radix Dialog.Content for this wider panel.
+// Passed as contentClassName={styles.modalContent} from WeightGraphModal.jsx.
+.modalContent {
+  max-width: 560px;
 }
 
+// Panel inner wrapper
 .modal {
-  background-color: $surface;
-  border-radius: $border-radius;
   padding: 28px 32px;
-  width: 100%;
-  max-width: 560px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -55,6 +47,12 @@
   border-radius: 8px;
   line-height: 1;
   flex-shrink: 0;
+  // Tappable on mobile
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover {
     background-color: $primary-translucent;
