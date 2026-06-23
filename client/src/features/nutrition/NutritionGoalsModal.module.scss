@@ -1,0 +1,133 @@
+@import "../../styles/variables";
+
+.modalContent {
+  max-width: 420px !important;
+}
+
+.modal {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px 20px 20px;
+
+  @media (max-width: $mobile-width) {
+    padding: 18px 16px 16px;
+    gap: 16px;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  margin: 0;
+  font-family: $sarabun;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: $sarabun-spacing;
+  color: $text;
+}
+
+.hint {
+  margin: 0;
+  font-family: $sarabun;
+  font-size: 13px;
+  color: rgba($text, 0.45);
+  letter-spacing: $sarabun-spacing;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.label {
+  font-family: $sarabun;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.6);
+  text-transform: uppercase;
+}
+
+.input {
+  background-color: transparent;
+  color: $text;
+  border: none;
+  border-bottom: 2px solid $primary-border;
+  padding: 8px 4px;
+  font-family: $sarabun;
+  font-size: 16px;
+  letter-spacing: $sarabun-spacing;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+
+  &::placeholder {
+    color: rgba($text, 0.3);
+  }
+
+  &:focus {
+    outline: none;
+    border-bottom-color: $primary;
+  }
+}
+
+.errorMsg {
+  margin: 0;
+  font-family: $sarabun;
+  font-size: 14px;
+  color: $error;
+  letter-spacing: $sarabun-spacing;
+}
+
+.footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+%btn-base {
+  min-height: 48px;
+  padding: 10px 24px;
+  border-radius: $border-radius;
+  font-family: $sarabun;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  cursor: pointer;
+  border: none;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.saveBtn {
+  @extend %btn-base;
+  background-color: $primary;
+  color: $background;
+
+  &:not(:disabled):active {
+    background-color: $primary-dark;
+  }
+}
+
+.cancelBtn {
+  @extend %btn-base;
+  background-color: transparent;
+  color: rgba($text, 0.75);
+  border: 2px solid $surface-border;
+}
