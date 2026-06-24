@@ -86,6 +86,28 @@ export async function searchFoods(query: string): Promise<FoodSearchResult[]> {
   return res.data.data;
 }
 
+/**
+ * React Query hook for food search with in-memory caching.
+ *
+ * Cache key: ['nutrition', 'foodSearch', normalizedQuery]
+ * staleTime: 5 minutes — cached results are returned immediately on refocus
+ * without triggering a new network request while still fresh.
+ * gcTime: 10 minutes — keeps results in memory after the component unmounts.
+ *
+ * Pass the already-debounced query so typing doesn't spam the network.
+ * The hook is disabled when the normalised query is shorter than 2 chars.
+ */
+export function useFoodSearch(debouncedQuery: string) {
+  const normalizedQuery = debouncedQuery.trim().toLowerCase();
+  return useQuery<FoodSearchResult[]>({
+    queryKey: ['nutrition', 'foodSearch', normalizedQuery],
+    queryFn: () => searchFoods(debouncedQuery.trim()),
+    enabled: normalizedQuery.length >= 2,
+    staleTime: 5 * 60 * 1000,  // 5 minutes
+    gcTime: 10 * 60 * 1000,    // 10 minutes
+  });
+}
+
 export async function lookupBarcode(code: string): Promise<FoodSearchResult | null> {
   try {
     const res = await clientApi.get(`/nutrition/barcode/${code}`);

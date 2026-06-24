@@ -11,7 +11,7 @@ import {
 } from 'react';
 import Modal from '../../components/Modal.jsx';
 import BarcodeScanner from './BarcodeScanner';
-import { useCreateEntry, useUpdateEntry, searchFoods, lookupBarcode } from './api';
+import { useCreateEntry, useUpdateEntry, useFoodSearch, lookupBarcode } from './api';
 import type {
   EntryEditorProps,
   Meal,
@@ -104,32 +104,17 @@ interface SearchDropdownProps {
 }
 
 function SearchDropdown({ query, onSelect }: SearchDropdownProps) {
-  const [results, setResults] = useState<FoodSearchResult[]>([]);
-  const [loading, setLoading] = useState(false);
   const debouncedQuery = useDebounce(query, 300);
+  const { data: results = [], isFetching } = useFoodSearch(debouncedQuery);
 
-  useEffect(() => {
-    if (debouncedQuery.trim().length < 2) {
-      setResults([]);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    searchFoods(debouncedQuery)
-      .then(res => { if (!cancelled) setResults(res); })
-      .catch(() => { if (!cancelled) setResults([]); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [debouncedQuery]);
-
-  if (!query.trim() || (results.length === 0 && !loading)) return null;
+  if (!query.trim() || (results.length === 0 && !isFetching)) return null;
 
   return (
     <ul className={styles.dropdown} role="listbox">
-      {loading && (
+      {isFetching && (
         <li className={styles.dropdownHint}>Searching…</li>
       )}
-      {!loading && results.length === 0 && (
+      {!isFetching && results.length === 0 && (
         <li className={styles.dropdownHint}>No results</li>
       )}
       {results.map(food => (
@@ -502,8 +487,12 @@ export default function EntryEditor({ open, mode, onClose, onConfirm, onDeny }: 
   }, []);
 
   // ----- Save -----
+  // If the user left the entry name blank, fall back to the first ingredient's name.
+  const firstValidIngredient = rows.find(r => r.name.trim().length > 0 && r.grams > 0);
+  const effectiveName = entryName.trim() || firstValidIngredient?.name.trim() || '';
+
   const canSave =
-    entryName.trim().length > 0 &&
+    effectiveName.length > 0 &&
     rows.length > 0 &&
     !isPending;
 
@@ -525,7 +514,7 @@ export default function EntryEditor({ open, mode, onClose, onConfirm, onDeny }: 
     const input: EntryInput = {
       localDate: date,
       meal,
-      name: entryName.trim(),
+      name: effectiveName,
       source: 'manual',
       ingredients,
     };
@@ -561,7 +550,7 @@ export default function EntryEditor({ open, mode, onClose, onConfirm, onDeny }: 
       onConfirm({
         localDate: date,
         meal,
-        name: entryName.trim(),
+        name: effectiveName,
         source: 'manual',
         ingredients,
       });
