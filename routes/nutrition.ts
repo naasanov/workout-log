@@ -5,7 +5,7 @@ import handleSqlError from '../utils/handleSqlError';
 import { User } from '../types';
 import { entryInputSchema, goalsSchema } from '../schemas/nutrition';
 import * as store from '../services/nutrition/store';
-import { searchFoods, lookupBarcode } from '../services/nutrition/providers';
+import { searchFoods, lookupBarcode, getPortions } from '../services/nutrition/providers';
 
 const router = Router();
 router.use(authenticateToken);
@@ -121,6 +121,26 @@ router.get('/barcode/:code', async (req, res): Promise<any> => {
     return res.status(200).json({ data, message: `Found product for barcode ${code}` });
   } catch (error) {
     return handleSqlError(error, res);
+  }
+});
+
+// GET /portions?source=usda|off&ref=<id>
+router.get('/portions', async (req, res): Promise<any> => {
+  const source = req.query.source as string;
+  const ref = (req.query.ref ?? '') as string;
+
+  if (source !== 'usda' && source !== 'off') {
+    return res.status(400).json({ message: 'source must be "usda" or "off"' });
+  }
+  if (!ref.trim()) {
+    return res.status(400).json({ message: 'ref is required' });
+  }
+
+  try {
+    const data = await getPortions(source, ref.trim());
+    return res.status(200).json({ data, message: `Found ${data.length} portion(s)` });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to fetch portions' });
   }
 });
 

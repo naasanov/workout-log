@@ -68,6 +68,14 @@ export type EntryInput = z.infer<typeof entryInputSchema>;
 export type Goals = z.infer<typeof goalsSchema>;
 export type FoodSearchResult = z.infer<typeof foodSearchResultSchema>;
 
+// A household serving size for a food, e.g. { label: "medium", grams: 118 }.
+// `grams` is the weight of ONE of this unit (so effective grams = quantity * grams).
+export const foodPortionSchema = z.object({
+  label: z.string(),
+  grams: z.number().positive(),
+});
+export type FoodPortion = z.infer<typeof foodPortionSchema>;
+
 // ---- DB row / response shapes returned to the client ----
 export interface IngredientRow extends IngredientInput {
   id: number;
