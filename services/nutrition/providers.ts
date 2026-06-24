@@ -11,12 +11,15 @@
 //     In-memory cache keyed by fdcId. Never throw on a single bad match — return [].
 //   - lookupBarcode: GET https://world.openfoodfacts.org/api/v2/product/<code>.json
 //     (send a descriptive User-Agent). Return null when status:0 (not found).
-import { FoodSearchResult } from '../../schemas/nutrition';
+import { FoodSearchResult, FoodPortion } from '../../schemas/nutrition';
 
 const USER_AGENT = 'WorkoutLogApp/1.0 (nutrition tracker; contact: admin@example.com)';
 
 // In-memory cache: source_ref → FoodSearchResult
 const cache = new Map<string, FoodSearchResult>();
+
+// In-memory cache for portions: "source:ref" → FoodPortion[]
+const portionsCache = new Map<string, FoodPortion[]>();
 
 /** Normalize a string to a set of lowercase tokens. */
 function tokenize(str: string): Set<string> {
@@ -205,6 +208,93 @@ export async function searchFoods(query: string): Promise<FoodSearchResult[]> {
     results = await searchOFF(query);
   }
   return results;
+}
+
+/** Fetch household serving portions for a food from USDA FDC or OFF.
+ *  Returns [] on any error; never throws. Results are cached in-memory. */
+export async function getPortions(source: 'usda' | 'off', ref: string): Promise<FoodPortion[]> {
+  const cacheKey = `${source}:${ref}`;
+  const cached = portionsCache.get(cacheKey);
+  if (cached) return cached;
+
+  if (source === 'off') {
+    portionsCache.set(cacheKey, []);
+    return [];
+  }
+
+  // USDA: fetch the full food detail record
+  try {
+    const apiKey = process.env.USDA_FDC_API_KEY ?? 'DEMO_KEY';
+    const url = `https://api.nal.usda.gov/fdc/v1/food/${encodeURIComponent(ref)}?api_key=${encodeURIComponent(apiKey)}`;
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': USER_AGENT },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!resp.ok) {
+      portionsCache.set(cacheKey, []);
+      return [];
+    }
+
+    const data: any = await resp.json();
+    const rawPortions: any[] = data.foodPortions ?? [];
+
+    const seen = new Set<string>();
+    const portions: FoodPortion[] = [];
+
+    for (const p of rawPortions) {
+      try {
+        const gramWeight: number = p.gramWeight;
+        if (gramWeight == null || gramWeight <= 0) continue;
+
+        const amount: number = p.amount || 1;
+
+        // Determine label: prefer modifier (only if it's human-readable text, not a
+        // numeric FNDDS code), then measureUnit.name (if not "undetermined"),
+        // then fall back to portionDescription.
+        let label = '';
+        let gramsForOne: number;
+
+        const modifier: string = (p.modifier ?? '').trim();
+        // USDA Survey/FNDDS foods store numeric food-code IDs in modifier — skip those
+        const modifierIsNumericCode = /^\d+$/.test(modifier);
+        const measureUnitName: string = (p.measureUnit?.name ?? '').trim().toLowerCase();
+        const portionDescription: string = (p.portionDescription ?? '').trim();
+
+        if (modifier && !modifierIsNumericCode) {
+          label = modifier;
+          gramsForOne = gramWeight / amount;
+        } else if (measureUnitName && measureUnitName !== 'undetermined') {
+          label = p.measureUnit.name.trim();
+          gramsForOne = gramWeight / amount;
+        } else if (portionDescription) {
+          label = portionDescription;
+          // Don't divide by amount in the fallback — use gramWeight as-is
+          gramsForOne = gramWeight;
+        } else {
+          continue; // no usable label
+        }
+
+        label = label.trim();
+        if (!label) continue;
+        if (seen.has(label)) continue;
+        seen.add(label);
+
+        portions.push({ label, grams: gramsForOne });
+      } catch {
+        // skip malformed portion entry
+      }
+    }
+
+    // Sort by grams ascending, cap to 8
+    portions.sort((a, b) => a.grams - b.grams);
+    const result = portions.slice(0, 8);
+
+    portionsCache.set(cacheKey, result);
+    return result;
+  } catch {
+    portionsCache.set(cacheKey, []);
+    return [];
+  }
 }
 
 /** Open Food Facts barcode lookup → product as a FoodSearchResult, or null if not found. */

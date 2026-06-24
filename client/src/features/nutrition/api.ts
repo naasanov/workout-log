@@ -9,6 +9,7 @@ import type {
   EntryRow,
   Goals,
   FoodSearchResult,
+  FoodPortion,
 } from './types';
 
 export const nutritionKeys = {
@@ -116,4 +117,13 @@ export async function lookupBarcode(code: string): Promise<FoodSearchResult | nu
     if (err?.response?.status === 404) return null;
     throw err;
   }
+}
+
+/** Household serving sizes for a food (USDA via foodPortions; OFF returns []). */
+export async function getPortions(
+  source: 'usda' | 'off',
+  ref: string,
+): Promise<FoodPortion[]> {
+  const res = await clientApi.get('/nutrition/portions', { params: { source, ref } });
+  return res.data.data;
 }

@@ -25,6 +25,13 @@ export interface FoodSearchResult {
   serving_grams?: number | null;
 }
 
+// A household serving size, e.g. { label: "medium", grams: 118 }.
+// `grams` = weight of ONE unit (effective grams = quantity * grams).
+export interface FoodPortion {
+  label: string;
+  grams: number;
+}
+
 export interface IngredientInput {
   name: string;
   grams: number;
