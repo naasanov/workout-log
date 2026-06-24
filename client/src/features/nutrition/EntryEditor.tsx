@@ -364,7 +364,7 @@ function IngredientRowEditor({ row, onChange, onRemove, onOpenBarcode }: Ingredi
       </div>
 
       <div className={styles.rowNutrients}>
-        {/* Quantity + unit selector */}
+        {/* Zone 1: Quantity + unit — stay together */}
         <div className={styles.portionGroup}>
           <label className={styles.nutrientLabel} aria-label="Quantity">
             <span>Qty</span>
@@ -402,61 +402,64 @@ function IngredientRowEditor({ row, onChange, onRemove, onOpenBarcode }: Ingredi
           )}
         </div>
 
-        <label className={styles.nutrientLabel}>
-          <span>kcal</span>
-          <input
-            className={styles.inputSmall}
-            type="number"
-            min="0"
-            step="0.1"
-            value={row.calories === 0 ? '' : row.calories}
-            onChange={e => handleMacroChange('calories', e.target.value)}
-            readOnly={macrosReadOnly}
-            aria-label="Calories"
-          />
-        </label>
+        {/* Zone 2: Macro fields — wrap together */}
+        <div className={styles.macrosGroup}>
+          <label className={styles.nutrientLabel}>
+            <span>kcal</span>
+            <input
+              className={styles.inputSmall}
+              type="number"
+              min="0"
+              step="0.1"
+              value={row.calories === 0 ? '' : row.calories}
+              onChange={e => handleMacroChange('calories', e.target.value)}
+              readOnly={macrosReadOnly}
+              aria-label="Calories"
+            />
+          </label>
 
-        <label className={styles.nutrientLabel}>
-          <span>Prot</span>
-          <input
-            className={styles.inputSmall}
-            type="number"
-            min="0"
-            step="0.1"
-            value={row.protein_g === 0 ? '' : row.protein_g}
-            onChange={e => handleMacroChange('protein_g', e.target.value)}
-            readOnly={macrosReadOnly}
-            aria-label="Protein g"
-          />
-        </label>
+          <label className={styles.nutrientLabel}>
+            <span>Prot</span>
+            <input
+              className={styles.inputSmall}
+              type="number"
+              min="0"
+              step="0.1"
+              value={row.protein_g === 0 ? '' : row.protein_g}
+              onChange={e => handleMacroChange('protein_g', e.target.value)}
+              readOnly={macrosReadOnly}
+              aria-label="Protein g"
+            />
+          </label>
 
-        <label className={styles.nutrientLabel}>
-          <span>Carbs</span>
-          <input
-            className={styles.inputSmall}
-            type="number"
-            min="0"
-            step="0.1"
-            value={row.carbs_g === 0 ? '' : row.carbs_g}
-            onChange={e => handleMacroChange('carbs_g', e.target.value)}
-            readOnly={macrosReadOnly}
-            aria-label="Carbs g"
-          />
-        </label>
+          <label className={styles.nutrientLabel}>
+            <span>Carbs</span>
+            <input
+              className={styles.inputSmall}
+              type="number"
+              min="0"
+              step="0.1"
+              value={row.carbs_g === 0 ? '' : row.carbs_g}
+              onChange={e => handleMacroChange('carbs_g', e.target.value)}
+              readOnly={macrosReadOnly}
+              aria-label="Carbs g"
+            />
+          </label>
 
-        <label className={styles.nutrientLabel}>
-          <span>Fat</span>
-          <input
-            className={styles.inputSmall}
-            type="number"
-            min="0"
-            step="0.1"
-            value={row.fat_g === 0 ? '' : row.fat_g}
-            onChange={e => handleMacroChange('fat_g', e.target.value)}
-            readOnly={macrosReadOnly}
-            aria-label="Fat g"
-          />
-        </label>
+          <label className={styles.nutrientLabel}>
+            <span>Fat</span>
+            <input
+              className={styles.inputSmall}
+              type="number"
+              min="0"
+              step="0.1"
+              value={row.fat_g === 0 ? '' : row.fat_g}
+              onChange={e => handleMacroChange('fat_g', e.target.value)}
+              readOnly={macrosReadOnly}
+              aria-label="Fat g"
+            />
+          </label>
+        </div>
 
         <button
           type="button"

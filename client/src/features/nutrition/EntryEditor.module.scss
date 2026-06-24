@@ -196,12 +196,32 @@
   height: 20px;
 }
 
-// Row: nutrient fields in a flex row
+// Row: nutrient fields — two-zone layout
+// Zone 1 (portionGroup): Qty + Unit — flex, shrink together
+// Zone 2 (macrosGroup): the four macro fields
+// Remove button: pushed to end
 .rowNutrients {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 14px;
+  gap: 10px 12px;
   align-items: flex-end;
+}
+
+// Qty + Unit travel together; they shrink but never disappear
+.portionGroup {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+// The four macros also stay together and can wrap as a unit
+.macrosGroup {
+  display: flex;
+  gap: 8px 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
 }
 
 .nutrientLabel {
@@ -212,6 +232,60 @@
   font-size: 11px;
   letter-spacing: $sarabun-spacing;
   color: rgba($text, 0.55);
+}
+
+// Styled unit select — matches inputSmall visually
+.unitSelect {
+  // Reset browser defaults completely
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  // Match inputSmall base (from .input)
+  background-color: transparent;
+  color: $text;
+  border: none;
+  border-bottom: 2px solid $primary-border;
+  padding: 4px 20px 4px 2px; // right padding for chevron
+  font-family: $sarabun;
+  font-size: 14px;
+  letter-spacing: $sarabun-spacing;
+  min-height: 36px;
+  min-width: 60px;
+  max-width: 140px;
+  cursor: pointer;
+  box-sizing: border-box;
+
+  // Inline SVG chevron as background image using theme color
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23EBEDE9' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 2px center;
+
+  &:focus {
+    outline: none;
+    border-bottom-color: $primary;
+  }
+
+  // Style the dropdown list on supported browsers
+  option {
+    background-color: $surface;
+    color: $text;
+  }
+}
+
+// Static "g" badge when only grams is available
+.unitStatic {
+  display: inline-block;
+  font-family: $sarabun;
+  font-size: 14px;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.55);
+  border-bottom: 2px solid rgba($surface-border, 0.5);
+  padding: 4px 2px;
+  min-height: 36px;
+  min-width: 24px;
+  box-sizing: border-box;
+  line-height: 1.6;
 }
 
 .removeRowBtn {
