@@ -276,6 +276,8 @@ export async function getPortions(source: 'usda' | 'off', ref: string): Promise<
 
         label = label.trim();
         if (!label) continue;
+        // Skip non-informative USDA portion labels.
+        if (/^(quantity not specified|not specified|undetermined)$/i.test(label)) continue;
         if (seen.has(label)) continue;
         seen.add(label);
 
