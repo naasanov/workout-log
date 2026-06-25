@@ -664,8 +664,21 @@ export default function EntryEditor({ open, mode, onClose, onConfirm, onDeny }: 
       setMeal(mode.defaultMeal ?? 'breakfast');
       setEntryName('');
       setRows([emptyRow()]);
+    } else if (mode.kind === 'proposal') {
+      setMeal(mode.proposal.meal);
+      setEntryName(mode.proposal.name);
+      setRows(
+        mode.proposal.ingredients.map(ing => ({
+          ...ing,
+          rowKey: nextKey(),
+          quantity: ing.grams,
+          unitLabel: 'g',
+          unitGrams: 1,
+          portions: [GRAMS_UNIT],
+          per100g: null,
+        })),
+      );
     }
-    // proposal: TODO Phase 2 — keep form as-is for now
     setSaveError(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, modeKind]);
@@ -760,30 +773,30 @@ export default function EntryEditor({ open, mode, onClose, onConfirm, onDeny }: 
 
   // ----- Proposal mode footer (Phase 2 wiring) -----
   function handleConfirm() {
-    // TODO Phase 2: build EntryInput from current form state and call onConfirm
-    if (onConfirm) {
-      const ingredients: IngredientInput[] = rows.map(r => ({
-        name: r.name,
-        grams: r.grams,
-        source: r.source,
-        source_ref: r.source_ref ?? null,
-        calories: r.calories,
-        protein_g: r.protein_g,
-        carbs_g: r.carbs_g,
-        fat_g: r.fat_g,
-      }));
-      onConfirm({
-        localDate: date,
-        meal,
-        name: effectiveName,
-        source: 'manual',
-        ingredients,
-      });
-    }
+    if (!onConfirm) return;
+    const ingredients: IngredientInput[] = rows.map(r => ({
+      name: r.name,
+      grams: r.grams,
+      source: r.source,
+      source_ref: r.source_ref ?? null,
+      calories: r.calories,
+      protein_g: r.protein_g,
+      carbs_g: r.carbs_g,
+      fat_g: r.fat_g,
+    }));
+    // Preserve proposal's source (e.g. 'photo', 'text') from mode.
+    const proposalSource = mode.kind === 'proposal' ? mode.proposal.source : 'manual';
+    onConfirm({
+      localDate: date,
+      meal,
+      name: effectiveName,
+      source: proposalSource,
+      barcode: mode.kind === 'proposal' ? (mode.proposal.barcode ?? null) : null,
+      ingredients,
+    });
   }
 
   function handleDeny() {
-    // TODO Phase 2: wire onDeny
     if (onDeny) onDeny();
   }
 

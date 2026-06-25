@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { pipeUIMessageStreamToResponse } from 'ai';
 import { authenticateToken } from './auth';
 import { validateId } from '../utils/validation';
 import handleSqlError from '../utils/handleSqlError';
@@ -6,6 +7,7 @@ import { User } from '../types';
 import { entryInputSchema, goalsSchema } from '../schemas/nutrition';
 import * as store from '../services/nutrition/store';
 import { searchFoods, lookupBarcode, getPortions } from '../services/nutrition/providers';
+import { streamNutritionChat } from '../services/nutrition/agent';
 
 const router = Router();
 router.use(authenticateToken);
@@ -167,6 +169,44 @@ router.put('/goals', async (req, res): Promise<any> => {
     const data = await store.putGoals(uuid, parsed.data);
     return res.status(200).json({ data, message: 'Goals saved' });
   } catch (error) {
+    return handleSqlError(error, res);
+  }
+});
+
+// POST /chat — Nutrition AI agent chat endpoint (streams UI message stream)
+router.post('/chat', async (req, res): Promise<any> => {
+  const { uuid }: User = res.locals.user;
+  const { messages, selectedDate, effort } = req.body as {
+    messages: unknown;
+    selectedDate?: string;
+    effort?: 'none' | 'minimal' | 'low' | 'medium' | 'high';
+  };
+
+  if (!Array.isArray(messages)) {
+    return res.status(400).json({ message: 'messages must be an array' });
+  }
+
+  const date = selectedDate ?? new Date().toISOString().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ message: 'selectedDate must be in YYYY-MM-DD format' });
+  }
+
+  try {
+    const result = await streamNutritionChat({
+      userUuid: uuid,
+      selectedDate: date,
+      messages: messages as Parameters<typeof streamNutritionChat>[0]['messages'],
+      effort,
+    });
+
+    // Stream the AI SDK UI message stream to the Express response using the
+    // standalone helper (avoids the deprecated result method).
+    pipeUIMessageStreamToResponse({
+      response: res,
+      stream: result.toUIMessageStream({ sendReasoning: true }),
+    });
+  } catch (error) {
+    // Only reached if streamText itself throws before streaming begins
     return handleSqlError(error, res);
   }
 });

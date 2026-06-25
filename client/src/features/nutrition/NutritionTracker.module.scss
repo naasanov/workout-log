@@ -99,27 +99,23 @@
   flex: 0 1 auto;
   min-height: 48px;
   padding: 10px 18px;
-  background-color: transparent;
-  color: rgba($text, 0.4);
-  border: 2px dashed rgba($surface-border, 0.5);
+  background-color: rgba($primary, 0.08);
+  color: $primary;
+  border: 2px solid rgba($primary-border, 0.6);
   border-radius: $border-radius;
   font-family: $sarabun;
   font-size: 15px;
+  font-weight: 600;
   letter-spacing: $sarabun-spacing;
-  cursor: not-allowed;
+  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
-}
 
-.aiBadge {
-  font-size: 11px;
-  background-color: rgba($primary, 0.12);
-  color: rgba($primary, 0.6);
-  border-radius: 6px;
-  padding: 2px 6px;
-  letter-spacing: 0.5px;
-  font-weight: 600;
+  &:active {
+    background-color: $primary-translucent;
+    border-color: $primary-border;
+  }
 }
 
 .settingsBtn {

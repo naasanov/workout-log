@@ -278,11 +278,78 @@ export async function putGoals(userUuid: string, goals: Goals): Promise<Goals> {
 }
 
 // ---- Memory (Phase 2/3) — signatures defined now, implemented later ----
-/** Last `days` days of entries for agent context injection. */
-export async function recentEntries(_userUuid: string, _days: number): Promise<EntryRow[]> {
-  throw new Error('not implemented — Phase 3');
+/** Last `days` days of entries for agent context injection (newest first). */
+export async function recentEntries(userUuid: string, days: number): Promise<EntryRow[]> {
+  const [entryRows] = await pool.query<RowDataPacket[]>(
+    `SELECT id, BIN_TO_UUID(user_uuid) as user_uuid, date, logged_at, meal, name, source,
+            calories, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg, barcode
+     FROM food_entries
+     WHERE user_uuid = UUID_TO_BIN(?)
+       AND date >= CURDATE() - INTERVAL ? DAY
+     ORDER BY date DESC, logged_at DESC`,
+    [userUuid, days],
+  );
+
+  const entries: EntryRow[] = [];
+  for (const row of entryRows) {
+    const ingredients = await fetchIngredients(row.id as number);
+    const totals = sumIngredients(ingredients);
+    entries.push({
+      id: row.id as number,
+      date: (row.date instanceof Date ? row.date.toISOString() : String(row.date)).slice(0, 10),
+      logged_at: row.logged_at as string,
+      meal: row.meal,
+      name: row.name,
+      source: row.source,
+      calories: totals.calories,
+      protein_g: totals.protein_g,
+      carbs_g: totals.carbs_g,
+      fat_g: totals.fat_g,
+      fiber_g: null,
+      sugar_g: null,
+      sodium_mg: null,
+      barcode: row.barcode ?? null,
+      ingredients,
+    });
+  }
+  return entries;
 }
-/** FULLTEXT/LIKE search over past entry names (reuse a named meal). */
-export async function searchFoodHistory(_userUuid: string, _query: string): Promise<EntryRow[]> {
-  throw new Error('not implemented — Phase 3');
+
+/** FULLTEXT/LIKE search over past entry names; returns up to 10 matching entries with ingredients. */
+export async function searchFoodHistory(userUuid: string, query: string): Promise<EntryRow[]> {
+  const likePattern = `%${query.replace(/[%_\\]/g, '\\$&')}%`;
+  const [entryRows] = await pool.query<RowDataPacket[]>(
+    `SELECT id, BIN_TO_UUID(user_uuid) as user_uuid, date, logged_at, meal, name, source,
+            calories, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg, barcode
+     FROM food_entries
+     WHERE user_uuid = UUID_TO_BIN(?)
+       AND name LIKE ?
+     ORDER BY date DESC, logged_at DESC
+     LIMIT 10`,
+    [userUuid, likePattern],
+  );
+
+  const entries: EntryRow[] = [];
+  for (const row of entryRows) {
+    const ingredients = await fetchIngredients(row.id as number);
+    const totals = sumIngredients(ingredients);
+    entries.push({
+      id: row.id as number,
+      date: (row.date instanceof Date ? row.date.toISOString() : String(row.date)).slice(0, 10),
+      logged_at: row.logged_at as string,
+      meal: row.meal,
+      name: row.name,
+      source: row.source,
+      calories: totals.calories,
+      protein_g: totals.protein_g,
+      carbs_g: totals.carbs_g,
+      fat_g: totals.fat_g,
+      fiber_g: null,
+      sugar_g: null,
+      sodium_mg: null,
+      barcode: row.barcode ?? null,
+      ingredients,
+    });
+  }
+  return entries;
 }

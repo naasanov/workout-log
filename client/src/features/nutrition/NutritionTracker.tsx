@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useDay, useGoals, useDeleteEntry } from './api';
 import EntryEditor from './EntryEditor';
 import NutritionGoalsModal from './NutritionGoalsModal';
+import NutritionChat from './NutritionChat';
 import ConfirmModal from '../../components/ConfirmModal.jsx';
 import type { EntryEditorMode, EntryRow } from './types';
 import { MEALS } from './types';
@@ -66,6 +67,9 @@ export default function NutritionTracker() {
     kind: 'manual-add',
     date: selectedDate,
   });
+
+  // AI chat
+  const [chatOpen, setChatOpen] = useState(false);
 
   // Goals modal
   const [goalsModalOpen, setGoalsModalOpen] = useState(false);
@@ -188,12 +192,11 @@ export default function NutritionTracker() {
 
         <button
           className={styles.aiBtn}
-          disabled
-          aria-label="Ask AI (coming soon)"
-          title="AI logging coming in Phase 2"
+          onClick={() => setChatOpen(true)}
+          aria-label="Ask AI"
+          title="AI-powered food logging"
         >
           Ask AI
-          <span className={styles.aiBadge}>soon</span>
         </button>
 
         <button
@@ -335,6 +338,13 @@ export default function NutritionTracker() {
         open={editorOpen}
         mode={editorMode}
         onClose={handleEditorClose}
+      />
+
+      {/* AI Chat bottom-sheet */}
+      <NutritionChat
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        selectedDate={selectedDate}
       />
 
       {/* Goals modal */}
