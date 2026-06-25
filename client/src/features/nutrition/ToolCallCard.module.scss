@@ -1,0 +1,158 @@
+@import "../../styles/variables";
+
+.card {
+  background-color: rgba($surface, 0.6);
+  border: 1px solid rgba($surface-border, 0.5);
+  border-radius: 10px;
+  overflow: hidden;
+
+  &.cardError {
+    border-color: rgba($error, 0.4);
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  min-height: 44px; // mobile tap target
+}
+
+.chevron {
+  flex-shrink: 0;
+  color: rgba($text, 0.4);
+  display: flex;
+  align-items: center;
+}
+
+.chevronIcon {
+  display: block; // iOS Safari SVG fix
+  width: 10px;
+  height: 6px;
+}
+
+.toolName {
+  font-family: $sarabun;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.75);
+  font-variant-ligatures: none;
+}
+
+// Status chip
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-family: $sarabun;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.chip_running {
+  background-color: rgba($primary, 0.12);
+  color: rgba($primary, 0.8);
+}
+
+.chip_done {
+  background-color: rgba($primary, 0.15);
+  color: $primary;
+}
+
+.chip_error {
+  background-color: rgba($error, 0.12);
+  color: $error;
+}
+
+// Spinning dot for running state
+.spinner {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+.summary {
+  flex: 1;
+  font-family: $sarabun;
+  font-size: 12px;
+  color: rgba($text, 0.45);
+  letter-spacing: $sarabun-spacing;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+// Expanded body
+.body {
+  padding: 4px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid rgba($surface-border, 0.3);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sectionLabel {
+  font-family: $sarabun;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: rgba($text, 0.4);
+  text-transform: uppercase;
+}
+
+.jsonBlock {
+  margin: 0;
+  font-family: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: rgba($text, 0.7);
+  background-color: rgba($background, 0.6);
+  border-radius: 6px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.jsonNull {
+  font-family: $sarabun;
+  font-size: 13px;
+  color: rgba($text, 0.3);
+}
+
+.errorText {
+  margin: 0;
+  font-family: $sarabun;
+  font-size: 13px;
+  color: $error;
+  letter-spacing: $sarabun-spacing;
+}

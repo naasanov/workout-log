@@ -66,6 +66,12 @@ export type Per100g = z.infer<typeof per100gSchema>;
 export type IngredientInput = z.infer<typeof ingredientInputSchema>;
 export type EntryInput = z.infer<typeof entryInputSchema>;
 export type Goals = z.infer<typeof goalsSchema>;
+
+// What the agent's `propose_entry` tool emits — a full entry MINUS localDate
+// (the client supplies the selected day on confirm). Rendered as the EntryEditor
+// in proposal mode; on confirm the client adds localDate -> EntryInput -> POST /entries.
+export const proposeEntryArgsSchema = entryInputSchema.omit({ localDate: true });
+export type ProposeEntryArgs = z.infer<typeof proposeEntryArgsSchema>;
 export type FoodSearchResult = z.infer<typeof foodSearchResultSchema>;
 
 // A household serving size for a food, e.g. { label: "medium", grams: 118 }.
