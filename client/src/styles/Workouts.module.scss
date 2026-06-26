@@ -10,10 +10,22 @@
 
 .tabs {
   display: flex;
+  flex-wrap: wrap; // never let the 4 tabs cause horizontal page scroll
   gap: 4px;
   margin-bottom: 1.5rem;
   border-bottom: 2px solid $surface;
   padding-bottom: 0;
+}
+
+// Shrink tabs on small screens so all four fit on one row at phone widths
+@media (max-width: 480px) {
+  .tab {
+    padding: 8px 12px;
+    font-size: 15px;
+  }
+  .tabs {
+    gap: 2px;
+  }
 }
 
 .tab {

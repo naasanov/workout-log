@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { proposeEntryArgsSchema } from '../../schemas/nutrition';
 import * as store from './store';
 import * as providers from './providers';
+import { recordUsage } from './usage';
 
 export interface NutritionChatOptions {
   userUuid: string;
@@ -65,10 +66,18 @@ TODAY'S DATE: ${selectedDate}
 ## Your job
 Help the user identify, quantify, and log what they ate. When the user describes food:
 1. Search for it with \`search_usda\` (or \`lookup_barcode\` for barcodes) to get accurate per-100g macros — NEVER invent or estimate calories without grounding them in a tool result.
+   - For a **multi-item meal** (two or more distinct foods in one message), use ONE \`search_foods_batch\` call with all queries at once instead of multiple \`search_usda\` calls. Use \`search_usda\` only for single-item lookups.
 2. Use \`get_portions\` to find common household serving sizes when helpful.
 3. Check \`search_food_history\` first for foods the user has logged before — prefer reusing those if the food matches.
-4. Estimate the portion in **grams**. Ask one brief clarifying question if the portion or food identity is genuinely ambiguous (e.g. "Was that a small, medium, or large banana?"). Do not ask multiple questions at once.
+4. Estimate the portion in **grams**. When the user gives a weight in non-gram units (lbs, oz, kg, mg, etc.), call \`convert_to_grams\` — do NOT do the arithmetic yourself. Ask one brief clarifying question if the portion or food identity is genuinely ambiguous (e.g. "Was that a small, medium, or large banana?"). Do not ask multiple questions at once.
 5. When you are confident about identity + portion, call **\`propose_entry\`** with the fully structured entry. The user will review and confirm in the UI — you do NOT write to the database. After calling propose_entry, tell the user briefly what you proposed (e.g. "I've proposed logging 1 medium banana (118 g, ~105 kcal) for breakfast — check the entry below.").
+
+## Web-search fallback
+- Only use \`web_search\` when \`search_usda\`, \`search_foods_batch\`, and \`lookup_barcode\` all return nothing useful (e.g. a local restaurant item, branded boba, or a food not in USDA/OFF).
+- Prefer official brand or restaurant nutrition pages. Extract per-serving or per-100g macros.
+- **Always cite the source URL** in your reply when using web-search data.
+- Use ingredient \`source: 'manual'\` for any web-derived items.
+- Be conservative and explicitly note uncertainty: web nutrition data can be inaccurate.
 
 ## Rules
 - Ground all macros in tool results. If a search returns no results, say so and ask the user for more info.
@@ -99,15 +108,49 @@ ${summariseEntries(recent)}
         reasoningSummary: 'auto',
       },
     },
+    onFinish: ({ usage }) => {
+      // Best-effort usage recording — never await, never throw.
+      const inputTokens = usage.inputTokens ?? 0;
+      const outputTokens = usage.outputTokens ?? 0;
+      const reasoningTokens = usage.outputTokenDetails?.reasoningTokens ?? 0;
+      const totalTokens = usage.totalTokens ?? (inputTokens + outputTokens);
+      recordUsage(userUuid, 'gpt-5.5', {
+        inputTokens,
+        outputTokens,
+        reasoningTokens,
+        totalTokens,
+      });
+    },
     tools: {
       /** Full-text food search against USDA FoodData Central (+ OFF fallback). Returns per-100g macros. */
       search_usda: tool({
         description:
-          'Search for a food in USDA FoodData Central and Open Food Facts. Returns up to 5 candidates with per-100g macros. Always call this before estimating calories for a generic food.',
+          'Search for a SINGLE food in USDA FoodData Central and Open Food Facts. Returns up to 5 candidates with per-100g macros. Use search_foods_batch instead when the user describes two or more foods at once.',
         inputSchema: z.object({
           query: z.string().describe('Food name or description to search for, e.g. "banana" or "chicken breast raw"'),
         }),
         execute: async ({ query }) => providers.searchFoods(query),
+      }),
+
+      /** Batched USDA search — one call for multi-item meals. */
+      search_foods_batch: tool({
+        description:
+          'Search for multiple foods in one call. Use this when the user describes two or more distinct foods in a single message (e.g. "rice, chicken, and broccoli"). Runs all searches in parallel and returns results grouped per query.',
+        inputSchema: z.object({
+          queries: z
+            .array(z.string())
+            .min(2)
+            .describe('Array of food names/descriptions to search for, e.g. ["white rice", "chicken breast", "broccoli"]'),
+        }),
+        execute: async ({ queries }) => {
+          const results = await Promise.all(
+            queries.map(async (query) => ({
+              query,
+              results: await providers.searchFoods(query),
+            })),
+          );
+          return results;
+        },
       }),
 
       /** Open Food Facts barcode lookup. */
@@ -157,6 +200,64 @@ ${summariseEntries(recent)}
             }),
           ),
       }),
+
+      /**
+       * Deterministic weight-unit converter. Use this instead of doing math yourself
+       * to avoid unit-conversion errors (e.g. lbs→g or oz→g).
+       */
+      convert_to_grams: tool({
+        description:
+          'Convert a weight amount from a given unit to grams. Handles: lb/lbs/pound, oz/ounce, kg, g, mg. Returns null with a note for volume units (ml, cup, tbsp, tsp) since those require density.',
+        inputSchema: z.object({
+          amount: z.number().describe('Numeric quantity to convert, e.g. 1.5'),
+          unit: z.string().describe('Unit string, e.g. "lbs", "oz", "kg", "g", "mg"'),
+        }),
+        execute: async ({ amount, unit }) => {
+          const u = unit.trim().toLowerCase();
+          const massFactors: Record<string, number> = {
+            lb: 453.592,
+            lbs: 453.592,
+            pound: 453.592,
+            pounds: 453.592,
+            oz: 28.3495,
+            ounce: 28.3495,
+            ounces: 28.3495,
+            kg: 1000,
+            kilogram: 1000,
+            kilograms: 1000,
+            g: 1,
+            gram: 1,
+            grams: 1,
+            mg: 0.001,
+            milligram: 0.001,
+            milligrams: 0.001,
+          };
+          if (u in massFactors) {
+            const grams = amount * massFactors[u];
+            return { grams: Math.round(grams * 10) / 10, unit: u, original: amount };
+          }
+          // Volume units — cannot convert without density
+          const volumeUnits = ['ml', 'l', 'cup', 'cups', 'tbsp', 'tsp', 'fl oz', 'floz', 'litre', 'liter'];
+          if (volumeUnits.some((v) => u === v || u.startsWith(v))) {
+            return {
+              grams: null,
+              note: `Cannot convert volume unit "${unit}" to grams without knowing the food's density. Please estimate grams directly or look up a typical serving weight.`,
+            };
+          }
+          return {
+            grams: null,
+            note: `Unknown unit "${unit}". Supported mass units: lb/lbs/pound, oz/ounce, kg, g, mg.`,
+          };
+        },
+      }),
+
+      /**
+       * Web search — fallback for foods USDA/OFF don't have (e.g. local restaurant items,
+       * branded boba). Only use after search_usda / search_foods_batch / lookup_barcode
+       * all return nothing useful. Always cite the source URL in your reply.
+       * Use ingredient source: 'manual' for web-derived items.
+       */
+      web_search: openai.tools.webSearch(),
 
       /**
        * propose_entry: echoes its validated args as output so the stream terminates

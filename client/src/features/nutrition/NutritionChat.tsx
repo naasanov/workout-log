@@ -1,7 +1,16 @@
 /**
- * NutritionChat — Phase 2 AI chat bottom-sheet.
+ * NutritionChat — Phase 2 AI chat bottom-sheet (custom CSS sheet).
  *
- * - Radix Dialog bottom-sheet
+ * Changes (polish pass):
+ * 1. Custom CSS bottom sheet with peeking composer + tap/drag-to-expand.
+ * 2. localStorage persistence keyed by selectedDate; cleared between days.
+ * 3. Auto-growing textarea (up to ~8 lines), Enter to send / Shift+Enter newline.
+ * 4. Markdown rendering (react-markdown) in assistant text + reasoning.
+ * 5. Empty reasoning parts filtered out (no toggle rendered).
+ * 6. No horizontal scroll on mobile (overflow-wrap, contained JSON <pre>).
+ * 7. Consistent font sizes on mobile (text-size-adjust, explicit sizes).
+ * 8. Human-readable tool names via TOOL_LABEL_MAP in ToolCallCard.
+ *
  * - useChat → POST /api/nutrition/chat (auth header + credentials:include)
  * - Composer: text + photo attach (downscale via canvas → FileUIPart) + barcode
  * - Renders message.parts: text, tool calls, propose_entry→EntryEditor, reasoning
@@ -12,10 +21,10 @@ import {
   useCallback,
   useEffect,
 } from 'react';
-import * as Dialog from '@radix-ui/react-dialog';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, isToolUIPart, getToolName } from 'ai';
 import type { FileUIPart, UIMessage, ToolUIPart, DynamicToolUIPart } from 'ai';
+import ReactMarkdown from 'react-markdown';
 import { useCreateEntry } from './api';
 import EntryEditor from './EntryEditor';
 import BarcodeScanner from './BarcodeScanner';
@@ -29,8 +38,6 @@ import styles from './NutritionChat.module.scss';
 const VITE_API_URL = (import.meta as unknown as { env: Record<string, string> }).env.VITE_API_URL || '/api';
 
 async function getAccessToken(): Promise<string> {
-  // Attempt to use cached token from sessionStorage.
-  // If expired, call /api/auth/token to refresh (same as clientApi.js).
   let token = sessionStorage.getItem('accessToken');
   if (token) {
     try {
@@ -93,12 +100,73 @@ async function downscaleImage(file: File): Promise<string> {
 // ---------------------------------------------------------------------------
 interface PendingPhoto {
   file: File;
-  previewUrl: string; // always the original blob URL for fast preview
-  dataUrl?: string;   // JPEG data URL (set after downscale)
+  previewUrl: string;
+  dataUrl?: string;
 }
 
 // ---------------------------------------------------------------------------
-// Reasoning collapsible
+// localStorage persistence helpers (item 2)
+// ---------------------------------------------------------------------------
+const LS_PREFIX = 'peak.nutritionChat.';
+const MAX_STORED_DAYS = 7;
+
+function lsKey(date: string) {
+  return `${LS_PREFIX}${date}`;
+}
+
+function loadMessagesForDate(date: string): UIMessage[] {
+  try {
+    const raw = localStorage.getItem(lsKey(date));
+    if (!raw) return [];
+    return JSON.parse(raw) as UIMessage[];
+  } catch {
+    return [];
+  }
+}
+
+function saveMessagesForDate(date: string, messages: UIMessage[]) {
+  try {
+    localStorage.setItem(lsKey(date), JSON.stringify(messages));
+    pruneOldDays(date);
+  } catch {
+    // storage full — ignore
+  }
+}
+
+function pruneOldDays(currentDate: string) {
+  const keys: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(LS_PREFIX)) keys.push(k);
+  }
+  if (keys.length <= MAX_STORED_DAYS) return;
+  // Sort ascending by date suffix and remove oldest
+  keys.sort();
+  const currentKey = lsKey(currentDate);
+  const toRemove = keys
+    .filter(k => k !== currentKey)
+    .slice(0, keys.length - MAX_STORED_DAYS);
+  toRemove.forEach(k => localStorage.removeItem(k));
+}
+
+// ---------------------------------------------------------------------------
+// Auto-grow textarea hook (item 3)
+// ---------------------------------------------------------------------------
+function useAutoGrow(ref: React.RefObject<HTMLTextAreaElement | null>, value: string) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 21;
+    const maxLines = 8;
+    const maxHeight = lineHeight * maxLines + 20; // 20px for padding
+    el.style.height = Math.min(el.scrollHeight, maxHeight) + 'px';
+    el.style.overflowY = el.scrollHeight > maxHeight ? 'auto' : 'hidden';
+  }, [value, ref]);
+}
+
+// ---------------------------------------------------------------------------
+// Reasoning collapsible (item 4 — markdown; item 5 — filter empty)
 // ---------------------------------------------------------------------------
 interface ReasoningBubbleProps {
   text: string;
@@ -107,6 +175,9 @@ interface ReasoningBubbleProps {
 
 function ReasoningBubble({ text, streaming }: ReasoningBubbleProps) {
   const [open, setOpen] = useState(false);
+  // Item 5: filter empty/whitespace reasoning
+  if (!streaming && !text.trim()) return null;
+
   return (
     <div className={styles.reasoning}>
       <button
@@ -115,7 +186,7 @@ function ReasoningBubble({ text, streaming }: ReasoningBubbleProps) {
         onClick={() => setOpen(p => !p)}
         aria-expanded={open}
       >
-        <svg className={styles.reasoningChevron} viewBox="0 0 10 6" fill="none" aria-hidden="true">
+        <svg className={styles.reasoningChevron} viewBox="0 0 10 6" fill="none" aria-hidden="true" style={{ display: 'block' }}>
           <path
             d={open ? 'M1 5l4-4 4 4' : 'M1 1l4 4 4-4'}
             stroke="currentColor"
@@ -127,7 +198,10 @@ function ReasoningBubble({ text, streaming }: ReasoningBubbleProps) {
         {streaming ? 'Thinking…' : 'Reasoning'}
       </button>
       {open && (
-        <p className={styles.reasoningText}>{text}</p>
+        <div className={styles.reasoningText}>
+          {/* Item 4: render reasoning as markdown */}
+          <ReactMarkdown>{text}</ReactMarkdown>
+        </div>
       )}
     </div>
   );
@@ -177,7 +251,15 @@ function ChatMessage({
               key={idx}
               className={`${styles.bubble} ${isUser ? styles.bubbleUser : styles.bubbleAssistant}`}
             >
-              <p className={styles.bubbleText}>{part.text}</p>
+              {isUser ? (
+                // User messages: plain text with whitespace preserved
+                <p className={styles.bubbleText}>{part.text}</p>
+              ) : (
+                // Item 4: render assistant text as markdown
+                <div className={styles.bubbleMarkdown}>
+                  <ReactMarkdown>{part.text}</ReactMarkdown>
+                </div>
+              )}
             </div>
           );
         }
@@ -194,7 +276,7 @@ function ChatMessage({
           );
         }
 
-        // ---- Reasoning part ----
+        // ---- Reasoning part (item 4 + item 5) ----
         if (part.type === 'reasoning') {
           return (
             <ReasoningBubble
@@ -231,11 +313,9 @@ function ChatMessage({
               );
             }
             if (part.state !== 'input-available' && part.state !== 'output-available') {
-              // Still streaming input
               return <ToolCallCard key={idx} part={part as ToolUIPart | DynamicToolUIPart} />;
             }
 
-            // Prefer output (echoed args) when available, fall back to input
             const rawArgs = (part.state === 'output-available'
               ? (part as { output: unknown }).output
               : part.input) as ProposeEntryArgs;
@@ -292,7 +372,6 @@ function ProposalCard({ proposal, selectedDate, onConfirm, onDeny }: ProposalCar
 
   return (
     <>
-      {/* Collapsed placeholder when editor is closed */}
       {!editorOpen && (
         <div className={styles.proposalPlaceholder}>
           <span className={styles.proposalName}>{proposal.name}</span>
@@ -324,7 +403,13 @@ function ProposalCard({ proposal, selectedDate, onConfirm, onDeny }: ProposalCar
 }
 
 // ---------------------------------------------------------------------------
-// NutritionChat
+// NutritionChat — custom CSS bottom sheet (item 1)
+//
+// A plain fixed-position panel that animates its `height` between a peek
+// (96px — just drag handle + composer) and expanded (88dvh — full chat).
+// vaul was removed: it reveals content top-down at the snap line, which
+// hid our bottom-pinned composer. Driving `height` with an `expanded`
+// boolean keeps the composer at the bottom and always visible at the peek.
 // ---------------------------------------------------------------------------
 interface NutritionChatProps {
   open: boolean;
@@ -333,8 +418,14 @@ interface NutritionChatProps {
 }
 
 export default function NutritionChat({ open, onClose, selectedDate }: NutritionChatProps) {
+  // Item 2: load messages from localStorage on mount / date change
+  const initialMessages = loadMessagesForDate(selectedDate);
+
+  // Track last loaded date to detect day change
+  const loadedDateRef = useRef(selectedDate);
+
   // ---- useChat setup ----
-  const { messages, sendMessage, status, stop } = useChat({
+  const { messages, setMessages, sendMessage, status, stop } = useChat({
     transport: new DefaultChatTransport({
       api: `${VITE_API_URL}/nutrition/chat`,
       credentials: 'include',
@@ -344,7 +435,37 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
       },
       body: { selectedDate },
     }),
+    messages: initialMessages,
   });
+
+  // Item 2: persist messages on every change
+  useEffect(() => {
+    if (messages.length > 0) {
+      saveMessagesForDate(selectedDate, messages);
+    }
+  }, [messages, selectedDate]);
+
+  // Item 2: when selectedDate changes, load the new day's messages
+  useEffect(() => {
+    if (selectedDate !== loadedDateRef.current) {
+      loadedDateRef.current = selectedDate;
+      const newDayMessages = loadMessagesForDate(selectedDate);
+      setMessages(newDayMessages);
+    }
+  }, [selectedDate, setMessages]);
+
+  // ---- Custom sheet expand/collapse state (item 1) ----
+  const [expanded, setExpanded] = useState(false);
+
+  // When the parent sets `open` (the "Ask AI" button) → expand.
+  useEffect(() => {
+    if (open) setExpanded(true);
+  }, [open]);
+
+  const collapse = useCallback(() => {
+    setExpanded(false);
+    onClose();
+  }, [onClose]);
 
   // ---- Entry creation for confirmed proposals ----
   const createEntry = useCreateEntry(selectedDate);
@@ -366,6 +487,9 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
 
   const isStreaming = status === 'streaming' || status === 'submitted';
 
+  // Item 3: auto-grow textarea
+  useAutoGrow(textareaRef, text);
+
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -382,10 +506,8 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
       previewUrl: URL.createObjectURL(file),
     }));
 
-    // Start downscaling in background
     setPendingPhotos(prev => [...prev, ...newPhotos]);
 
-    // Downscale each
     const settled = await Promise.allSettled(newPhotos.map(p => downscaleImage(p.file)));
     setPendingPhotos(prev => {
       const updated = [...prev];
@@ -404,7 +526,6 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     if (e.target.files && e.target.files.length > 0) {
       await handlePhotoFiles(e.target.files);
     }
-    // Reset the input so the same file can be reselected
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, [handlePhotoFiles]);
 
@@ -429,16 +550,17 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   const handleSend = useCallback(async () => {
     if (!canSend) return;
 
-    // Build FileUIPart[] from downscaled photos
+    // Expand sheet when sending a message
+    setExpanded(true);
+
     const files: FileUIPart[] = pendingPhotos.map(p => ({
       type: 'file' as const,
       mediaType: 'image/jpeg',
-      url: p.dataUrl ?? p.previewUrl, // fall back to original if downscale not done yet
+      url: p.dataUrl ?? p.previewUrl,
     }));
 
     const msgText = text.trim();
 
-    // Revoke object URLs
     pendingPhotos.forEach(p => URL.revokeObjectURL(p.previewUrl));
     setText('');
     setPendingPhotos([]);
@@ -451,8 +573,8 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     );
   }, [canSend, text, pendingPhotos, selectedDate, sendMessage]);
 
+  // Item 3: Enter to send, Shift+Enter for newline
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Send on Enter (not Shift+Enter)
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -462,77 +584,141 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   // ---- Proposal handlers ----
   const handleProposalDeny = useCallback((partKey: string) => {
     setDeniedProposals(prev => new Set([...prev, partKey]));
-    // Send a follow-up message so the agent knows
     sendMessage(
       { text: 'That proposal doesn\'t look right, please try again with a different approach.' },
       { body: { selectedDate } },
     );
   }, [selectedDate, sendMessage]);
 
-  // We also need to track confirmed proposals — wrapped in a callback passed down
   const handleProposalConfirmWithTracking = useCallback(async (input: EntryInput, partKey: string) => {
     await createEntry.mutateAsync(input);
     setConfirmedProposals(prev => new Set([...prev, partKey]));
   }, [createEntry]);
 
+  // ---- Drag handle: pointer-drag enhancement (item 1) ----
+  // Tap toggles; drag up > 40px expands, drag down > 40px collapses.
+  const dragStartY = useRef<number | null>(null);
+  const dragMoved = useRef(false);
+
+  const handleDragPointerDown = useCallback((e: React.PointerEvent) => {
+    dragStartY.current = e.clientY;
+    dragMoved.current = false;
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  }, []);
+
+  const handleDragPointerMove = useCallback((e: React.PointerEvent) => {
+    if (dragStartY.current === null) return;
+    const delta = e.clientY - dragStartY.current;
+    if (Math.abs(delta) > 40) {
+      dragMoved.current = true;
+      if (delta < 0) {
+        setExpanded(true);
+      } else {
+        collapse(); // keeps parent `open` state in sync
+      }
+      dragStartY.current = null; // commit once per gesture
+    }
+  }, [collapse]);
+
+  const handleDragPointerUp = useCallback(() => {
+    // Tap (no significant movement) → toggle
+    if (!dragMoved.current) {
+      if (expanded) {
+        collapse(); // keeps parent `open` state in sync
+      } else {
+        setExpanded(true);
+      }
+    }
+    dragStartY.current = null;
+    dragMoved.current = false;
+  }, [collapse, expanded]);
+
+  const isExpanded = expanded;
+
   // ---- Render ----
   return (
     <>
-      <Dialog.Root open={open} onOpenChange={v => { if (!v) onClose(); }}>
-        <Dialog.Portal>
-          <Dialog.Overlay className={styles.overlay} />
-          <Dialog.Content className={styles.sheet} aria-label="Nutrition AI chat">
-            <Dialog.Title className={styles.srOnly}>Nutrition AI</Dialog.Title>
+      {/* Dim overlay behind the sheet — only when expanded; click to collapse */}
+      {isExpanded && (
+        <div
+          className={styles.overlay}
+          onClick={collapse}
+          aria-hidden="true"
+        />
+      )}
 
-            {/* Header */}
-            <div className={styles.header}>
-              <span className={styles.headerTitle}>Ask AI</span>
-              {isStreaming && (
-                <button
-                  type="button"
-                  className={styles.stopBtn}
-                  onClick={stop}
-                  aria-label="Stop generation"
-                >
-                  Stop
-                </button>
-              )}
+      {/* Custom CSS bottom sheet — always peeks, animates height */}
+      <div
+        className={`${styles.sheet} ${isExpanded ? styles.sheetExpanded : styles.sheetPeek}`}
+        aria-label="Nutrition AI chat"
+        role="dialog"
+      >
+        <span className={styles.srOnly}>Nutrition AI</span>
+
+        {/* Drag handle (tap to toggle, drag up/down to expand/collapse) */}
+        <button
+          type="button"
+          className={styles.dragHandleBtn}
+          onPointerDown={handleDragPointerDown}
+          onPointerMove={handleDragPointerMove}
+          onPointerUp={handleDragPointerUp}
+          aria-label={isExpanded ? 'Collapse AI chat' : 'Expand AI chat'}
+          aria-expanded={isExpanded}
+        >
+          <span className={styles.dragHandle} aria-hidden="true" />
+        </button>
+
+        {/* Header — only shown when expanded */}
+        {isExpanded && (
+          <div className={styles.header}>
+            <span className={styles.headerTitle}>Ask AI</span>
+            {isStreaming && (
               <button
                 type="button"
-                className={styles.closeBtn}
-                onClick={onClose}
-                aria-label="Close"
+                className={styles.stopBtn}
+                onClick={stop}
+                aria-label="Stop generation"
               >
-                <svg className={styles.closeSvg} viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                  <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
+                Stop
               </button>
+            )}
+            <button
+              type="button"
+              className={styles.closeBtn}
+              onClick={collapse}
+              aria-label="Collapse"
+            >
+              <svg className={styles.collapseSvg} viewBox="0 0 14 8" fill="none" aria-hidden="true">
+                <path d="M1 1l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {/* Messages — collapses to 0 height in peek (flex:1, min-height:0) */}
+        <div className={styles.messages}>
+          {messages.length === 0 && (
+            <div className={styles.emptyHint}>
+              <p>Describe what you ate, scan a barcode, or attach a photo of your food.</p>
             </div>
+          )}
 
-            {/* Messages */}
-            <div className={styles.messages}>
-              {messages.length === 0 && (
-                <div className={styles.emptyHint}>
-                  <p>Describe what you ate, scan a barcode, or attach a photo of your food.</p>
-                </div>
-              )}
+          {messages.map(message => (
+            <ChatMessage
+              key={message.id}
+              message={message}
+              selectedDate={selectedDate}
+              onProposalConfirm={handleProposalConfirmWithTracking}
+              onProposalDeny={handleProposalDeny}
+              deniedProposals={deniedProposals}
+              confirmedProposals={confirmedProposals}
+            />
+          ))}
 
-              {messages.map(message => (
-                <ChatMessage
-                  key={message.id}
-                  message={message}
-                  selectedDate={selectedDate}
-                  onProposalConfirm={handleProposalConfirmWithTracking}
-                  onProposalDeny={handleProposalDeny}
-                  deniedProposals={deniedProposals}
-                  confirmedProposals={confirmedProposals}
-                />
-              ))}
+          <div ref={messagesEndRef} />
+        </div>
 
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Photo thumbnails */}
+        {/* Photo thumbnails */}
             {pendingPhotos.length > 0 && (
               <div className={styles.thumbnails}>
                 {pendingPhotos.map(p => (
@@ -556,7 +742,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
               <p className={styles.photoError}>{photoError}</p>
             )}
 
-            {/* Composer */}
+            {/* Composer — always visible in both peek and expanded states */}
             <div className={styles.composer}>
               {/* Photo attach button */}
               <button
@@ -573,7 +759,6 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
                 </svg>
               </button>
 
-              {/* Hidden file input — accepts images, prefers camera on mobile */}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -603,7 +788,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
                 </svg>
               </button>
 
-              {/* Text input */}
+              {/* Item 3: auto-grow textarea */}
               <textarea
                 ref={textareaRef}
                 className={styles.composerInput}
@@ -611,6 +796,10 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
                 value={text}
                 onChange={e => setText(e.target.value)}
                 onKeyDown={handleKeyDown}
+                onFocus={() => {
+                  // Expand the sheet when user focuses the input
+                  setExpanded(true);
+                }}
                 rows={1}
                 aria-label="Chat message"
               />
@@ -628,11 +817,9 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
                 </svg>
               </button>
             </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+      </div>
 
-      {/* Barcode scanner — rendered outside dialog */}
+      {/* Barcode scanner — rendered outside the sheet */}
       {barcodeOpen && (
         <BarcodeScanner
           onDetected={handleBarcodeDetected}
