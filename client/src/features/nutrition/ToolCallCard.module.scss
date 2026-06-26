@@ -1,60 +1,62 @@
 @import "../../styles/variables";
 
-// Item 7: Consistent font sizes — explicit px, no iOS auto-inflation
-// The parent .sheet already sets text-size-adjust:100%, but we also set
-// explicit sizes on name vs description so the hierarchy is intentional.
+// Item 11: Compact Codex/VSCode-style tool call row.
+// No border/card in collapsed state — just a single quiet line.
+// Expanded state reveals a bordered detail panel.
 
+// ---- Card wrapper ----
+// No visible border/bg in default state; only shows structure when expanded.
 .card {
-  background-color: rgba($surface, 0.6);
-  border: 1px solid rgba($surface-border, 0.5);
-  border-radius: 10px;
-  overflow: hidden;
-  // Item 6: never overflow the chat column
   max-width: 100%;
   box-sizing: border-box;
   min-width: 0;
-
-  &.cardError {
-    border-color: rgba($error, 0.4);
+  border-radius: 8px;
+  // Subtle error tint on the whole row
+  &.cardError .header {
+    color: rgba($error, 0.8);
   }
 }
 
+// ---- Collapsed header — the single muted line ----
 .header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 4px 2px; // tight vertical, minimal horizontal — flush with chat text
   background: transparent;
   border: none;
   cursor: pointer;
   text-align: left;
-  min-height: 44px; // mobile tap target
-  // Item 6: allow wrapping, no overflow
-  flex-wrap: wrap;
+  min-height: 32px; // comfortable tap but not bloated
   box-sizing: border-box;
-}
-
-.chevron {
-  flex-shrink: 0;
   color: rgba($text, 0.4);
-  display: flex;
-  align-items: center;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
+// ---- Chevron — small, muted, rotates on open ----
 .chevronIcon {
   display: block; // iOS Safari SVG fix
-  width: 10px;
-  height: 6px;
+  flex-shrink: 0;
+  width: 8px;
+  height: 5px;
+  color: rgba($text, 0.3);
+  transition: transform 0.2s ease;
 }
 
-// Item 7: tool name is the primary label — 13px, medium weight
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+// ---- Tool label ----
+// Item 7: explicit 12px, muted — clearly secondary vs chat text
 .toolName {
   font-family: $sarabun;
-  font-size: 13px; // Item 7: explicit size
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   letter-spacing: $sarabun-spacing;
-  color: rgba($text, 0.75);
+  color: rgba($text, 0.45);
   font-variant-ligatures: none;
   // Item 6: prevent overflow
   overflow-wrap: anywhere;
@@ -63,79 +65,63 @@
   min-width: 0;
 }
 
-// Status chip
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-family: $sarabun;
-  font-size: 11px; // Item 7: explicit, smaller than toolName
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  flex-shrink: 0;
-  // Item 7: don't let chip auto-inflate
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-}
-
-.chip_running {
-  background-color: rgba($primary, 0.12);
-  color: rgba($primary, 0.8);
-}
-
-.chip_done {
-  background-color: rgba($primary, 0.15);
-  color: $primary;
-}
-
-.chip_error {
-  background-color: rgba($error, 0.12);
-  color: $error;
-}
-
-// Spinning dot for running state
+// ---- Inline spinner while running (replaces status chip) ----
+// Item 11: pulsing dot instead of a chip label
 .spinner {
-  display: block;
-  width: 6px;
-  height: 6px;
+  display: block; // iOS Safari SVG fix
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background-color: currentColor;
+  background-color: rgba($primary, 0.7);
   animation: pulse 1.2s ease-in-out infinite;
 }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50%       { opacity: 0.3; }
+  50%       { opacity: 0.25; }
 }
 
-// Item 7: summary is smaller than toolName and wraps
-.summary {
-  // Take remaining space but allow wrapping
-  flex: 1 1 100%; // wrap to new line so it never competes with name/chip
+// ---- Error badge — small "!" when tool errored ----
+.errorBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: rgba($error, 0.15);
+  color: $error;
+  font-size: 10px;
+  font-weight: 700;
   font-family: $sarabun;
-  font-size: 12px; // Item 7: explicit, clearly less than toolName 13px
-  color: rgba($text, 0.45);
-  letter-spacing: $sarabun-spacing;
-  // Item 6: wrap long text instead of overflowing
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  white-space: normal; // allow wrapping
-  min-width: 0;
-  // Item 7: prevent iOS auto-inflation
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
+  line-height: 1;
 }
 
-// Expanded body
+// ---- Animated body wrapper ----
+// Animates max-height + opacity on expand/collapse
+.bodyWrapper {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.22s ease, opacity 0.18s ease;
+}
+
+.bodyWrapperOpen {
+  opacity: 1;
+  transition: max-height 0.22s ease, opacity 0.18s ease 0.04s;
+}
+
+// ---- Expanded body ----
 .body {
-  padding: 4px 12px 12px;
+  padding: 6px 10px 10px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  border-top: 1px solid rgba($surface-border, 0.3);
+  border-top: 1px solid rgba($surface-border, 0.25);
+  border-left: 2px solid rgba($surface-border, 0.2);
+  margin-left: 2px;
   // Item 6: never overflow
   max-width: 100%;
   box-sizing: border-box;
@@ -151,10 +137,10 @@
 
 .sectionLabel {
   font-family: $sarabun;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 1px;
-  color: rgba($text, 0.4);
+  color: rgba($text, 0.3);
   text-transform: uppercase;
 }
 
@@ -164,8 +150,8 @@
   font-family: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
   font-size: 11px;
   line-height: 1.5;
-  color: rgba($text, 0.7);
-  background-color: rgba($background, 0.6);
+  color: rgba($text, 0.65);
+  background-color: rgba($background, 0.5);
   border-radius: 6px;
   padding: 8px 10px;
   // Horizontal scroll contained to this block only
@@ -181,7 +167,7 @@
 
 .jsonNull {
   font-family: $sarabun;
-  font-size: 13px;
+  font-size: 12px;
   color: rgba($text, 0.3);
 }
 
