@@ -1,0 +1,194 @@
+@import "../../styles/variables";
+
+// Matches NutritionGoalsModal sizing/style for visual consistency
+.modalContent {
+  max-width: 400px !important;
+}
+
+.modal {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px 20px 20px;
+
+  @media (max-width: $mobile-width) {
+    padding: 18px 16px 16px;
+    gap: 16px;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  margin: 0;
+  font-family: $sarabun;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: $sarabun-spacing;
+  color: $text;
+}
+
+// ---- Form ----
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-family: $sarabun;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.6);
+  text-transform: uppercase;
+}
+
+// Select — matches the input style from NutritionGoalsModal (underline style)
+.select {
+  background-color: transparent;
+  color: $text;
+  border: none;
+  border-bottom: 2px solid $primary-border;
+  padding: 8px 4px;
+  font-family: $sarabun;
+  font-size: 16px;
+  letter-spacing: $sarabun-spacing;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  // Minimal custom arrow via background image (data URI, matches $text)
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23EBEDE9' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' fill='none' opacity='.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 4px center;
+  padding-right: 28px;
+
+  &:focus {
+    outline: none;
+    border-bottom-color: $primary;
+  }
+
+  // Style the options in dark context (best-effort, OS-controlled)
+  option {
+    background-color: $surface;
+    color: $text;
+  }
+}
+
+// Textarea
+.textarea {
+  background-color: rgba($surface, 0.5);
+  color: $text;
+  border: 2px solid rgba($surface-border, 0.6);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-family: $sarabun;
+  font-size: 15px;
+  letter-spacing: $sarabun-spacing;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.5;
+
+  &::placeholder {
+    color: rgba($text, 0.3);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: $primary-border;
+  }
+
+  &.textareaError {
+    border-color: rgba($error, 0.6);
+  }
+}
+
+.fieldError {
+  font-family: $sarabun;
+  font-size: 13px;
+  color: $error;
+  letter-spacing: $sarabun-spacing;
+}
+
+.errorMsg {
+  margin: 0;
+  font-family: $sarabun;
+  font-size: 14px;
+  color: $error;
+  letter-spacing: $sarabun-spacing;
+}
+
+// ---- Success state ----
+.successState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 0 12px;
+}
+
+.successMsg {
+  margin: 0;
+  font-family: $sarabun;
+  font-size: 16px;
+  font-weight: 600;
+  color: $primary;
+  letter-spacing: $sarabun-spacing;
+  text-align: center;
+}
+
+// ---- Footer ----
+.footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+%btn-base {
+  min-height: 48px;
+  padding: 10px 24px;
+  border-radius: $border-radius;
+  font-family: $sarabun;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  cursor: pointer;
+  border: none;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.submitBtn {
+  @extend %btn-base;
+  background-color: $primary;
+  color: $background;
+
+  &:not(:disabled):active {
+    background-color: $primary-dark;
+  }
+}
+
+.cancelBtn {
+  @extend %btn-base;
+  background-color: transparent;
+  color: rgba($text, 0.75);
+  border: 2px solid $surface-border;
+}
