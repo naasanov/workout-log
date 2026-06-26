@@ -57,6 +57,13 @@ export const foodSearchResultSchema = z.object({
   source_ref: z.string(),
   per100g: per100gSchema,
   serving_grams: z.number().positive().nullable().optional(),
+  // Household serving sizes, attached inline for the top result(s) so the agent
+  // can propose real servings without a separate get_portions call (#8). May be
+  // omitted/empty when not (yet) fetched; the foodPortionSchema is defined below.
+  portions: z
+    .array(z.object({ label: z.string(), grams: z.number().positive() }))
+    .nullable()
+    .optional(),
 });
 
 export type Meal = (typeof MEALS)[number];
@@ -67,13 +74,6 @@ export type IngredientInput = z.infer<typeof ingredientInputSchema>;
 export type EntryInput = z.infer<typeof entryInputSchema>;
 export type Goals = z.infer<typeof goalsSchema>;
 
-// What the agent's `propose_entry` tool emits — a full entry MINUS localDate
-// (the client supplies the selected day on confirm). Rendered as the EntryEditor
-// in proposal mode; on confirm the client adds localDate -> EntryInput -> POST /entries.
-export const proposeEntryArgsSchema = entryInputSchema.omit({ localDate: true });
-export type ProposeEntryArgs = z.infer<typeof proposeEntryArgsSchema>;
-export type FoodSearchResult = z.infer<typeof foodSearchResultSchema>;
-
 // A household serving size for a food, e.g. { label: "medium", grams: 118 }.
 // `grams` is the weight of ONE of this unit (so effective grams = quantity * grams).
 export const foodPortionSchema = z.object({
@@ -81,6 +81,31 @@ export const foodPortionSchema = z.object({
   grams: z.number().positive(),
 });
 export type FoodPortion = z.infer<typeof foodPortionSchema>;
+
+// A proposed ingredient (what `propose_entry` emits per row): an ingredientInput
+// PLUS optional serving metadata so the editor can pre-select a real household
+// serving ("1 medium") instead of raw grams:
+//   - quantity + unit: the chosen serving (e.g. 1 "medium"); `grams` stays the
+//     RESOLVED effective grams (quantity * the unit's grams) used for macro math.
+//   - portions: the available serving options for this food, so the editor's unit
+//     dropdown is populated without an extra fetch. unit === 'g' means raw grams.
+// On confirm the editor resolves rows back to plain ingredientInput (grams-based).
+export const proposeIngredientSchema = ingredientInputSchema.extend({
+  quantity: z.number().positive().nullable().optional(),
+  unit: z.string().max(64).nullable().optional(),
+  portions: z.array(foodPortionSchema).nullable().optional(),
+});
+export type ProposeIngredient = z.infer<typeof proposeIngredientSchema>;
+
+// What the agent's `propose_entry` tool emits — a full entry MINUS localDate
+// (the client supplies the selected day on confirm), with serving-aware ingredients.
+// Rendered as the EntryEditor in proposal mode; on confirm the client adds
+// localDate -> EntryInput -> POST /entries.
+export const proposeEntryArgsSchema = entryInputSchema
+  .omit({ localDate: true, ingredients: true })
+  .extend({ ingredients: z.array(proposeIngredientSchema).min(1) });
+export type ProposeEntryArgs = z.infer<typeof proposeEntryArgsSchema>;
+export type FoodSearchResult = z.infer<typeof foodSearchResultSchema>;
 
 // ---- DB row / response shapes returned to the client ----
 export interface IngredientRow extends IngredientInput {
