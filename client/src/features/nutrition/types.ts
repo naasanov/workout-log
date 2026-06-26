@@ -17,19 +17,21 @@ export interface Per100g {
   sodium_mg?: number | null;
 }
 
+// A household serving size, e.g. { label: "medium", grams: 118 }.
+// `grams` = weight of ONE unit (effective grams = quantity * grams).
+export interface FoodPortion {
+  label: string;
+  grams: number;
+}
+
 export interface FoodSearchResult {
   name: string;
   source: 'usda' | 'off';
   source_ref: string;
   per100g: Per100g;
   serving_grams?: number | null;
-}
-
-// A household serving size, e.g. { label: "medium", grams: 118 }.
-// `grams` = weight of ONE unit (effective grams = quantity * grams).
-export interface FoodPortion {
-  label: string;
-  grams: number;
+  // Serving sizes attached inline for the top result(s) (#8).
+  portions?: FoodPortion[] | null;
 }
 
 export interface IngredientInput {
@@ -44,6 +46,25 @@ export interface IngredientInput {
 }
 export interface IngredientRow extends IngredientInput {
   id: number;
+}
+
+// A proposed ingredient: an IngredientInput plus optional serving metadata so the
+// editor can pre-select a real serving ("1 medium") instead of raw grams (#10).
+// `grams` is the RESOLVED effective grams (quantity * unit grams). unit==='g' = raw grams.
+export interface ProposeIngredient extends IngredientInput {
+  quantity?: number | null;
+  unit?: string | null;
+  portions?: FoodPortion[] | null;
+}
+
+// What the agent's propose_entry tool emits (no localDate; serving-aware rows).
+export interface ProposeEntryArgs {
+  meal: Meal;
+  name: string;
+  source: EntrySource;
+  barcode?: string | null;
+  raw_llm_json?: unknown;
+  ingredients: ProposeIngredient[];
 }
 
 export interface EntryInput {
@@ -101,14 +122,18 @@ export interface Goals {
 export type EntryEditorMode =
   | { kind: 'manual-add'; date: string; defaultMeal?: Meal }
   | { kind: 'manual-edit'; date: string; entry: EntryRow }
-  | { kind: 'proposal'; date: string; proposal: EntryInput };
+  | { kind: 'proposal'; date: string; proposal: ProposeEntryArgs };
 
 export interface EntryEditorProps {
+  // `open` is ignored when `inline` is true (the editor renders in-flow in the
+  // chat thread for proposals, #9 — no Dialog overlay).
   open: boolean;
+  inline?: boolean;
   mode: EntryEditorMode;
   onClose: () => void;
   // Manual modes save via the api hooks internally, then call onClose.
-  // Proposal mode (Phase 2) calls these instead of saving directly:
+  // Proposal mode calls these instead of saving directly. onConfirm resolves the
+  // serving-aware proposal rows to grams-based EntryInput before persisting.
   onConfirm?: (input: EntryInput) => void;
   onDeny?: () => void;
 }

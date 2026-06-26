@@ -9,6 +9,12 @@ import * as store from '../services/nutrition/store';
 import { searchFoods, lookupBarcode, getPortions } from '../services/nutrition/providers';
 import { streamNutritionChat } from '../services/nutrition/agent';
 import { getUserUsageTotals, getAllUsersUsage, getUserEmail } from '../services/nutrition/usage';
+import {
+  getTranscript,
+  appendMessage,
+  markInterrupted,
+  clearTranscript,
+} from '../services/nutrition/transcripts';
 
 const router = Router();
 router.use(authenticateToken);
@@ -203,11 +209,46 @@ router.get('/usage', async (req, res): Promise<any> => {
   }
 });
 
+// GET /chat/transcript?date=YYYY-MM-DD — fetch stored chat messages for a day
+router.get('/chat/transcript', async (req, res): Promise<any> => {
+  const { uuid }: User = res.locals.user;
+  const date = (req.query.date ?? '') as string;
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ message: 'date query param must be in YYYY-MM-DD format' });
+  }
+
+  try {
+    const data = await getTranscript(uuid, date);
+    return res.status(200).json({ data, message: `Found ${data.length} message(s)` });
+  } catch (error) {
+    return handleSqlError(error, res);
+  }
+});
+
+// DELETE /chat/transcript?date=YYYY-MM-DD — clear transcript for a day
+router.delete('/chat/transcript', async (req, res): Promise<any> => {
+  const { uuid }: User = res.locals.user;
+  const date = (req.query.date ?? '') as string;
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ message: 'date query param must be in YYYY-MM-DD format' });
+  }
+
+  try {
+    await clearTranscript(uuid, date);
+    return res.status(204).send();
+  } catch (error) {
+    return handleSqlError(error, res);
+  }
+});
+
 // POST /chat — Nutrition AI agent chat endpoint (streams UI message stream)
 router.post('/chat', async (req, res): Promise<any> => {
   const { uuid }: User = res.locals.user;
   const { messages, selectedDate, effort } = req.body as {
-    messages: unknown;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    messages: any[];
     selectedDate?: string;
     effort?: 'none' | 'minimal' | 'low' | 'medium' | 'high';
   };
@@ -222,12 +263,54 @@ router.post('/chat', async (req, res): Promise<any> => {
   }
 
   try {
+    // Persist the last user message immediately (best-effort)
+    const lastUserMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+    if (lastUserMsg && lastUserMsg.role === 'user') {
+      const msgId: string = lastUserMsg.id ?? `user-${Date.now()}`;
+      const parts = Array.isArray(lastUserMsg.parts) ? lastUserMsg.parts : [{ type: 'text', text: String(lastUserMsg.content ?? '') }];
+      await appendMessage(uuid, date, msgId, 'user', parts).catch(() => {});
+    }
+
     const result = await streamNutritionChat({
       userUuid: uuid,
       selectedDate: date,
       messages: messages as Parameters<typeof streamNutritionChat>[0]['messages'],
       effort,
     });
+
+    // Track the in-progress assistant row so we can mark it interrupted if needed.
+    let assistantRowId: number | null = null;
+
+    // Consume the stream on the server regardless of client connection, so onFinish fires.
+    // This means the run completes even if the client disconnects mid-stream.
+    result.consumeStream();
+
+    // Persist assistant message once the run finishes (best-effort, fire-and-forget).
+    // Use Promise.resolve() to promote PromiseLike → full Promise so we can use .catch().
+    Promise.resolve(result.finishReason)
+      .then(async () => {
+        try {
+          const response = await result.response;
+          const assistantMessages = response.messages ?? [];
+          // Find the last assistant message
+          const lastAssistant = assistantMessages.filter((m) => m.role === 'assistant').pop();
+          if (lastAssistant) {
+            const msgId = `asst-${Date.now()}`;
+            const rawParts = Array.isArray(lastAssistant.content)
+              ? lastAssistant.content
+              : [{ type: 'text', text: String(lastAssistant.content ?? '') }];
+            assistantRowId = await appendMessage(uuid, date, msgId, 'assistant', rawParts);
+          }
+        } catch {
+          // best-effort — don't break anything
+        }
+      })
+      .catch(async () => {
+        // Run errored/aborted before finish — mark interrupted if we inserted a row
+        if (assistantRowId !== null) {
+          await markInterrupted(assistantRowId).catch(() => {});
+        }
+      });
 
     // Stream the AI SDK UI message stream to the Express response using the
     // standalone helper (avoids the deprecated result method).

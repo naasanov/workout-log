@@ -119,6 +119,28 @@
   }
 }
 
+// Item 1: Feedback button — clearly placed, clearly tappable on mobile
+.feedbackBtn {
+  flex: 0 1 auto;
+  min-height: 48px;
+  padding: 10px 16px;
+  background: transparent;
+  color: rgba($text, 0.6);
+  border: 2px solid rgba($surface-border, 0.6);
+  border-radius: $border-radius;
+  font-family: $sarabun;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  cursor: pointer;
+
+  &:active {
+    color: $primary;
+    border-color: $primary-border;
+    background-color: rgba($primary, 0.08);
+  }
+}
+
 .settingsBtn {
   min-width: 48px;
   min-height: 48px;
@@ -267,28 +289,41 @@
   gap: 8px;
 }
 
+// Item 16: Give entry name more room.
+// Name gets its own full-width line; kcal + buttons share a second row.
 .entryTop {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
 }
 
+// Name takes the full width and wraps naturally (up to 2 lines via line-clamp)
 .entryName {
-  flex: 1;
   font-family: $sarabun;
   font-size: 16px;
   font-weight: 600;
   color: $text;
   letter-spacing: $sarabun-spacing;
   min-width: 0;
-  white-space: nowrap;
+  // Allow up to 2 lines before clamping — much better than 1-line ellipsis
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-word;
+}
+
+// Row: kcal on left, buttons on right
+.entryMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .entryCalories {
   font-family: $sarabun;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: $primary;
   letter-spacing: $sarabun-spacing;

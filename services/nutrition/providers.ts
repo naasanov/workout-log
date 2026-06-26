@@ -299,6 +299,41 @@ export async function getPortions(source: 'usda' | 'off', ref: string): Promise<
   }
 }
 
+/**
+ * Like searchFoods but also fetches portions for the top result (USDA only; OFF → []).
+ * Attaches portions inline so the agent can propose real servings without a separate call.
+ * Only top 1 result gets portions to keep latency sane.
+ */
+export async function searchFoodsWithPortions(query: string): Promise<FoodSearchResult[]> {
+  const results = await searchFoods(query);
+  if (results.length === 0) return results;
+
+  // Fetch portions for the top result in parallel with nothing else to keep it simple
+  const top = results[0];
+  const portions = await getPortions(top.source, top.source_ref);
+  // Mutate in-place so the result remains the same FoodSearchResult reference type.
+  (results[0] as FoodSearchResult).portions = portions;
+
+  return results;
+}
+
+/**
+ * Batch-fetch portions for multiple {source, ref} items in parallel.
+ * Returns an array of { source, ref, portions } objects.
+ */
+export async function getPortionsBatch(
+  items: Array<{ source: 'usda' | 'off'; ref: string }>,
+): Promise<Array<{ source: string; ref: string; portions: FoodPortion[] }>> {
+  const results = await Promise.all(
+    items.map(async ({ source, ref }) => ({
+      source,
+      ref,
+      portions: await getPortions(source, ref),
+    })),
+  );
+  return results;
+}
+
 /** Open Food Facts barcode lookup → product as a FoodSearchResult, or null if not found. */
 export async function lookupBarcode(code: string): Promise<FoodSearchResult | null> {
   // Check cache first

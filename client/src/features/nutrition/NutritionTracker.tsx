@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useDay, useGoals, useDeleteEntry } from './api';
 import EntryEditor from './EntryEditor';
 import NutritionGoalsModal from './NutritionGoalsModal';
+import FeedbackModal from './FeedbackModal';
 import NutritionChat from './NutritionChat';
 import ConfirmModal from '../../components/ConfirmModal.jsx';
 import type { EntryEditorMode, EntryRow } from './types';
@@ -73,6 +74,9 @@ export default function NutritionTracker() {
 
   // Goals modal
   const [goalsModalOpen, setGoalsModalOpen] = useState(false);
+
+  // Feedback modal
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   // Pending delete
   const [pendingDeleteEntry, setPendingDeleteEntry] = useState<EntryRow | null>(null);
@@ -200,6 +204,15 @@ export default function NutritionTracker() {
         </button>
 
         <button
+          className={styles.feedbackBtn}
+          onClick={() => setFeedbackOpen(true)}
+          aria-label="Send feedback"
+          title="Send feedback"
+        >
+          Feedback
+        </button>
+
+        <button
           className={styles.settingsBtn}
           onClick={() => setGoalsModalOpen(true)}
           aria-label="Nutrition goals"
@@ -302,24 +315,27 @@ export default function NutritionTracker() {
 
           {mealEntries.map(entry => (
             <div key={entry.id} className={styles.entryRow}>
+              {/* Item 16: name on its own row (wraps up to 2 lines), kcal+buttons below */}
               <div className={styles.entryTop}>
                 <span className={styles.entryName}>{entry.name}</span>
-                <span className={styles.entryCalories}>{Math.round(entry.calories)} kcal</span>
-                <div className={styles.entryBtns}>
-                  <button
-                    className={styles.editBtn}
-                    onClick={() => openEditEditor(entry)}
-                    aria-label={`Edit ${entry.name}`}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    className={styles.deleteBtn}
-                    onClick={() => setPendingDeleteEntry(entry)}
-                    aria-label={`Delete ${entry.name}`}
-                  >
-                    ✕
-                  </button>
+                <div className={styles.entryMeta}>
+                  <span className={styles.entryCalories}>{Math.round(entry.calories)} kcal</span>
+                  <div className={styles.entryBtns}>
+                    <button
+                      className={styles.editBtn}
+                      onClick={() => openEditEditor(entry)}
+                      aria-label={`Edit ${entry.name}`}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className={styles.deleteBtn}
+                      onClick={() => setPendingDeleteEntry(entry)}
+                      aria-label={`Delete ${entry.name}`}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -351,6 +367,12 @@ export default function NutritionTracker() {
       <NutritionGoalsModal
         open={goalsModalOpen}
         onClose={() => setGoalsModalOpen(false)}
+      />
+
+      {/* Feedback modal */}
+      <FeedbackModal
+        open={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
       />
 
       {/* Delete confirmation */}

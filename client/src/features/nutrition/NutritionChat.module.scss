@@ -9,8 +9,9 @@
   animation: fadeIn 120ms ease;
 }
 
-// ---- Custom CSS bottom sheet (item 1) ----
+// ---- Custom CSS bottom sheet ----
 // Always peeks at the bottom; animates `height` between peek and expanded.
+// #2: sheetDragging disables transition so height tracks pointer in real time.
 .sheet {
   position: fixed;
   bottom: 0;
@@ -25,14 +26,13 @@
   flex-direction: column;
   overflow: hidden;
   transition: height 0.3s cubic-bezier(0.32, 0.72, 0, 1);
-  // Item 7: kill iOS text-auto-inflation
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 
   &:focus { outline: none; }
 }
 
-// Peek: just the drag handle + composer visible (messages flex to 0)
+// Peek: just the drag handle + composer visible
 .sheetPeek {
   height: 96px;
 }
@@ -42,19 +42,26 @@
   height: 88dvh;
 }
 
-// ---- Drag handle (tap to toggle, drag to expand/collapse) ----
+// #2: While dragging, disable transition so height tracks pointer exactly
+.sheetDragging {
+  transition: none !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+// ---- Drag handle ----
+// #2: touch-action:none is critical — prevents browser scroll from competing
 .dragHandleBtn {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  // Generous tap/drag target while keeping the visual grabber small
   padding: 8px 0 6px;
   background: transparent;
   border: none;
   cursor: grab;
   flex-shrink: 0;
-  touch-action: none; // let pointer-drag work without page scroll interference
+  touch-action: none; // let pointer events work without browser scroll interference
 
   &:active { cursor: grabbing; }
 }
@@ -84,7 +91,7 @@
 .header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 8px 16px 10px;
   border-bottom: 1px solid rgba($surface-border, 0.4);
   flex-shrink: 0;
@@ -99,21 +106,30 @@
   color: $text;
 }
 
-.stopBtn {
-  padding: 6px 12px;
+// #7: Clear-chat trash icon button
+.clearBtn {
+  min-width: 36px;
   min-height: 36px;
-  background-color: transparent;
-  border: 1px solid rgba($error, 0.5);
-  border-radius: 8px;
-  color: $error;
-  font-family: $sarabun;
-  font-size: 13px;
-  letter-spacing: $sarabun-spacing;
+  background: transparent;
+  border: none;
+  color: rgba($text, 0.4);
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 0;
 
   &:active {
+    color: $error;
     background-color: rgba($error, 0.1);
   }
+}
+
+.clearIcon {
+  display: block; // iOS Safari SVG fix
+  width: 18px;
+  height: 18px;
 }
 
 .closeBtn {
@@ -133,13 +149,6 @@
   }
 }
 
-.closeSvg {
-  display: block; // iOS Safari SVG fix
-  width: 14px;
-  height: 14px;
-}
-
-// Collapse chevron (down arrow) in the expanded header
 .collapseSvg {
   display: block; // iOS Safari SVG fix
   width: 14px;
@@ -147,19 +156,20 @@
 }
 
 // ---- Message list ----
-// flex:1 + min-height:0 → collapses to 0 height at the peek, leaving only
-// the composer visible. Expands to fill the sheet when expanded.
+// #6: overscroll-behavior:contain — scrolling doesn't bubble to body.
+// flex:1 + min-height:0 → collapses to 0 at peek, expands when expanded.
 .messages {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  overflow-x: hidden; // Item 6: no horizontal scroll
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  // #6: prevent body scroll bleed
+  overscroll-behavior: contain;
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  // Item 6: ensure content never exceeds viewport width
   max-width: 100%;
   box-sizing: border-box;
 }
@@ -188,7 +198,6 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  // Item 6: prevent overflow
   max-width: 100%;
   min-width: 0;
 }
@@ -206,7 +215,6 @@
   max-width: min(80%, 500px);
   border-radius: 16px;
   padding: 10px 14px;
-  // Item 6: prevent bubble from overflowing
   min-width: 0;
   box-sizing: border-box;
   word-break: break-word;
@@ -226,7 +234,7 @@
 .bubbleText {
   margin: 0;
   font-family: $sarabun;
-  font-size: 15px; // Item 7: explicit size
+  font-size: 15px;
   line-height: 1.5;
   letter-spacing: $sarabun-spacing;
   color: $text;
@@ -239,19 +247,17 @@
   }
 }
 
-// Item 4: markdown container in assistant bubbles
+// Markdown container in assistant bubbles
 .bubbleMarkdown {
   font-family: $sarabun;
-  font-size: 15px; // Item 7: explicit size
+  font-size: 15px;
   line-height: 1.5;
   letter-spacing: $sarabun-spacing;
   color: $text;
-  // Item 6: no overflow
   overflow-wrap: anywhere;
   word-break: break-word;
   min-width: 0;
 
-  // Tight spacing for markdown elements inside bubble
   p {
     margin: 0 0 6px;
     &:last-child { margin-bottom: 0; }
@@ -290,7 +296,7 @@
     background-color: rgba($background, 0.5);
     border-radius: 6px;
     padding: 8px 10px;
-    overflow-x: auto; // Item 6: scroll within pre box only
+    overflow-x: auto;
     font-size: 12px;
     max-width: 100%;
     box-sizing: border-box;
@@ -351,7 +357,7 @@
   border: none;
   cursor: pointer;
   font-family: $sarabun;
-  font-size: 12px; // Item 7: explicit size
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: $sarabun-spacing;
   color: rgba($text, 0.4);
@@ -368,11 +374,10 @@
   color: rgba($text, 0.35);
 }
 
-// Item 4: markdown in reasoning text
 .reasoningText {
   padding: 4px 12px 10px;
   font-family: $sarabun;
-  font-size: 12px; // Item 7: explicit size
+  font-size: 12px;
   line-height: 1.5;
   color: rgba($text, 0.55);
   letter-spacing: $sarabun-spacing;
@@ -408,7 +413,7 @@
     background-color: rgba($background, 0.5);
     border-radius: 5px;
     padding: 6px 8px;
-    overflow-x: auto; // Item 6
+    overflow-x: auto;
     font-size: 11px;
     max-width: 100%;
     box-sizing: border-box;
@@ -450,47 +455,34 @@
   font-weight: 600;
 }
 
-// ---- Collapsed proposal placeholder ----
-.proposalPlaceholder {
-  display: flex;
+// #9: Inline proposal wrapper — full width in the message thread
+.proposalInlineWrap {
+  width: 100%;
+  max-width: 100%;
+}
+
+// #8/#17: Interrupted marker — shown after a streaming message that was cut short
+.interruptedMarker {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  background-color: rgba($primary, 0.07);
-  border: 1px solid rgba($primary-border, 0.3);
-  border-radius: 12px;
-  max-width: min(80%, 400px);
-}
-
-.proposalName {
-  flex: 1;
-  font-family: $sarabun;
-  font-size: 14px;
-  font-weight: 600;
-  color: $text;
-  letter-spacing: $sarabun-spacing;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-
-.proposalReviewBtn {
-  flex-shrink: 0;
-  padding: 6px 12px;
-  min-height: 36px;
-  background-color: $primary;
-  color: $background;
-  border: none;
+  gap: 6px;
+  padding: 5px 10px;
+  background-color: rgba($error, 0.06);
+  border: 1px solid rgba($error, 0.2);
   border-radius: 8px;
   font-family: $sarabun;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  color: rgba($error, 0.75);
   letter-spacing: $sarabun-spacing;
-  cursor: pointer;
 
-  &:active {
-    background-color: $primary-dark;
+  &::before {
+    content: '';
+    display: block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: rgba($error, 0.6);
+    flex-shrink: 0;
   }
 }
 
@@ -558,6 +550,7 @@
 }
 
 // ---- Composer row ----
+// #3: safe-area for iOS home indicator — composer sits above the home bar.
 .composer {
   display: flex;
   align-items: flex-end;
@@ -565,7 +558,7 @@
   padding: 8px 12px;
   border-top: 1px solid rgba($surface-border, 0.3);
   flex-shrink: 0;
-  // Safe area for iOS home indicator
+  // #3: safe-area inset so controls clear the iPhone home indicator
   padding-bottom: max(10px, env(safe-area-inset-bottom));
 }
 
@@ -600,7 +593,8 @@
   display: none;
 }
 
-// Item 3: auto-grow textarea
+// #4: textarea — 16px on mobile prevents iOS from zooming on focus.
+// Desktop keeps 15px for visual density.
 .composerInput {
   flex: 1;
   background-color: rgba($background, 0.4);
@@ -609,17 +603,15 @@
   border-radius: 12px;
   padding: 10px 12px;
   font-family: $sarabun;
-  font-size: 15px; // Item 7: explicit size
+  // #4: 16px on mobile (≤$mobile-width) to suppress iOS auto-zoom on focus
+  font-size: 16px;
   letter-spacing: $sarabun-spacing;
   resize: none;
   line-height: 1.4;
-  // min-height for one line, grows via JS
   min-height: 40px;
-  // max-height capped at ~8 lines; JS handles overflow-y toggle
   max-height: 180px;
   overflow-y: hidden; // JS sets to auto when at max
   box-sizing: border-box;
-  // Item 6: no horizontal overflow
   overflow-x: hidden;
 
   &::placeholder {
@@ -630,8 +622,14 @@
     outline: none;
     border-color: rgba($primary-border, 0.6);
   }
+
+  // #4: On larger screens (desktop) use 15px
+  @media (min-width: #{$mobile-width + 1px}) {
+    font-size: 15px;
+  }
 }
 
+// Send button base
 .sendBtn {
   flex-shrink: 0;
   min-width: 40px;
@@ -654,6 +652,17 @@
 
   &:not(:disabled):active {
     background-color: $primary-dark;
+  }
+}
+
+// #14: Stop button — same shape as send but red tint, no disabled state
+.stopBtn {
+  background-color: rgba($error, 0.15);
+  border: 1px solid rgba($error, 0.4);
+  color: $error;
+
+  &:active {
+    background-color: rgba($error, 0.25);
   }
 }
 
