@@ -1,8 +1,9 @@
 @import "../../styles/variables";
 
 // ---- Container ----
+// Extra bottom padding to keep content from hiding behind the peeking chat bar (~88px)
 .container {
-  padding: 16px 14px 24px;
+  padding: 16px 14px 120px;
   display: flex;
   flex-direction: column;
   gap: 16px;

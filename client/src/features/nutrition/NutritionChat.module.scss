@@ -1,36 +1,70 @@
 @import "../../styles/variables";
 
-// ---- Overlay ----
+// ---- Dim overlay — shown only when the sheet is expanded ----
 .overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.55);
-  z-index: 999;
-
-  &[data-state="open"]  { animation: fadeIn 120ms ease; }
-  &[data-state="closed"] { animation: fadeOut 100ms ease; }
+  background-color: rgba(0, 0, 0, 0.45);
+  z-index: 998;
+  animation: fadeIn 120ms ease;
 }
 
-// ---- Bottom-sheet panel ----
+// ---- Custom CSS bottom sheet (item 1) ----
+// Always peeks at the bottom; animates `height` between peek and expanded.
 .sheet {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 1000;
+  max-width: 680px;
+  margin: 0 auto;
+  z-index: 999;
   background-color: $surface;
   border-radius: 20px 20px 0 0;
   display: flex;
   flex-direction: column;
-  max-height: 85dvh;
-  // Width cap on desktop
-  max-width: 680px;
-  margin: 0 auto;
+  overflow: hidden;
+  transition: height 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  // Item 7: kill iOS text-auto-inflation
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 
   &:focus { outline: none; }
+}
 
-  &[data-state="open"]  { animation: slideUp 180ms cubic-bezier(0.16, 1, 0.3, 1); }
-  &[data-state="closed"] { animation: slideDown 140ms ease; }
+// Peek: just the drag handle + composer visible (messages flex to 0)
+.sheetPeek {
+  height: 96px;
+}
+
+// Expanded: full chat
+.sheetExpanded {
+  height: 88dvh;
+}
+
+// ---- Drag handle (tap to toggle, drag to expand/collapse) ----
+.dragHandleBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  // Generous tap/drag target while keeping the visual grabber small
+  padding: 8px 0 6px;
+  background: transparent;
+  border: none;
+  cursor: grab;
+  flex-shrink: 0;
+  touch-action: none; // let pointer-drag work without page scroll interference
+
+  &:active { cursor: grabbing; }
+}
+
+.dragHandle {
+  display: block;
+  width: 36px;
+  height: 4px;
+  background-color: rgba($surface-border, 0.6);
+  border-radius: 2px;
 }
 
 // Accessibility: visually hidden title
@@ -51,7 +85,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 14px 16px 12px;
+  padding: 8px 16px 10px;
   border-bottom: 1px solid rgba($surface-border, 0.4);
   flex-shrink: 0;
 }
@@ -105,15 +139,29 @@
   height: 14px;
 }
 
+// Collapse chevron (down arrow) in the expanded header
+.collapseSvg {
+  display: block; // iOS Safari SVG fix
+  width: 14px;
+  height: 8px;
+}
+
 // ---- Message list ----
+// flex:1 + min-height:0 → collapses to 0 height at the peek, leaving only
+// the composer visible. Expands to fill the sheet when expanded.
 .messages {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden; // Item 6: no horizontal scroll
   -webkit-overflow-scrolling: touch;
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  // Item 6: ensure content never exceeds viewport width
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .emptyHint {
@@ -140,6 +188,9 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  // Item 6: prevent overflow
+  max-width: 100%;
+  min-width: 0;
 }
 
 .messageGroupUser {
@@ -155,6 +206,11 @@
   max-width: min(80%, 500px);
   border-radius: 16px;
   padding: 10px 14px;
+  // Item 6: prevent bubble from overflowing
+  min-width: 0;
+  box-sizing: border-box;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .bubbleUser {
@@ -170,15 +226,99 @@
 .bubbleText {
   margin: 0;
   font-family: $sarabun;
-  font-size: 15px;
+  font-size: 15px; // Item 7: explicit size
   line-height: 1.5;
   letter-spacing: $sarabun-spacing;
   color: $text;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow-wrap: anywhere;
 
   .bubbleUser & {
     color: $background;
+  }
+}
+
+// Item 4: markdown container in assistant bubbles
+.bubbleMarkdown {
+  font-family: $sarabun;
+  font-size: 15px; // Item 7: explicit size
+  line-height: 1.5;
+  letter-spacing: $sarabun-spacing;
+  color: $text;
+  // Item 6: no overflow
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
+
+  // Tight spacing for markdown elements inside bubble
+  p {
+    margin: 0 0 6px;
+    &:last-child { margin-bottom: 0; }
+  }
+
+  ul, ol {
+    margin: 4px 0 6px;
+    padding-left: 18px;
+    &:last-child { margin-bottom: 0; }
+  }
+
+  li {
+    margin-bottom: 2px;
+  }
+
+  h1, h2, h3, h4 {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 6px 0 3px;
+    &:first-child { margin-top: 0; }
+  }
+
+  strong { font-weight: 700; }
+  em { font-style: italic; }
+
+  code {
+    font-family: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
+    font-size: 13px;
+    background-color: rgba($background, 0.5);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+
+  pre {
+    margin: 4px 0 6px;
+    background-color: rgba($background, 0.5);
+    border-radius: 6px;
+    padding: 8px 10px;
+    overflow-x: auto; // Item 6: scroll within pre box only
+    font-size: 12px;
+    max-width: 100%;
+    box-sizing: border-box;
+
+    code {
+      background: none;
+      padding: 0;
+      font-size: 12px;
+    }
+  }
+
+  a {
+    color: $primary;
+    text-decoration: underline;
+    word-break: break-all;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid rgba($surface-border, 0.4);
+    margin: 8px 0;
+  }
+
+  blockquote {
+    border-left: 3px solid rgba($primary-border, 0.5);
+    margin: 4px 0 6px 0;
+    padding-left: 10px;
+    color: rgba($text, 0.7);
   }
 }
 
@@ -197,6 +337,8 @@
   border: 1px solid rgba($surface-border, 0.3);
   border-radius: 10px;
   overflow: hidden;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .reasoningToggle {
@@ -209,7 +351,7 @@
   border: none;
   cursor: pointer;
   font-family: $sarabun;
-  font-size: 12px;
+  font-size: 12px; // Item 7: explicit size
   font-weight: 600;
   letter-spacing: $sarabun-spacing;
   color: rgba($text, 0.4);
@@ -219,23 +361,69 @@
 }
 
 .reasoningChevron {
-  display: block;
+  display: block; // iOS Safari SVG fix
   width: 10px;
   height: 6px;
   flex-shrink: 0;
   color: rgba($text, 0.35);
 }
 
+// Item 4: markdown in reasoning text
 .reasoningText {
-  margin: 0;
   padding: 4px 12px 10px;
   font-family: $sarabun;
-  font-size: 12px;
+  font-size: 12px; // Item 7: explicit size
   line-height: 1.5;
-  color: rgba($text, 0.45);
+  color: rgba($text, 0.55);
   letter-spacing: $sarabun-spacing;
-  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   word-break: break-word;
+  min-width: 0;
+
+  p {
+    margin: 0 0 4px;
+    &:last-child { margin-bottom: 0; }
+  }
+
+  ul, ol {
+    margin: 2px 0 4px;
+    padding-left: 16px;
+  }
+
+  li { margin-bottom: 1px; }
+
+  strong { font-weight: 700; }
+  em { font-style: italic; }
+
+  code {
+    font-family: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
+    font-size: 11px;
+    background-color: rgba($background, 0.5);
+    border-radius: 3px;
+    padding: 1px 4px;
+  }
+
+  pre {
+    margin: 2px 0 4px;
+    background-color: rgba($background, 0.5);
+    border-radius: 5px;
+    padding: 6px 8px;
+    overflow-x: auto; // Item 6
+    font-size: 11px;
+    max-width: 100%;
+    box-sizing: border-box;
+
+    code {
+      background: none;
+      padding: 0;
+    }
+  }
+
+  a {
+    color: $primary;
+    text-decoration: underline;
+    word-break: break-all;
+  }
 }
 
 // ---- Proposal outcomes ----
@@ -374,11 +562,11 @@
   display: flex;
   align-items: flex-end;
   gap: 6px;
-  padding: 10px 12px 14px;
+  padding: 8px 12px;
   border-top: 1px solid rgba($surface-border, 0.3);
   flex-shrink: 0;
   // Safe area for iOS home indicator
-  padding-bottom: max(14px, env(safe-area-inset-bottom));
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
 }
 
 .composerBtn {
@@ -412,6 +600,7 @@
   display: none;
 }
 
+// Item 3: auto-grow textarea
 .composerInput {
   flex: 1;
   background-color: rgba($background, 0.4);
@@ -420,13 +609,18 @@
   border-radius: 12px;
   padding: 10px 12px;
   font-family: $sarabun;
-  font-size: 15px;
+  font-size: 15px; // Item 7: explicit size
   letter-spacing: $sarabun-spacing;
   resize: none;
   line-height: 1.4;
+  // min-height for one line, grows via JS
   min-height: 40px;
-  max-height: 120px;
-  overflow-y: auto;
+  // max-height capped at ~8 lines; JS handles overflow-y toggle
+  max-height: 180px;
+  overflow-y: hidden; // JS sets to auto when at max
+  box-sizing: border-box;
+  // Item 6: no horizontal overflow
+  overflow-x: hidden;
 
   &::placeholder {
     color: rgba($text, 0.35);
@@ -473,16 +667,4 @@
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
-}
-@keyframes fadeOut {
-  from { opacity: 1; }
-  to   { opacity: 0; }
-}
-@keyframes slideUp {
-  from { transform: translateY(60%); opacity: 0.5; }
-  to   { transform: translateY(0);   opacity: 1; }
-}
-@keyframes slideDown {
-  from { transform: translateY(0);   opacity: 1; }
-  to   { transform: translateY(60%); opacity: 0; }
 }

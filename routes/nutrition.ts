@@ -8,6 +8,7 @@ import { entryInputSchema, goalsSchema } from '../schemas/nutrition';
 import * as store from '../services/nutrition/store';
 import { searchFoods, lookupBarcode, getPortions } from '../services/nutrition/providers';
 import { streamNutritionChat } from '../services/nutrition/agent';
+import { getUserUsageTotals, getAllUsersUsage, getUserEmail } from '../services/nutrition/usage';
 
 const router = Router();
 router.use(authenticateToken);
@@ -168,6 +169,35 @@ router.put('/goals', async (req, res): Promise<any> => {
   try {
     const data = await store.putGoals(uuid, parsed.data);
     return res.status(200).json({ data, message: 'Goals saved' });
+  } catch (error) {
+    return handleSqlError(error, res);
+  }
+});
+
+// GET /usage — caller's own AI usage totals; owner also gets per-user breakdown.
+// Set OWNER_EMAIL in env/Heroku config to enable the all-users view.
+router.get('/usage', async (req, res): Promise<any> => {
+  const { uuid }: User = res.locals.user;
+  try {
+    const ownTotals = await getUserUsageTotals(uuid);
+
+    // Check if this user is the owner
+    const ownerEmail = process.env.OWNER_EMAIL;
+    let allUsers = undefined;
+    if (ownerEmail) {
+      const callerEmail = await getUserEmail(uuid);
+      if (callerEmail && callerEmail.toLowerCase() === ownerEmail.toLowerCase()) {
+        allUsers = await getAllUsersUsage();
+      }
+    }
+
+    return res.status(200).json({
+      data: {
+        own: ownTotals,
+        ...(allUsers !== undefined ? { allUsers } : {}),
+      },
+      message: 'AI usage retrieved',
+    });
   } catch (error) {
     return handleSqlError(error, res);
   }
