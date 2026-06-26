@@ -8,6 +8,24 @@
   -webkit-overflow-scrolling: touch;
 }
 
+// #9: Inline proposal card — renders in-flow inside the chat message list.
+// No Dialog overlay; the card is visually contained within the chat thread.
+.inlineEditorCard {
+  width: 100%;
+  max-width: 100%;
+  background-color: $surface;
+  border: 1px solid rgba($primary-border, 0.4);
+  border-radius: 14px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+// Inline variant: tighter padding than the modal version.
+.inlineEditorCard .editor {
+  padding: 16px 14px 14px;
+  gap: 14px;
+}
+
 // Editor layout
 .editor {
   display: flex;

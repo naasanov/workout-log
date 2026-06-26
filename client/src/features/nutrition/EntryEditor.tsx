@@ -1,7 +1,11 @@
 /**
- * EntryEditor — Phase 1 + serving-size unit selector
- * Handles 'manual-add' and 'manual-edit' modes.
- * 'proposal' mode renders the same form but onConfirm/onDeny are wired in Phase 2.
+ * EntryEditor — Phase 1 + Phase 2 (inline proposal, serving pre-select)
+ * Handles 'manual-add', 'manual-edit', and 'proposal' modes.
+ *
+ * Phase 2 additions:
+ * - `inline` prop: when true, renders without the Radix Dialog overlay (#9)
+ * - Proposal mode: pre-selects quantity/unit from ProposeIngredient data (#10)
+ * - On Confirm: resolves serving-aware rows to grams-based EntryInput (#10)
  */
 import {
   useState,
@@ -20,6 +24,7 @@ import type {
   FoodSearchResult,
   FoodPortion,
   Per100g,
+  ProposeIngredient,
 } from './types';
 import { MEALS } from './types';
 import styles from './EntryEditor.module.scss';
@@ -146,6 +151,58 @@ function rowFromFood(food: FoodSearchResult, existingPortions?: FoodPortion[]): 
 }
 
 // ---------------------------------------------------------------------------
+// #10: Build an EditorRow from a ProposeIngredient (serving-aware).
+// The proposal carries quantity/unit/portions so we can pre-select them.
+// ing.grams is already the resolved effective grams (quantity * unitGrams).
+// ---------------------------------------------------------------------------
+function rowFromProposedIngredient(ing: ProposeIngredient): EditorRow {
+  // Build the portions list: always start with 'g', then any proposal portions.
+  const portionsList: FoodPortion[] = [GRAMS_UNIT];
+  if (ing.portions && ing.portions.length > 0) {
+    for (const p of ing.portions) {
+      if (p.label !== 'g') portionsList.push(p);
+    }
+  }
+
+  // Find the proposed unit in the portions list.
+  const proposedUnit = ing.unit ? portionsList.find(p => p.label === ing.unit) : null;
+
+  let quantity: number;
+  let unitLabel: string;
+  let unitGrams: number;
+
+  if (proposedUnit && ing.quantity != null && ing.quantity > 0) {
+    // Pre-select the agent-specified serving unit and quantity.
+    quantity = ing.quantity;
+    unitLabel = proposedUnit.label;
+    unitGrams = proposedUnit.grams;
+  } else {
+    // Fallback: raw grams mode (unit='g', quantity=grams).
+    quantity = ing.grams;
+    unitLabel = 'g';
+    unitGrams = 1;
+  }
+
+  return {
+    rowKey: nextKey(),
+    name: ing.name,
+    grams: ing.grams, // effective grams already resolved by the agent
+    quantity,
+    unitLabel,
+    unitGrams,
+    portions: portionsList,
+    source: ing.source,
+    source_ref: ing.source_ref ?? null,
+    calories: ing.calories,
+    protein_g: ing.protein_g,
+    carbs_g: ing.carbs_g,
+    fat_g: ing.fat_g,
+    // Macros already resolved; no per100g needed for live recompute.
+    per100g: null,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Debounce hook
 // ---------------------------------------------------------------------------
 function useDebounce<T>(value: T, delay: number): T {
@@ -186,9 +243,6 @@ function SearchDropdown({ query, onSelect }: SearchDropdownProps) {
           role="option"
           aria-selected={false}
           onPointerDown={e => {
-            // Use pointerDown so we fire before the name input's onBlur hides
-            // any ancestor focus-based dropdown (we're not using onBlur here,
-            // but this is good defensive practice).
             e.preventDefault();
             onSelect(food);
           }}
@@ -218,19 +272,15 @@ function IngredientRowEditor({ row, onChange, onRemove, onOpenBarcode }: Ingredi
   const [showSearch, setShowSearch] = useState(false);
 
   // ---- Async portion fetching for USDA foods ----
-  // Runs whenever source_ref changes (i.e. a new USDA food is selected).
-  // Cache lives at module level so it outlives component mount/unmount cycles.
   useEffect(() => {
     if (row.source !== 'usda' || !row.source_ref) return;
 
     const ref = row.source_ref;
 
-    // Already cached — merge immediately without a network call.
     if (portionsCache.has(ref)) {
       const cached = portionsCache.get(ref)!;
       const merged = buildPortionList(row, cached);
       if (merged.length !== row.portions.length) {
-        // Only update if the list actually changed (avoids infinite loop).
         onChange(applyNewPortions(row, merged));
       }
       return;
@@ -243,7 +293,7 @@ function IngredientRowEditor({ row, onChange, onRemove, onOpenBarcode }: Ingredi
       const merged = buildPortionList(row, fetched);
       onChange(applyNewPortions(row, merged));
     }).catch(() => {
-      // Silently ignore — the user still has 'g' and any serving option.
+      // Silently ignore — user still has 'g' and any serving option.
     });
 
     return () => { cancelled = true; };
@@ -254,7 +304,6 @@ function IngredientRowEditor({ row, onChange, onRemove, onOpenBarcode }: Ingredi
     const name = e.target.value;
     setSearchQuery(name);
     setShowSearch(true);
-    // Keep typing into the name — clear per100g so it becomes manual mode.
     onChange({
       ...row,
       name,
@@ -270,7 +319,6 @@ function IngredientRowEditor({ row, onChange, onRemove, onOpenBarcode }: Ingredi
   function handleSelectFood(food: FoodSearchResult) {
     setShowSearch(false);
     setSearchQuery('');
-    // If USDA food is already cached, build with full portions immediately.
     const cached = food.source === 'usda' && food.source_ref
       ? portionsCache.get(food.source_ref)
       : undefined;
@@ -286,7 +334,6 @@ function IngredientRowEditor({ row, onChange, onRemove, onOpenBarcode }: Ingredi
     if (row.per100g) {
       onChange({ ...row, quantity, grams: effectiveGrams, ...recomputeMacros(row.per100g, effectiveGrams) });
     } else {
-      // Manual row: grams = quantity (unit is always 'g')
       onChange({ ...row, quantity, grams: effectiveGrams });
     }
   }
@@ -327,7 +374,6 @@ function IngredientRowEditor({ row, onChange, onRemove, onOpenBarcode }: Ingredi
             onChange={handleNameChange}
             onFocus={() => setShowSearch(true)}
             onBlur={() => {
-              // Small delay so pointerDown on a dropdown item fires first.
               setTimeout(() => setShowSearch(false), 150);
             }}
             aria-label="Ingredient name"
@@ -343,7 +389,6 @@ function IngredientRowEditor({ row, onChange, onRemove, onOpenBarcode }: Ingredi
           aria-label="Scan barcode"
           title="Scan barcode"
         >
-          {/* Barcode icon — display:block per iOS SVG rule */}
           <svg
             className={styles.barcodeIcon}
             viewBox="0 0 24 24"
@@ -402,7 +447,7 @@ function IngredientRowEditor({ row, onChange, onRemove, onOpenBarcode }: Ingredi
           )}
         </div>
 
-        {/* Zone 2: Macro fields — wrap together */}
+        {/* Zone 2: Macro fields */}
         <div className={styles.macrosGroup}>
           <label className={styles.nutrientLabel}>
             <span>kcal</span>
@@ -484,48 +529,33 @@ function IngredientRowEditor({ row, onChange, onRemove, onOpenBarcode }: Ingredi
 // Helpers for building portions lists after a fetch
 // ---------------------------------------------------------------------------
 
-/** Build a full portions list for a food result given the fetched FoodPortion[]. */
 function buildPortionListFromFetched(food: FoodSearchResult, fetched: FoodPortion[]): FoodPortion[] {
   const list: FoodPortion[] = [GRAMS_UNIT];
-  // For USDA, append the fetched household portions.
   if (food.source === 'usda') {
     for (const p of fetched) {
       list.push(p);
     }
   }
-  // For OFF/barcode with serving_grams, add serving option (deduplicate).
   if (food.source === 'off' && food.serving_grams) {
     list.push({ label: 'serving', grams: food.serving_grams });
   }
   return list;
 }
 
-/**
- * Merge newly-fetched portions into the current row's portions list,
- * starting from what the row already has (which includes 'g' + optional serving).
- * USDA: replace with [g, ...fetched].  OFF: keep existing (serving was set immediately).
- */
 function buildPortionList(row: EditorRow, fetched: FoodPortion[]): FoodPortion[] {
   if (row.source === 'usda') {
     return [GRAMS_UNIT, ...fetched];
   }
-  // OFF: already has its portions from immediatePortions
   return row.portions;
 }
 
-/**
- * Apply a new portions list to a row.  If the currently-selected unit still
- * exists in the new list, keep it; otherwise fall back to the first option.
- */
 function applyNewPortions(row: EditorRow, newPortions: FoodPortion[]): EditorRow {
   const existing = newPortions.find(p => p.label === row.unitLabel);
   if (existing) {
-    // Unit still valid — just update the portions list.
     return { ...row, portions: newPortions };
   }
-  // Current unit is gone — switch to first non-g option if available, else g.
   const preferred = newPortions.length > 1 ? newPortions[1] : GRAMS_UNIT;
-  const quantity = row.unitLabel === 'g' ? 1 : row.quantity; // reset qty to 1 if switching from g
+  const quantity = row.unitLabel === 'g' ? 1 : row.quantity;
   const effectiveGrams = quantity * preferred.grams;
   const macros = row.per100g ? recomputeMacros(row.per100g, effectiveGrams) : {};
   return {
@@ -579,7 +609,14 @@ function Totals({ rows }: TotalsProps) {
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
-export default function EntryEditor({ open, mode, onClose, onConfirm, onDeny }: EntryEditorProps) {
+export default function EntryEditor({
+  open,
+  inline,
+  mode,
+  onClose,
+  onConfirm,
+  onDeny,
+}: EntryEditorProps) {
   const isEdit = mode.kind === 'manual-edit';
   const date = mode.date;
 
@@ -587,7 +624,6 @@ export default function EntryEditor({ open, mode, onClose, onConfirm, onDeny }: 
   const [meal, setMeal] = useState<Meal>(() => {
     if (mode.kind === 'manual-edit') return mode.entry.meal;
     if (mode.kind === 'manual-add') return mode.defaultMeal ?? 'breakfast';
-    // proposal
     return mode.proposal.meal;
   });
 
@@ -604,25 +640,16 @@ export default function EntryEditor({ open, mode, onClose, onConfirm, onDeny }: 
       return mode.entry.ingredients.map(ing => ({
         ...ing,
         rowKey: nextKey(),
-        // Edit mode: load with unit='g', quantity=stored grams (we don't persist the unit).
-        quantity: ing.grams,
-        unitLabel: 'g',
-        unitGrams: 1,
-        portions: [GRAMS_UNIT],
-        per100g: null, // existing edit rows — macros already stored, not per100g
-      }));
-    }
-    if (mode.kind === 'proposal') {
-      // TODO Phase 2: wire proposal ingredients here
-      return mode.proposal.ingredients.map(ing => ({
-        ...ing,
-        rowKey: nextKey(),
         quantity: ing.grams,
         unitLabel: 'g',
         unitGrams: 1,
         portions: [GRAMS_UNIT],
         per100g: null,
       }));
+    }
+    if (mode.kind === 'proposal') {
+      // #10: pre-select serving unit/quantity from ProposeIngredient
+      return mode.proposal.ingredients.map(rowFromProposedIngredient);
     }
     return [emptyRow()];
   });
@@ -642,10 +669,12 @@ export default function EntryEditor({ open, mode, onClose, onConfirm, onDeny }: 
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
-  // Reset form when the mode prop changes (e.g. open different entry).
+  // Reset form when the mode prop changes.
   const modeKind = mode.kind;
   useEffect(() => {
-    if (!open) return;
+    // For inline mode (proposal card in chat), always reset when mode changes.
+    // For dialog mode, only reset when open.
+    if (!open && !inline) return;
     if (mode.kind === 'manual-edit') {
       setMeal(mode.entry.meal);
       setEntryName(mode.entry.name);
@@ -667,21 +696,12 @@ export default function EntryEditor({ open, mode, onClose, onConfirm, onDeny }: 
     } else if (mode.kind === 'proposal') {
       setMeal(mode.proposal.meal);
       setEntryName(mode.proposal.name);
-      setRows(
-        mode.proposal.ingredients.map(ing => ({
-          ...ing,
-          rowKey: nextKey(),
-          quantity: ing.grams,
-          unitLabel: 'g',
-          unitGrams: 1,
-          portions: [GRAMS_UNIT],
-          per100g: null,
-        })),
-      );
+      // #10: serving-aware init for proposal rows
+      setRows(mode.proposal.ingredients.map(rowFromProposedIngredient));
     }
     setSaveError(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, modeKind]);
+  }, [open, inline, modeKind]);
 
   // ----- Row helpers -----
   const updateRow = useCallback((key: number, updated: EditorRow) => {
@@ -724,7 +744,6 @@ export default function EntryEditor({ open, mode, onClose, onConfirm, onDeny }: 
   }, []);
 
   // ----- Save -----
-  // If the user left the entry name blank, fall back to the first ingredient's name.
   const firstValidIngredient = rows.find(r => r.name.trim().length > 0 && r.grams > 0);
   const effectiveName = entryName.trim() || firstValidIngredient?.name.trim() || '';
 
@@ -737,10 +756,9 @@ export default function EntryEditor({ open, mode, onClose, onConfirm, onDeny }: 
     if (!canSave) return;
     setSaveError(null);
 
-    // row.grams is always = quantity × unitGrams (effective grams) — the backend contract is unchanged.
     const ingredients: IngredientInput[] = rows.map(r => ({
       name: r.name,
-      grams: r.grams,
+      grams: r.grams, // effective grams = quantity × unitGrams
       source: r.source,
       source_ref: r.source_ref ?? null,
       calories: r.calories,
@@ -771,12 +789,13 @@ export default function EntryEditor({ open, mode, onClose, onConfirm, onDeny }: 
     }
   }
 
-  // ----- Proposal mode footer (Phase 2 wiring) -----
+  // ----- Proposal confirm: strip serving metadata, send grams-based EntryInput -----
   function handleConfirm() {
     if (!onConfirm) return;
+    // #10: resolve serving-aware rows to plain grams-based IngredientInput
     const ingredients: IngredientInput[] = rows.map(r => ({
       name: r.name,
-      grams: r.grams,
+      grams: r.grams, // always the effective grams (quantity × unitGrams)
       source: r.source,
       source_ref: r.source_ref ?? null,
       calories: r.calories,
@@ -784,7 +803,6 @@ export default function EntryEditor({ open, mode, onClose, onConfirm, onDeny }: 
       carbs_g: r.carbs_g,
       fat_g: r.fat_g,
     }));
-    // Preserve proposal's source (e.g. 'photo', 'text') from mode.
     const proposalSource = mode.kind === 'proposal' ? mode.proposal.source : 'manual';
     onConfirm({
       localDate: date,
@@ -808,6 +826,142 @@ export default function EntryEditor({ open, mode, onClose, onConfirm, onDeny }: 
     'proposal': 'Review Entry',
   };
 
+  // The shared editor form body (used by both dialog and inline modes).
+  const editorContent = (
+    <div className={styles.editor}>
+      {/* Header */}
+      <div className={styles.header}>
+        <h2 className={styles.title}>{titleMap[modeKind]}</h2>
+      </div>
+
+      {/* Meal selector */}
+      <div className={styles.mealSelector} role="group" aria-label="Meal">
+        {MEALS.map(m => (
+          <button
+            key={m}
+            type="button"
+            className={`${styles.mealBtn} ${meal === m ? styles.mealBtnActive : ''}`}
+            onClick={() => setMeal(m)}
+          >
+            {m.charAt(0).toUpperCase() + m.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {/* Entry name */}
+      <div className={styles.field}>
+        <label className={styles.fieldLabel} htmlFor={`entry-name-${inline ? 'inline' : 'modal'}`}>
+          Entry name
+        </label>
+        <input
+          id={`entry-name-${inline ? 'inline' : 'modal'}`}
+          className={styles.input}
+          type="text"
+          placeholder="e.g. Chicken salad"
+          value={entryName}
+          onChange={e => setEntryName(e.target.value)}
+        />
+      </div>
+
+      {/* Ingredient rows */}
+      <div className={styles.ingredientsSection}>
+        <span className={styles.ingredientsLabel}>Ingredients</span>
+        <div className={styles.ingredientsList}>
+          {rows.map(row => (
+            <IngredientRowEditor
+              key={row.rowKey}
+              row={row}
+              onChange={updated => updateRow(row.rowKey, updated)}
+              onRemove={() => removeRow(row.rowKey)}
+              onOpenBarcode={() => handleOpenBarcode(row.rowKey)}
+            />
+          ))}
+        </div>
+        <button
+          type="button"
+          className={styles.addRowBtn}
+          onClick={addRow}
+        >
+          + Add ingredient
+        </button>
+      </div>
+
+      {/* Barcode lookup error */}
+      {barcodeError && (
+        <p className={styles.errorMsg}>{barcodeError}</p>
+      )}
+
+      {/* Live totals */}
+      <Totals rows={rows} />
+
+      {/* Save error */}
+      {saveError && (
+        <p className={styles.errorMsg}>{saveError}</p>
+      )}
+
+      {/* Footer */}
+      <div className={styles.footer}>
+        {isProposal ? (
+          <>
+            <button
+              type="button"
+              className={styles.denyBtn}
+              onClick={handleDeny}
+            >
+              Deny
+            </button>
+            <button
+              type="button"
+              className={styles.saveBtn}
+              onClick={handleConfirm}
+              disabled={!canSave}
+            >
+              Confirm
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              className={styles.cancelBtn}
+              onClick={onClose}
+              disabled={isPending}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={styles.saveBtn}
+              onClick={handleSave}
+              disabled={!canSave}
+            >
+              {isPending ? 'Saving…' : isEdit ? 'Save changes' : 'Save'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  // #9: inline mode — render as a card in the chat message thread, no Dialog
+  if (inline) {
+    return (
+      <>
+        <div className={styles.inlineEditorCard}>
+          {editorContent}
+        </div>
+
+        {scanningRowKey !== null && (
+          <BarcodeScanner
+            onDetected={handleBarcodeDetected}
+            onClose={handleBarcodeClose}
+          />
+        )}
+      </>
+    );
+  }
+
+  // Standard dialog mode
   return (
     <>
       <Modal
@@ -817,123 +971,9 @@ export default function EntryEditor({ open, mode, onClose, onConfirm, onDeny }: 
         showTitle={false}
         contentClassName={styles.modalContent}
       >
-        <div className={styles.editor}>
-          {/* Header */}
-          <div className={styles.header}>
-            <h2 className={styles.title}>{titleMap[modeKind]}</h2>
-          </div>
-
-          {/* Meal selector */}
-          <div className={styles.mealSelector} role="group" aria-label="Meal">
-            {MEALS.map(m => (
-              <button
-                key={m}
-                type="button"
-                className={`${styles.mealBtn} ${meal === m ? styles.mealBtnActive : ''}`}
-                onClick={() => setMeal(m)}
-              >
-                {m.charAt(0).toUpperCase() + m.slice(1)}
-              </button>
-            ))}
-          </div>
-
-          {/* Entry name */}
-          <div className={styles.field}>
-            <label className={styles.fieldLabel} htmlFor="entry-name">
-              Entry name
-            </label>
-            <input
-              id="entry-name"
-              className={styles.input}
-              type="text"
-              placeholder="e.g. Chicken salad"
-              value={entryName}
-              onChange={e => setEntryName(e.target.value)}
-            />
-          </div>
-
-          {/* Ingredient rows */}
-          <div className={styles.ingredientsSection}>
-            <span className={styles.ingredientsLabel}>Ingredients</span>
-            <div className={styles.ingredientsList}>
-              {rows.map(row => (
-                <IngredientRowEditor
-                  key={row.rowKey}
-                  row={row}
-                  onChange={updated => updateRow(row.rowKey, updated)}
-                  onRemove={() => removeRow(row.rowKey)}
-                  onOpenBarcode={() => handleOpenBarcode(row.rowKey)}
-                />
-              ))}
-            </div>
-            <button
-              type="button"
-              className={styles.addRowBtn}
-              onClick={addRow}
-            >
-              + Add ingredient
-            </button>
-          </div>
-
-          {/* Barcode lookup error */}
-          {barcodeError && (
-            <p className={styles.errorMsg}>{barcodeError}</p>
-          )}
-
-          {/* Live totals */}
-          <Totals rows={rows} />
-
-          {/* Save error */}
-          {saveError && (
-            <p className={styles.errorMsg}>{saveError}</p>
-          )}
-
-          {/* Footer */}
-          <div className={styles.footer}>
-            {isProposal ? (
-              <>
-                {/* TODO Phase 2: these buttons call onConfirm/onDeny */}
-                <button
-                  type="button"
-                  className={styles.denyBtn}
-                  onClick={handleDeny}
-                >
-                  Deny
-                </button>
-                <button
-                  type="button"
-                  className={styles.saveBtn}
-                  onClick={handleConfirm}
-                  disabled={!canSave}
-                >
-                  Confirm
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  className={styles.cancelBtn}
-                  onClick={onClose}
-                  disabled={isPending}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className={styles.saveBtn}
-                  onClick={handleSave}
-                  disabled={!canSave}
-                >
-                  {isPending ? 'Saving…' : isEdit ? 'Save changes' : 'Save'}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
+        {editorContent}
       </Modal>
 
-      {/* Barcode scanner renders outside the modal (above it) */}
       {scanningRowKey !== null && (
         <BarcodeScanner
           onDetected={handleBarcodeDetected}
