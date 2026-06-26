@@ -127,3 +127,37 @@ export async function getPortions(
   const res = await clientApi.get('/nutrition/portions', { params: { source, ref } });
   return res.data.data;
 }
+
+// ---- Chat transcripts (server-persisted; DB is source of truth, #15/#17) ----
+// Messages are stored/returned as AI SDK UIMessage objects (parts-based). Typed
+// loosely here so this file doesn't depend on @ai-sdk/react's UIMessage generic;
+// the chat component casts to its own UIMessage[] on load.
+export type StoredChatMessage = {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  parts: unknown[];
+  // 'streaming' assistant rows that ended without an onFinish are flagged so the
+  // client can render an "interrupted" marker (#15).
+  interrupted?: boolean;
+};
+
+/** Load the persisted transcript for a local day (newest run last). */
+export async function fetchTranscript(date: string): Promise<StoredChatMessage[]> {
+  const res = await clientApi.get('/nutrition/chat/transcript', { params: { date } });
+  return res.data.data ?? [];
+}
+
+/** Clear the chat for a local day (DB + the client should also drop its cache). */
+export async function clearTranscript(date: string): Promise<void> {
+  await clientApi.delete('/nutrition/chat/transcript', { params: { date } });
+}
+
+// ---- App feedback (#1) — POST creates a GitHub issue server-side when a
+// GITHUB_TOKEN is configured, else stores in a feedback table. App-level, not
+// nutrition-scoped, but lives here since the feedback UI ships with this batch.
+export async function submitFeedback(input: {
+  category?: 'bug' | 'idea' | 'other';
+  message: string;
+}): Promise<void> {
+  await clientApi.post('/feedback', input);
+}
