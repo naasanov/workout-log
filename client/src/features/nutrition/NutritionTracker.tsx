@@ -1,8 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useDay, useGoals, useDeleteEntry } from './api';
 import EntryEditor from './EntryEditor';
 import NutritionGoalsModal from './NutritionGoalsModal';
-import FeedbackModal from './FeedbackModal';
 import NutritionChat from './NutritionChat';
 import ConfirmModal from '../../components/ConfirmModal.jsx';
 import type { EntryEditorMode, EntryRow } from './types';
@@ -57,6 +56,93 @@ function ProgressBar({ value, goal }: ProgressBarProps) {
   );
 }
 
+// ---- Three-dots entry menu (#72) ----
+
+interface EntryMenuProps {
+  entry: EntryRow;
+  onEdit: (entry: EntryRow) => void;
+  onDelete: (entry: EntryRow) => void;
+}
+
+function EntryMenu({ entry, onEdit, onDelete }: EntryMenuProps) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  // Close on outside tap/click
+  useEffect(() => {
+    if (!open) return;
+    function handleOutside(e: MouseEvent | TouchEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
+  }, [open]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return;
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        btnRef.current?.focus();
+      }
+    }
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [open]);
+
+  return (
+    <div className={styles.entryMenuWrapper} ref={wrapperRef}>
+      <button
+        ref={btnRef}
+        className={styles.dotsBtn}
+        onClick={() => setOpen(v => !v)}
+        aria-label={`Options for ${entry.name}`}
+        aria-haspopup="true"
+        aria-expanded={open}
+      >
+        {/* Vertical three-dots icon */}
+        <svg
+          className={styles.dotsIcon}
+          viewBox="0 0 4 18"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <circle cx="2" cy="2" r="1.6" />
+          <circle cx="2" cy="9" r="1.6" />
+          <circle cx="2" cy="16" r="1.6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className={styles.entryDropdown} role="menu">
+          <button
+            className={styles.entryDropdownItem}
+            role="menuitem"
+            onClick={() => { setOpen(false); onEdit(entry); }}
+          >
+            Edit
+          </button>
+          <button
+            className={`${styles.entryDropdownItem} ${styles.entryDropdownItemDanger}`}
+            role="menuitem"
+            onClick={() => { setOpen(false); onDelete(entry); }}
+          >
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---- Main component ----
 
 export default function NutritionTracker() {
@@ -74,9 +160,6 @@ export default function NutritionTracker() {
 
   // Goals modal
   const [goalsModalOpen, setGoalsModalOpen] = useState(false);
-
-  // Feedback modal
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   // Pending delete
   const [pendingDeleteEntry, setPendingDeleteEntry] = useState<EntryRow | null>(null);
@@ -188,7 +271,7 @@ export default function NutritionTracker() {
         </button>
       </div>
 
-      {/* Actions row */}
+      {/* Actions row — Feedback button removed (#60: moved to Header) */}
       <div className={styles.actions}>
         <button className={styles.addBtn} onClick={openAddEditor}>
           + Add food
@@ -203,15 +286,7 @@ export default function NutritionTracker() {
           Ask AI
         </button>
 
-        <button
-          className={styles.feedbackBtn}
-          onClick={() => setFeedbackOpen(true)}
-          aria-label="Send feedback"
-          title="Send feedback"
-        >
-          Feedback
-        </button>
-
+        {/* Goals button — #73: bullseye/target icon instead of sun-like glyph */}
         <button
           className={styles.settingsBtn}
           onClick={() => setGoalsModalOpen(true)}
@@ -224,13 +299,10 @@ export default function NutritionTracker() {
             fill="none"
             aria-hidden="true"
           >
-            <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.8" />
-            <path
-              d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-            />
+            {/* Bullseye / target icon: outer ring, middle ring, centre dot */}
+            <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.8" />
+            <circle cx="10" cy="10" r="4.5" stroke="currentColor" strokeWidth="1.8" />
+            <circle cx="10" cy="10" r="1.5" fill="currentColor" />
           </svg>
         </button>
       </div>
@@ -315,28 +387,18 @@ export default function NutritionTracker() {
 
           {mealEntries.map(entry => (
             <div key={entry.id} className={styles.entryRow}>
-              {/* Item 16: name on its own row (wraps up to 2 lines), kcal+buttons below */}
+              {/* #72: three-dots menu at top-right; name wraps up to 2 lines */}
               <div className={styles.entryTop}>
                 <span className={styles.entryName}>{entry.name}</span>
-                <div className={styles.entryMeta}>
-                  <span className={styles.entryCalories}>{Math.round(entry.calories)} kcal</span>
-                  <div className={styles.entryBtns}>
-                    <button
-                      className={styles.editBtn}
-                      onClick={() => openEditEditor(entry)}
-                      aria-label={`Edit ${entry.name}`}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className={styles.deleteBtn}
-                      onClick={() => setPendingDeleteEntry(entry)}
-                      aria-label={`Delete ${entry.name}`}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
+                <EntryMenu
+                  entry={entry}
+                  onEdit={openEditEditor}
+                  onDelete={setPendingDeleteEntry}
+                />
+              </div>
+
+              <div className={styles.entryMeta}>
+                <span className={styles.entryCalories}>{Math.round(entry.calories)} kcal</span>
               </div>
 
               <div className={styles.macroChips}>
@@ -367,12 +429,6 @@ export default function NutritionTracker() {
       <NutritionGoalsModal
         open={goalsModalOpen}
         onClose={() => setGoalsModalOpen(false)}
-      />
-
-      {/* Feedback modal */}
-      <FeedbackModal
-        open={feedbackOpen}
-        onClose={() => setFeedbackOpen(false)}
       />
 
       {/* Delete confirmation */}
