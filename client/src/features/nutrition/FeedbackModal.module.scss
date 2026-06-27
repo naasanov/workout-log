@@ -138,7 +138,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px 0 12px;
+  // No extra padding — the parent .modal gap and existing header margin provide sufficient spacing
 }
 
 .successMsg {
