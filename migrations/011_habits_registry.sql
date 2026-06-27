@@ -1,6 +1,6 @@
 -- Adds a per-user habits registry table so habits have an identity beyond
 -- just a tally key.  Existing tallies are unaffected: habit_tallies continues
--- to store rows keyed by habit_name; this table simply gives users a named
+-- to store rows keyed by habit_name. This table simply gives users a named
 -- list they can manage (create / rename / delete / reorder).
 --
 -- Seeding: any user who already has tallies for 'nail-biting' gets that habit
