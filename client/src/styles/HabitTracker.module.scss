@@ -153,14 +153,10 @@
 
 .adjustBtnIcon {
   display: block;
-  width: 14px;
-  height: 14px;
+  // #75: standardize to 16px on all breakpoints (was 14px desktop / 16px mobile)
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
-
-  @media (max-width: $mobile-width) {
-    width: 16px;
-    height: 16px;
-  }
 }
 
 // ── Tally marks ────────────────────────────────────────────────────────────────
@@ -548,8 +544,9 @@
 
   svg {
     display: block;
-    width: 15px;
-    height: 15px;
+    // #75: standardize addHabitBtn plus icon to 16px
+    width: 16px;
+    height: 16px;
     flex-shrink: 0;
   }
 
