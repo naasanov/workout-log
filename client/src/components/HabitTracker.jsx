@@ -546,6 +546,14 @@ function HabitTracker() {
     if (!activeHabit) return;
     const row = displayRows.find(r => r.date === date);
     if (!row) return;
+    // If no tally row is persisted yet for this date (e.g. today's synthetic
+    // row on a freshly created habit), create it via the upsert tally endpoint.
+    // PATCHing a non-existent row 404s, which silently rolled the count back.
+    const serverRow = rows.find(r => r.date === date);
+    if (!serverRow) {
+      addTallyMutation.mutate({ localDate: date, localTime: getNowLocalTime() });
+      return;
+    }
     const newCount = row.count + 1;
     // Optimistic update
     queryClient.setQueryData(['habits', activeHabit.name], (prev) => {
