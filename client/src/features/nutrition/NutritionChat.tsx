@@ -14,6 +14,17 @@
  * #14 Send→Stop button during streaming (stop icon, calls useChat stop())
  * #15 Transcripts = DB source of truth (fetchTranscript on open/day-change/focus)
  * #17 Interrupted marker for assistant rows that ended without onFinish
+ *
+ * Feedback-issues fixes:
+ * #61 Safe-area on sheet bottom so composer clears iOS home indicator
+ * #64 overscroll-behavior containment + touch-action on header to stop page scroll bleed
+ * #65 Entire header row acts as drag handle (not just the thin pill)
+ * #66 Animate reasoning open/close (max-height transition, same as ToolCallCard)
+ * #70 Confirm before clearing chat (ConfirmModal)
+ * #71 Confirmed-proposal line includes entry name (rawArgs.name)
+ * #74 Messages not scrollable while sheet is in peek state
+ * #76 Collapse adjacent reasoning parts into one block per message
+ * #77 ReasoningBubble collapsed state matches ToolCallCard styling
  */
 import {
   useState,
@@ -30,6 +41,7 @@ import type { StoredChatMessage } from './api';
 import EntryEditor from './EntryEditor';
 import BarcodeScanner from './BarcodeScanner';
 import ToolCallCard from './ToolCallCard';
+import ConfirmModal from '../../components/ConfirmModal';
 import type { EntryInput, EntryEditorMode, ProposeEntryArgs } from './types';
 import styles from './NutritionChat.module.scss';
 
@@ -177,7 +189,7 @@ function useAutoGrow(ref: React.RefObject<HTMLTextAreaElement | null>, value: st
 }
 
 // ---------------------------------------------------------------------------
-// Reasoning collapsible
+// #66/#77: Reasoning collapsible — animated like ToolCallCard
 // ---------------------------------------------------------------------------
 interface ReasoningBubbleProps {
   text: string;
@@ -186,19 +198,29 @@ interface ReasoningBubbleProps {
 
 function ReasoningBubble({ text, streaming }: ReasoningBubbleProps) {
   const [open, setOpen] = useState(false);
+  const innerRef = useRef<HTMLDivElement>(null);
+
   if (!streaming && !text.trim()) return null;
 
   return (
     <div className={styles.reasoning}>
+      {/* #77: collapsed header matches ToolCallCard .header styling */}
       <button
         type="button"
         className={styles.reasoningToggle}
         onClick={() => setOpen(p => !p)}
         aria-expanded={open}
       >
-        <svg className={styles.reasoningChevron} viewBox="0 0 10 6" fill="none" aria-hidden="true" style={{ display: 'block' }}>
+        {/* #77: same chevron pattern as ToolCallCard */}
+        <svg
+          className={`${styles.reasoningChevron} ${open ? styles.reasoningChevronOpen : ''}`}
+          viewBox="0 0 10 6"
+          fill="none"
+          aria-hidden="true"
+          style={{ display: 'block' }}
+        >
           <path
-            d={open ? 'M1 5l4-4 4 4' : 'M1 1l4 4 4-4'}
+            d="M1 1l4 4 4-4"
             stroke="currentColor"
             strokeWidth="1.8"
             strokeLinecap="round"
@@ -206,14 +228,68 @@ function ReasoningBubble({ text, streaming }: ReasoningBubbleProps) {
           />
         </svg>
         {streaming ? 'Thinking…' : 'Reasoning'}
+        {/* Streaming pulse dot — matches ToolCallCard spinner */}
+        {streaming && <span className={styles.reasoningSpinner} aria-hidden="true" />}
       </button>
-      {open && (
-        <div className={styles.reasoningText}>
+
+      {/* #66: Animated body — max-height transition same as ToolCallCard AnimatedBody */}
+      <div
+        className={`${styles.reasoningBody} ${open ? styles.reasoningBodyOpen : ''}`}
+        style={
+          open
+            ? { maxHeight: innerRef.current ? innerRef.current.scrollHeight + 'px' : '800px' }
+            : { maxHeight: '0px' }
+        }
+        aria-hidden={!open}
+      >
+        <div ref={innerRef} className={styles.reasoningText}>
           <ReactMarkdown>{text}</ReactMarkdown>
         </div>
-      )}
+      </div>
     </div>
   );
+}
+
+// ---------------------------------------------------------------------------
+// #76: Merge adjacent reasoning parts in a message into a single combined block
+// ---------------------------------------------------------------------------
+type MergedPart =
+  | { type: 'merged-reasoning'; text: string; streaming: boolean; originalIndices: number[] }
+  | { type: 'other'; part: UIMessage['parts'][number]; originalIndex: number };
+
+function mergeReasoningParts(parts: UIMessage['parts']): MergedPart[] {
+  const result: MergedPart[] = [];
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (part.type === 'reasoning') {
+      // Start a merged reasoning block
+      const texts: string[] = [part.text];
+      const indices: number[] = [i];
+      const isStreaming = part.state === 'streaming';
+      let mergedStreaming = isStreaming;
+
+      // Consume all consecutive reasoning parts
+      while (i + 1 < parts.length && parts[i + 1].type === 'reasoning') {
+        i++;
+        const next = parts[i] as { type: 'reasoning'; text: string; state?: string };
+        texts.push(next.text);
+        indices.push(i);
+        if (next.state === 'streaming') mergedStreaming = true;
+      }
+
+      result.push({
+        type: 'merged-reasoning',
+        text: texts.join('\n\n'),
+        streaming: mergedStreaming,
+        originalIndices: indices,
+      });
+    } else {
+      result.push({ type: 'other', part, originalIndex: i });
+    }
+  }
+
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -227,7 +303,7 @@ interface MessageProps {
   onProposalConfirm: (input: EntryInput, partKey: string) => void;
   onProposalDeny: (partKey: string) => void;
   deniedProposals: Set<string>;
-  confirmedProposals: Set<string>;
+  confirmedProposals: Map<string, string>; // partKey → entry name
 }
 
 function ChatMessage({
@@ -245,9 +321,25 @@ function ChatMessage({
   const interrupted = !!(message as unknown as { interrupted?: boolean }).interrupted;
   const isStreamingThis = isLastAssistant && isStreaming;
 
+  // #76: merge adjacent reasoning parts before rendering
+  const mergedParts = mergeReasoningParts(message.parts);
+
   return (
     <div className={`${styles.messageGroup} ${isUser ? styles.messageGroupUser : styles.messageGroupAssistant}`}>
-      {message.parts.map((part, idx) => {
+      {mergedParts.map((merged, renderIdx) => {
+        // ---- Merged reasoning block (#76) ----
+        if (merged.type === 'merged-reasoning') {
+          return (
+            <ReasoningBubble
+              key={`reasoning-${renderIdx}`}
+              text={merged.text}
+              streaming={merged.streaming}
+            />
+          );
+        }
+
+        const { part, originalIndex: idx } = merged;
+
         // ---- Text part ----
         if (part.type === 'text') {
           if (!part.text) return null;
@@ -279,17 +371,6 @@ function ChatMessage({
           );
         }
 
-        // ---- Reasoning part ----
-        if (part.type === 'reasoning') {
-          return (
-            <ReasoningBubble
-              key={idx}
-              text={part.text}
-              streaming={part.state === 'streaming'}
-            />
-          );
-        }
-
         // ---- Tool invocation part ----
         if (isToolUIPart(part)) {
           const toolName = getToolName(part as ToolUIPart | DynamicToolUIPart);
@@ -299,7 +380,8 @@ function ChatMessage({
           if (toolName === 'propose_entry') {
             const partKey = `${message.id}-${toolCallId}`;
             const isDenied = deniedProposals.has(partKey);
-            const isConfirmed = confirmedProposals.has(partKey);
+            const confirmedName = confirmedProposals.get(partKey);
+            const isConfirmed = confirmedName !== undefined;
 
             if (isDenied) {
               return (
@@ -308,10 +390,11 @@ function ChatMessage({
                 </div>
               );
             }
+            // #71: include entry name in confirmed message
             if (isConfirmed) {
               return (
                 <div key={idx} className={styles.proposalConfirmed}>
-                  Entry logged!
+                  {confirmedName ? `Logged: ${confirmedName}` : 'Entry logged!'}
                 </div>
               );
             }
@@ -478,13 +561,17 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
 
   // ---- Proposal state tracking ----
   const [deniedProposals, setDeniedProposals] = useState<Set<string>>(new Set());
-  const [confirmedProposals, setConfirmedProposals] = useState<Set<string>>(new Set());
+  // #71: store name alongside confirmation so the message can display it
+  const [confirmedProposals, setConfirmedProposals] = useState<Map<string, string>>(new Map());
 
   // ---- Composer state ----
   const [text, setText] = useState('');
   const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [barcodeOpen, setBarcodeOpen] = useState(false);
+
+  // #70: confirm-clear-chat dialog state
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // ---- Refs ----
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -628,11 +715,14 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
 
   const handleProposalConfirmWithTracking = useCallback(async (input: EntryInput, partKey: string) => {
     await createEntry.mutateAsync(input);
-    setConfirmedProposals(prev => new Set([...prev, partKey]));
+    // #71: store the entry name so the confirmed message can display it
+    const entryName = (input as unknown as { name?: string }).name ?? '';
+    setConfirmedProposals(prev => new Map([...prev, [partKey, entryName]]));
   }, [createEntry]);
 
-  // ---- #7: Clear chat ----
-  const handleClearChat = useCallback(async () => {
+  // ---- #7/#70: Clear chat — guarded by ConfirmModal ----
+  const executeClearChat = useCallback(async () => {
+    setShowClearConfirm(false);
     try {
       await clearTranscript(selectedDate);
     } catch {
@@ -641,8 +731,12 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     dropMessagesForDate(selectedDate);
     setMessages([]);
     setDeniedProposals(new Set());
-    setConfirmedProposals(new Set());
+    setConfirmedProposals(new Map());
   }, [selectedDate, setMessages]);
+
+  const handleClearChat = useCallback(() => {
+    setShowClearConfirm(true);
+  }, []);
 
   // ---- #2: Bottom sheet follows finger (continuous pointermove, snap on release) ----
   // We drive sheetHeight as an integer px value while dragging.
@@ -747,30 +841,48 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
       >
         <span className={styles.srOnly}>Nutrition AI</span>
 
-        {/* #2: Drag handle — continuous pointer tracking */}
-        <button
-          type="button"
+        {/* #65: Entire header area is the drag target.
+            When collapsed, this is the only visible region — a thin strip.
+            When expanded, the header row (with title + buttons) also drags.
+            We keep a separate visual pill inside for discoverability. */}
+        <div
           className={styles.dragHandleBtn}
           onPointerDown={handleDragPointerDown}
           onPointerMove={handleDragPointerMove}
           onPointerUp={handleDragPointerUp}
           onPointerCancel={handleDragPointerUp}
+          role="button"
+          tabIndex={0}
           aria-label={isExpanded ? 'Collapse AI chat' : 'Expand AI chat'}
           aria-expanded={isExpanded}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              isExpanded ? collapse() : setExpanded(true);
+            }
+          }}
         >
+          {/* #65: Visual pill — inside the drag zone, just a cue */}
           <span className={styles.dragHandle} aria-hidden="true" />
-        </button>
+        </div>
 
-        {/* Header — only shown when expanded */}
+        {/* #65: Header row also participates in drag (#64: touch-action:none stops page scroll) */}
         {isExpanded && (
-          <div className={styles.header}>
+          <div
+            className={styles.header}
+            onPointerDown={handleDragPointerDown}
+            onPointerMove={handleDragPointerMove}
+            onPointerUp={handleDragPointerUp}
+            onPointerCancel={handleDragPointerUp}
+          >
             <span className={styles.headerTitle}>Ask AI</span>
 
-            {/* #7: Clear chat button */}
+            {/* #7/#70: Clear chat — now opens confirmation dialog */}
             <button
               type="button"
               className={styles.clearBtn}
-              onClick={handleClearChat}
+              onClick={(e) => { e.stopPropagation(); handleClearChat(); }}
+              onPointerDown={(e) => e.stopPropagation()}
               aria-label="Clear chat"
               title="Clear today's chat"
             >
@@ -782,7 +894,8 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
             <button
               type="button"
               className={styles.closeBtn}
-              onClick={collapse}
+              onClick={(e) => { e.stopPropagation(); collapse(); }}
+              onPointerDown={(e) => e.stopPropagation()}
               aria-label="Collapse"
             >
               <svg className={styles.collapseSvg} viewBox="0 0 14 8" fill="none" aria-hidden="true">
@@ -792,10 +905,11 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
           </div>
         )}
 
-        {/* #6: Messages — overscroll-behavior:contain prevents body scroll */}
+        {/* #6/#74: Messages — overscroll-behavior:contain prevents body scroll.
+            #74: When in peek state, disable scrolling entirely. */}
         <div
           ref={messagesContainerRef}
-          className={styles.messages}
+          className={`${styles.messages} ${!isExpanded ? styles.messagesPeek : ''}`}
           onScroll={checkNearBottom}
         >
           {messages.length === 0 && (
@@ -846,7 +960,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
           <p className={styles.photoError}>{photoError}</p>
         )}
 
-        {/* Composer — #3: safe-area padding, #4: 16px font-size on mobile */}
+        {/* Composer — #3/#61: safe-area padding, #4: 16px font-size on mobile */}
         <div className={styles.composer}>
           {/* Photo attach button */}
           <button
@@ -940,6 +1054,15 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
         <BarcodeScanner
           onDetected={handleBarcodeDetected}
           onClose={() => setBarcodeOpen(false)}
+        />
+      )}
+
+      {/* #70: Confirm before clearing chat */}
+      {showClearConfirm && (
+        <ConfirmModal
+          message="Clear today's chat? This cannot be undone."
+          onConfirm={executeClearChat}
+          onCancel={() => setShowClearConfirm(false)}
         />
       )}
     </>
