@@ -15,3 +15,7 @@ $sarabun-spacing: 2px;
 $border-radius: 15px;
 
 $mobile-width: 885px;
+
+// #75: Standard size for small UI-glyph icons (header, section, button icons).
+// Intentionally-larger icons (hero/nav/avatar) may exceed this — use judgment.
+$icon-size: 16px;

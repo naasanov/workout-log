@@ -109,6 +109,7 @@
 
 .icon {
   display: flex;
+  // Keep tap-target size at 40px; icon itself standardized to 16px (#75)
   width: 40px;
   height: 40px;
   align-items: center;
@@ -119,9 +120,11 @@
   border-radius: 100px;
   cursor: pointer;
 
+  // #75: standardize movement delete icon to 16px
   img {
-    width: 30px;
-    height: 30px;
+    width: 16px;
+    height: 16px;
+    display: block; // iOS Safari SVG fix
   }
 
   &:hover {

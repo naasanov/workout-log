@@ -212,8 +212,9 @@
 // SVG icon: display:block is required — avoids iOS Safari flex-child misrender
 .barcodeIcon {
   display: block;
-  width: 20px;
-  height: 20px;
+  // #75: standardize barcode scanner button icon to 16px
+  width: 16px;
+  height: 16px;
 }
 
 // Row: nutrient fields — two-zone layout
