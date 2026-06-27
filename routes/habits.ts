@@ -8,6 +8,172 @@ import { User } from '../types';
 const router = Router();
 router.use(authenticateToken);
 
+// ─── Habits registry CRUD ──────────────────────────────────────────────────────
+
+// GET /habits — list all habits for the user (ordered by ordering, then created_at)
+router.get('/', async (req, res): Promise<any> => {
+    const { uuid }: User = res.locals.user;
+
+    let data: RowDataPacket[];
+    try {
+        [data] = await pool.query<RowDataPacket[]>(`
+            SELECT id, name, ordering, created_at
+            FROM habits
+            WHERE user_uuid = UUID_TO_BIN(?)
+            ORDER BY ordering ASC, created_at ASC
+        `, [uuid]);
+    } catch (error) {
+        return handleSqlError(error, res);
+    }
+
+    res.status(200).json({ data, message: 'Successfully retrieved habits' });
+});
+
+// POST /habits — create a new habit
+router.post('/', async (req, res): Promise<any> => {
+    const { uuid }: User = res.locals.user;
+    const { name } = req.body as { name?: string };
+
+    if (!name || typeof name !== 'string' || !name.trim()) {
+        return res.status(400).json({ message: 'name is required' });
+    }
+    const trimmed = name.trim().slice(0, 100);
+
+    // Determine next ordering value
+    let maxRow: RowDataPacket[];
+    try {
+        [maxRow] = await pool.query<RowDataPacket[]>(`
+            SELECT COALESCE(MAX(ordering), -1) AS maxOrd
+            FROM habits
+            WHERE user_uuid = UUID_TO_BIN(?)
+        `, [uuid]);
+    } catch (error) {
+        return handleSqlError(error, res);
+    }
+    const nextOrd = ((maxRow[0]?.maxOrd as number) ?? -1) + 1;
+
+    let result: ResultSetHeader;
+    try {
+        [result] = await pool.query<ResultSetHeader>(`
+            INSERT INTO habits (user_uuid, name, ordering)
+            VALUES (UUID_TO_BIN(?), ?, ?)
+        `, [uuid, trimmed, nextOrd]);
+    } catch (error: any) {
+        if (error?.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({ message: `Habit "${trimmed}" already exists` });
+        }
+        return handleSqlError(error, res);
+    }
+
+    res.status(201).json({
+        data: { id: result.insertId, name: trimmed, ordering: nextOrd },
+        message: `Habit "${trimmed}" created`
+    });
+});
+
+// PATCH /habits/:id — rename a habit (also renames its tallies)
+router.patch('/:id', async (req, res): Promise<any> => {
+    const { uuid }: User = res.locals.user;
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ message: 'Invalid habit id' });
+
+    const { name } = req.body as { name?: string };
+    if (!name || typeof name !== 'string' || !name.trim()) {
+        return res.status(400).json({ message: 'name is required' });
+    }
+    const newName = name.trim().slice(0, 100);
+
+    // Look up the old name so we can rename tallies
+    let rows: RowDataPacket[];
+    try {
+        [rows] = await pool.query<RowDataPacket[]>(`
+            SELECT name FROM habits
+            WHERE id = ? AND user_uuid = UUID_TO_BIN(?)
+        `, [id, uuid]);
+    } catch (error) {
+        return handleSqlError(error, res);
+    }
+    if (rows.length === 0) {
+        return res.status(404).json({ message: 'Habit not found' });
+    }
+    const oldName: string = rows[0].name;
+
+    // Rename in registry
+    let result: ResultSetHeader;
+    try {
+        [result] = await pool.query<ResultSetHeader>(`
+            UPDATE habits SET name = ?
+            WHERE id = ? AND user_uuid = UUID_TO_BIN(?)
+        `, [newName, id, uuid]);
+    } catch (error: any) {
+        if (error?.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({ message: `Habit "${newName}" already exists` });
+        }
+        return handleSqlError(error, res);
+    }
+    if (result.affectedRows === 0) {
+        return res.status(404).json({ message: 'Habit not found' });
+    }
+
+    // Rename all tallies for this user+old-name to the new name
+    try {
+        await pool.query<ResultSetHeader>(`
+            UPDATE habit_tallies SET habit_name = ?
+            WHERE user_uuid = UUID_TO_BIN(?) AND habit_name = ?
+        `, [newName, uuid, oldName]);
+    } catch (error) {
+        console.error('Failed to rename habit tallies:', error);
+    }
+
+    res.status(200).json({ data: { id, name: newName }, message: `Habit renamed to "${newName}"` });
+});
+
+// DELETE /habits/:id — delete a habit and all its tallies
+router.delete('/:id', async (req, res): Promise<any> => {
+    const { uuid }: User = res.locals.user;
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ message: 'Invalid habit id' });
+
+    // Look up name so we can delete tallies
+    let rows: RowDataPacket[];
+    try {
+        [rows] = await pool.query<RowDataPacket[]>(`
+            SELECT name FROM habits
+            WHERE id = ? AND user_uuid = UUID_TO_BIN(?)
+        `, [id, uuid]);
+    } catch (error) {
+        return handleSqlError(error, res);
+    }
+    if (rows.length === 0) {
+        return res.status(404).json({ message: 'Habit not found' });
+    }
+    const habitName: string = rows[0].name;
+
+    // Delete tallies first
+    try {
+        await pool.query<ResultSetHeader>(`
+            DELETE FROM habit_tallies
+            WHERE user_uuid = UUID_TO_BIN(?) AND habit_name = ?
+        `, [uuid, habitName]);
+    } catch (error) {
+        return handleSqlError(error, res);
+    }
+
+    // Delete from registry
+    try {
+        await pool.query<ResultSetHeader>(`
+            DELETE FROM habits
+            WHERE id = ? AND user_uuid = UUID_TO_BIN(?)
+        `, [id, uuid]);
+    } catch (error) {
+        return handleSqlError(error, res);
+    }
+
+    res.status(200).json({ message: `Habit "${habitName}" and its tallies deleted` });
+});
+
+// ─── Tally endpoints (keyed by habit name — unchanged) ─────────────────────────
+
 // GET all rows for a habit (sorted descending by date)
 router.get('/:habitName', async (req, res): Promise<any> => {
     const { uuid }: User = res.locals.user;
