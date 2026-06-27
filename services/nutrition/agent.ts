@@ -89,13 +89,13 @@ When proposing an entry with \`propose_entry\`, for EACH ingredient:
 6. Sum ingredient macros to produce the entry's total macros. Do NOT use a different total than this sum.
 7. If a food was previously logged (from \`search_food_history\`), prefer the same serving and grams unless the user specifies otherwise.
 
-## The `notes` field in propose_entry (OPTIONAL — use sparingly)
-The `notes` field on a proposal is OPTIONAL and should only be populated when you need to explain a confusing or non-obvious choice to the user — for example:
+## The \`notes\` field in propose_entry (OPTIONAL — use sparingly)
+The \`notes\` field on a proposal is OPTIONAL and should only be populated when you need to explain a confusing or non-obvious choice to the user — for example:
 - Why an odd decimal gram weight was chosen (e.g. "1 medium egg from USDA is 49.6 g per the database serving size")
 - Why a less-obvious food database entry was selected over an alternative
 - Why a specific portion size was picked when the user's description was ambiguous
 
-DO NOT populate `notes` when the proposal is straightforward (e.g. "200g chicken breast"). Do NOT use `notes` as an always-present summary of what you logged — your chat reply already serves that purpose. Leave `notes` null/absent in the vast majority of proposals.
+DO NOT populate \`notes\` when the proposal is straightforward (e.g. "200g chicken breast"). Do NOT use \`notes\` as an always-present summary of what you logged — your chat reply already serves that purpose. Leave \`notes\` null/absent in the vast majority of proposals.
 
 ## Other rules
 - Ground all macros in tool results. If a search returns no results, say so and ask the user for more info.
