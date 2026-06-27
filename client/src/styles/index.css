@@ -11,3 +11,18 @@ body {
 html {
   overflow-y: scroll;
 }
+
+/*
+ * #62: Prevent iOS Safari from auto-zooming on input/textarea/select focus.
+ * iOS zooms whenever the focused element has font-size < 16px.
+ * A single global rule on mobile is the safest fix — no per-component changes needed.
+ * The !important is intentional: component-level font-size rules that are < 16px
+ * must be overridden to guarantee no zoom on any form control.
+ */
+@media (max-width: 885px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
