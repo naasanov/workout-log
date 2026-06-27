@@ -8,6 +8,8 @@
   }
 }
 
+// ── Desktop tab row ─────────────────────────────────────────────────────────
+// Visible on desktop, hidden on mobile (replaced by .mobileNav)
 .tabs {
   display: flex;
   flex-wrap: wrap; // never let the 4 tabs cause horizontal page scroll
@@ -15,16 +17,9 @@
   margin-bottom: 1.5rem;
   border-bottom: 2px solid $surface;
   padding-bottom: 0;
-}
 
-// Shrink tabs on small screens so all four fit on one row at phone widths
-@media (max-width: 480px) {
-  .tab {
-    padding: 8px 12px;
-    font-size: 15px;
-  }
-  .tabs {
-    gap: 2px;
+  @media (max-width: $mobile-width) {
+    display: none;
   }
 }
 
@@ -45,16 +40,108 @@
   &:hover {
     color: $text;
   }
-
-  @media (max-width: $mobile-width) {
-    font-size: 16px;
-    padding: 8px 14px;
-  }
 }
 
 .tabActive {
   color: $primary;
   border-bottom-color: $primary-border;
+}
+
+// ── Mobile hamburger nav ─────────────────────────────────────────────────────
+// Hidden on desktop, visible on mobile
+.mobileNav {
+  display: none;
+  position: relative;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid $surface;
+  padding-bottom: 0;
+
+  @media (max-width: $mobile-width) {
+    display: block;
+  }
+}
+
+.mobileNavToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid $primary-border;
+  margin-bottom: -2px;
+  padding: 10px 4px;
+  cursor: pointer;
+  color: $primary;
+  font-family: $sarabun;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: $sarabun-spacing;
+  // Ensure good tap target size
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.mobileNavLabel {
+  // no extra styles needed — inherits from toggle
+}
+
+.mobileNavChevron {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+  color: $primary;
+}
+
+.mobileNavChevronOpen {
+  transform: rotate(180deg);
+}
+
+.mobileNavMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 100;
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  background: $surface;
+  border: 1px solid $surface-border;
+  border-radius: $border-radius;
+  min-width: 160px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+
+  li {
+    margin: 0;
+    padding: 0;
+  }
+}
+
+.mobileNavItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 12px 16px;
+  cursor: pointer;
+  color: rgba($text, 0.7);
+  font-family: $sarabun;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: $sarabun-spacing;
+  text-align: left;
+  // Ensure good tap target size on mobile
+  min-height: 44px;
+  transition: background 0.12s ease, color 0.12s ease;
+
+  &:active {
+    background: $primary-translucent;
+  }
+}
+
+.mobileNavItemActive {
+  color: $primary;
 }
 
 .sectionWrapper {
