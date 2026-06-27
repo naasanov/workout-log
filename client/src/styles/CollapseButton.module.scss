@@ -2,6 +2,7 @@
 
 .btn {
   display: flex;
+  // Keep tap-target size at 40px; the icon itself is standardized to 16px (#75)
   width: 40px;
   height: 40px;
   align-items: center;
@@ -12,19 +13,12 @@
   border-radius: 100px;
   cursor: pointer;
 
+  // #75: standardize collapse chevron to 16px on all breakpoints
   img {
-    width: 30px;
-    height: 30px;
-  }
-
-  @media (max-width: $mobile-width) {
-    width: 28px;
-    height: 28px;
-
-    img {
-      width: 18px;
-      height: 18px;
-    }
+    width: $icon-size;
+    height: $icon-size;
+    // iOS Safari SVG fix: block prevents inline-block line-height gap
+    display: block;
   }
 
   &:hover {

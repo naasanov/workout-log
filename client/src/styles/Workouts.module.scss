@@ -237,6 +237,7 @@
 
 .icon {
   display: flex;
+  // Keep tap-target size at 40px; icon itself standardized to 16px (#75)
   width: 40px;
   height: 40px;
   align-items: center;
@@ -247,19 +248,11 @@
   border-radius: 100px;
   cursor: pointer;
 
+  // #75: standardize section delete/plus icons to 16px on all breakpoints
   img {
-    width: 30px;
-    height: 30px;
-  }
-
-  @media (max-width: $mobile-width) {
-    width: 28px;
-    height: 28px;
-
-    img {
-      width: 18px;
-      height: 18px;
-    }
+    width: 16px;
+    height: 16px;
+    display: block; // iOS Safari SVG fix
   }
 
   &:hover {
