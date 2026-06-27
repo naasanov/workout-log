@@ -152,8 +152,9 @@
 
 .clearIcon {
   display: block; // iOS Safari SVG fix
-  width: 18px;
-  height: 18px;
+  // #75: standardize to 16px UI glyph
+  width: 16px;
+  height: 16px;
 }
 
 .closeBtn {
@@ -654,8 +655,9 @@
 
 .composerBtnIcon {
   display: block; // iOS Safari SVG fix
-  width: 20px;
-  height: 20px;
+  // #75: standardize to 16px UI glyph
+  width: 16px;
+  height: 16px;
 }
 
 .hiddenFileInput {
@@ -737,8 +739,9 @@
 
 .sendIcon {
   display: block; // iOS Safari SVG fix
-  width: 18px;
-  height: 18px;
+  // #75: standardize to 16px UI glyph
+  width: 16px;
+  height: 16px;
 }
 
 // ---- Animations ----

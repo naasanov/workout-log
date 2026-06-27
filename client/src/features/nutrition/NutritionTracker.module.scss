@@ -40,8 +40,9 @@
 
 .arrowIcon {
   display: block;
-  width: 18px;
-  height: 18px;
+  // #75: standardize date-nav arrow to 16px
+  width: 16px;
+  height: 16px;
 }
 
 .dateInput {
@@ -141,8 +142,9 @@
 
 .settingsIcon {
   display: block;
-  width: 20px;
-  height: 20px;
+  // #75: standardize goals/settings icon to 16px
+  width: 16px;
+  height: 16px;
 }
 
 // ---- Totals card ----
