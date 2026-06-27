@@ -28,13 +28,17 @@
   transition: height 0.3s cubic-bezier(0.32, 0.72, 0, 1);
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  // #61: safe-area-inset-bottom on the sheet itself ensures the entire sheet
+  // (including rounded corners) clears the home indicator on iPhone.
+  padding-bottom: env(safe-area-inset-bottom);
 
   &:focus { outline: none; }
 }
 
 // Peek: just the drag handle + composer visible
+// #61: height now uses max() to account for safe-area on iPhone
 .sheetPeek {
-  height: 96px;
+  height: calc(96px + env(safe-area-inset-bottom));
 }
 
 // Expanded: full chat
@@ -50,7 +54,9 @@
 }
 
 // ---- Drag handle ----
-// #2: touch-action:none is critical — prevents browser scroll from competing
+// #2/#65: touch-action:none is critical — prevents browser scroll from competing.
+// #65: Acts as drag handle for the pill strip at the top.
+// #64: overscroll-behavior:none prevents iOS rubber-band from firing here.
 .dragHandleBtn {
   display: flex;
   align-items: center;
@@ -61,7 +67,11 @@
   border: none;
   cursor: grab;
   flex-shrink: 0;
-  touch-action: none; // let pointer events work without browser scroll interference
+  // #64: prevent touch scroll events on handle from propagating to page
+  touch-action: none;
+  overscroll-behavior: none;
+  // keyboard nav
+  outline: none;
 
   &:active { cursor: grabbing; }
 }
@@ -88,6 +98,9 @@
 }
 
 // ---- Header ----
+// #65: header also acts as a drag surface (pointer handlers on the element).
+// #64: touch-action:none prevents the browser from stealing scroll events
+//      when the user touches the header to drag the sheet.
 .header {
   display: flex;
   align-items: center;
@@ -95,6 +108,12 @@
   padding: 8px 16px 10px;
   border-bottom: 1px solid rgba($surface-border, 0.4);
   flex-shrink: 0;
+  // #64/#65: steal touch events so dragging header doesn't scroll page behind
+  touch-action: none;
+  overscroll-behavior: none;
+  cursor: grab;
+
+  &:active { cursor: grabbing; }
 }
 
 .headerTitle {
@@ -104,6 +123,9 @@
   font-weight: 700;
   letter-spacing: $sarabun-spacing;
   color: $text;
+  // Prevent text selection while dragging
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 // #7: Clear-chat trash icon button
@@ -119,6 +141,8 @@
   justify-content: center;
   border-radius: 8px;
   padding: 0;
+  // Allow tap through even though parent has touch-action:none
+  touch-action: auto;
 
   &:active {
     color: $error;
@@ -143,6 +167,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 8px;
+  touch-action: auto;
 
   &:active {
     background-color: rgba($text, 0.1);
@@ -172,6 +197,13 @@
   gap: 12px;
   max-width: 100%;
   box-sizing: border-box;
+}
+
+// #74: When the sheet is collapsed (peek state), disable scroll entirely
+// so touch events don't accidentally scroll hidden content.
+.messagesPeek {
+  overflow-y: hidden;
+  pointer-events: none;
 }
 
 .emptyHint {
@@ -336,46 +368,83 @@
   object-fit: cover;
 }
 
-// ---- Reasoning bubble ----
+// ---- Reasoning bubble (#66/#77) ----
+// #77: Collapsed state now matches ToolCallCard's compact .header styling —
+//      single muted line, chevron rotates, no visible border when collapsed.
+// #66: Body animates open/close via max-height transition (same as ToolCallCard AnimatedBody).
 .reasoning {
   max-width: min(80%, 500px);
-  background-color: rgba($background, 0.4);
-  border: 1px solid rgba($surface-border, 0.3);
-  border-radius: 10px;
-  overflow: hidden;
   min-width: 0;
   box-sizing: border-box;
+  border-radius: 8px;
 }
 
+// #77: Matches ToolCallCard .header — single muted collapsed line
 .reasoningToggle {
   display: flex;
   align-items: center;
   gap: 6px;
   width: 100%;
-  padding: 8px 12px;
+  // #77: tight vertical padding matches ToolCallCard
+  padding: 4px 2px;
   background: transparent;
   border: none;
   cursor: pointer;
+  text-align: left;
+  // #77: same comfortable tap target as ToolCallCard
+  min-height: 32px;
+  box-sizing: border-box;
   font-family: $sarabun;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: $sarabun-spacing;
-  color: rgba($text, 0.4);
-  text-transform: uppercase;
-  text-align: left;
-  min-height: 36px;
+  // #77: same muted color as ToolCallCard .toolName
+  color: rgba($text, 0.45);
 }
 
+// #77: Same chevron treatment as ToolCallCard — rotates on open
 .reasoningChevron {
   display: block; // iOS Safari SVG fix
-  width: 10px;
-  height: 6px;
+  width: 8px;
+  height: 5px;
   flex-shrink: 0;
-  color: rgba($text, 0.35);
+  color: rgba($text, 0.3);
+  transition: transform 0.2s ease;
+}
+
+.reasoningChevronOpen {
+  transform: rotate(180deg);
+}
+
+// #77: Pulsing dot while thinking — mirrors ToolCallCard .spinner
+.reasoningSpinner {
+  display: block;
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: rgba($primary, 0.7);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+// #66: Animated body wrapper — same max-height technique as ToolCallCard AnimatedBody
+.reasoningBody {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.22s ease, opacity 0.18s ease;
+}
+
+.reasoningBodyOpen {
+  opacity: 1;
+  transition: max-height 0.22s ease, opacity 0.18s ease 0.04s;
 }
 
 .reasoningText {
-  padding: 4px 12px 10px;
+  // #77: Left border accent matches ToolCallCard .body
+  border-left: 2px solid rgba($surface-border, 0.2);
+  margin-left: 2px;
+  padding: 4px 10px 8px;
   font-family: $sarabun;
   font-size: 12px;
   line-height: 1.5;
@@ -550,16 +619,16 @@
 }
 
 // ---- Composer row ----
-// #3: safe-area for iOS home indicator — composer sits above the home bar.
+// #3/#61: safe-area for iOS home indicator.
+// The sheet has padding-bottom: env(safe-area-inset-bottom) so the composer
+// only needs a consistent inner padding — the sheet's padding handles the gap.
 .composer {
   display: flex;
   align-items: flex-end;
   gap: 6px;
-  padding: 8px 12px;
+  padding: 8px 12px 10px;
   border-top: 1px solid rgba($surface-border, 0.3);
   flex-shrink: 0;
-  // #3: safe-area inset so controls clear the iPhone home indicator
-  padding-bottom: max(10px, env(safe-area-inset-bottom));
 }
 
 .composerBtn {
@@ -676,4 +745,9 @@
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
 }
