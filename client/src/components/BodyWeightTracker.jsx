@@ -117,7 +117,11 @@ function BodyWeightTracker() {
             <LineChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }} style={{ fontFamily: 'Sarabun, sans-serif' }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
               <XAxis
-                dataKey="date"
+                dataKey="rawDate"
+                type="number"
+                scale="time"
+                domain={['dataMin', 'dataMax']}
+                tickFormatter={(ms) => format(new Date(ms), 'MMM d')}
                 tick={{ fill: '#EBEDE9', fontSize: 12, fontFamily: 'Sarabun, sans-serif' }}
                 axisLine={{ stroke: '#575757' }}
                 tickLine={false}
@@ -137,6 +141,7 @@ function BodyWeightTracker() {
                   color: '#EBEDE9',
                   fontFamily: 'Sarabun, sans-serif',
                 }}
+                labelFormatter={(ms) => format(new Date(ms), 'MMM d, yyyy')}
                 formatter={(value) => [`${value} lbs`, 'Weight']}
               />
               <Line
