@@ -58,6 +58,9 @@ export interface ProposeIngredient extends IngredientInput {
 }
 
 // What the agent's propose_entry tool emits (no localDate; serving-aware rows).
+// `notes` is OPTIONAL — populated ONLY when the AI needs to explain a confusing
+// or non-obvious choice (e.g. odd decimal grams, ambiguous food selection). Must
+// NOT be an always-present summary.
 export interface ProposeEntryArgs {
   meal: Meal;
   name: string;
@@ -65,6 +68,7 @@ export interface ProposeEntryArgs {
   barcode?: string | null;
   raw_llm_json?: unknown;
   ingredients: ProposeIngredient[];
+  notes?: string | null;
 }
 
 export interface EntryInput {

@@ -10,13 +10,15 @@
 
 // #9: Inline proposal card — renders in-flow inside the chat message list.
 // No Dialog overlay; the card is visually contained within the chat thread.
+// overflow: visible (not hidden) so the native <select> popup and search dropdowns
+// are not clipped by the card boundary (#69).
 .inlineEditorCard {
   width: 100%;
   max-width: 100%;
   background-color: $surface;
   border: 1px solid rgba($primary-border, 0.4);
   border-radius: 14px;
-  overflow: hidden;
+  overflow: visible;
   box-sizing: border-box;
 }
 
@@ -225,12 +227,15 @@
   align-items: flex-end;
 }
 
-// Qty + Unit travel together; they shrink but never disappear
+// Qty + Unit travel together; they shrink but never disappear.
+// overflow: visible ensures the native <select> popup is not clipped (#69).
 .portionGroup {
   display: flex;
   gap: 8px;
   align-items: flex-end;
   flex-shrink: 0;
+  overflow: visible;
+  position: relative;
 }
 
 // The four macros also stay together and can wrap as a unit
@@ -445,6 +450,21 @@
   font-size: 14px;
   color: $error;
   letter-spacing: $sarabun-spacing;
+}
+
+// AI proposal notes — shown conditionally only when the LLM supplies non-obvious
+// context (e.g. why odd decimal grams were chosen). Styled as a subtle aside.
+.proposalNotes {
+  margin: 0;
+  padding: 8px 12px;
+  font-family: $sarabun;
+  font-size: 13px;
+  color: rgba($text, 0.6);
+  letter-spacing: $sarabun-spacing;
+  background-color: rgba($surface-border, 0.15);
+  border-left: 3px solid rgba($primary-border, 0.5);
+  border-radius: 0 6px 6px 0;
+  line-height: 1.5;
 }
 
 // Footer
