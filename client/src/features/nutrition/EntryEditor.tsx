@@ -579,17 +579,21 @@ interface TotalsProps {
 function Totals({ rows }: TotalsProps) {
   const totals = rows.reduce(
     (acc, r) => ({
+      grams: acc.grams + r.grams,
       calories: acc.calories + r.calories,
       protein_g: acc.protein_g + r.protein_g,
       carbs_g: acc.carbs_g + r.carbs_g,
       fat_g: acc.fat_g + r.fat_g,
     }),
-    { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+    { grams: 0, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
   );
 
   return (
     <div className={styles.totals}>
       <span className={styles.totalsLabel}>Total</span>
+      <span className={styles.totalsStat}>
+        <strong>{round2(totals.grams)}</strong>g
+      </span>
       <span className={styles.totalsStat}>
         <strong>{Math.round(totals.calories)}</strong> kcal
       </span>
@@ -893,6 +897,11 @@ export default function EntryEditor({
 
       {/* Live totals */}
       <Totals rows={rows} />
+
+      {/* AI proposal notes — only shown when present (explains non-obvious choices) */}
+      {isProposal && mode.kind === 'proposal' && mode.proposal.notes && (
+        <p className={styles.proposalNotes}>{mode.proposal.notes}</p>
+      )}
 
       {/* Save error */}
       {saveError && (

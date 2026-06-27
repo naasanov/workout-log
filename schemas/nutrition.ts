@@ -101,9 +101,17 @@ export type ProposeIngredient = z.infer<typeof proposeIngredientSchema>;
 // (the client supplies the selected day on confirm), with serving-aware ingredients.
 // Rendered as the EntryEditor in proposal mode; on confirm the client adds
 // localDate -> EntryInput -> POST /entries.
+//
+// `notes` is OPTIONAL and should be populated ONLY when the AI needs to explain
+// a confusing or non-obvious choice (e.g. why odd decimal grams were used, or
+// why a particular database entry was selected over others). It must NOT be an
+// always-on summary of the proposal.
 export const proposeEntryArgsSchema = entryInputSchema
   .omit({ localDate: true, ingredients: true })
-  .extend({ ingredients: z.array(proposeIngredientSchema).min(1) });
+  .extend({
+    ingredients: z.array(proposeIngredientSchema).min(1),
+    notes: z.string().max(400).nullable().optional(),
+  });
 export type ProposeEntryArgs = z.infer<typeof proposeEntryArgsSchema>;
 export type FoodSearchResult = z.infer<typeof foodSearchResultSchema>;
 
