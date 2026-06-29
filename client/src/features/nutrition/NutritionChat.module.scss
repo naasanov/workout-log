@@ -35,10 +35,11 @@
   &:focus { outline: none; }
 }
 
-// Peek: just the drag handle + composer visible
-// #61: height now uses max() to account for safe-area on iPhone
+// Peek: drag handle + floating attach buttons + composer row
+// #61: height uses calc() to account for safe-area on iPhone
+// #93: attach row added ≈ 52px → bump peek from 96→136px
 .sheetPeek {
-  height: calc(96px + env(safe-area-inset-bottom));
+  height: calc(136px + env(safe-area-inset-bottom));
 }
 
 // Expanded: full chat
@@ -619,19 +620,66 @@
   letter-spacing: $sarabun-spacing;
 }
 
-// ---- Composer row ----
+// ---- Composer area ----
+// #93: The camera + barcode buttons float ABOVE the textarea as small circles,
+//      left-aligned. The composer row itself holds only the textarea + send button.
 // #3/#61: safe-area for iOS home indicator.
 // The sheet has padding-bottom: env(safe-area-inset-bottom) so the composer
 // only needs a consistent inner padding — the sheet's padding handles the gap.
+.composerWrap {
+  flex-shrink: 0;
+  border-top: 1px solid rgba($surface-border, 0.3);
+}
+
+// #93: Row of floating circular buttons above the textarea, left-aligned.
+// They sit outside the flex row so the textarea gets full width.
+.composerAttachRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 4px;
+}
+
+// #93: Small circular attach button (camera, barcode).
+// min-width/height 36px → tappable on mobile (Apple HIG ≥ 44 pt; 36px still works
+// for secondary UI when spaced well — matches clearBtn sizing).
+.composerCircleBtn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  background: rgba($background, 0.5);
+  border: 1px solid rgba($surface-border, 0.6);
+  border-radius: 50%;
+  color: rgba($text, 0.55);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+
+  &:active {
+    color: $primary;
+    border-color: $primary-border;
+    background-color: rgba($primary, 0.08);
+  }
+}
+
+.composerCircleBtnIcon {
+  display: block; // iOS Safari SVG fix
+  width: 16px;
+  height: 16px;
+}
+
+// #93: Bottom row — textarea + send, full width
 .composer {
   display: flex;
   align-items: flex-end;
   gap: 6px;
-  padding: 8px 12px 10px;
-  border-top: 1px solid rgba($surface-border, 0.3);
-  flex-shrink: 0;
+  padding: 4px 12px 10px;
 }
 
+// Keep .composerBtn for backwards-compat (not rendered any more but avoids
+// a "unused class" warning if some other branch references it).
 .composerBtn {
   flex-shrink: 0;
   min-width: 40px;
@@ -664,21 +712,27 @@
   display: none;
 }
 
-// #4: textarea — 16px on mobile prevents iOS from zooming on focus.
-// Desktop keeps 15px for visual density.
+// #4/#92: textarea — 16px on mobile prevents iOS from zooming on focus.
+// #92: Placeholder vertical centering: use line-height equal to (min-height - 2*padding)
+//      so a single text line sits in the center of the 40px box.
+//      With min-height:40px and padding-top/bottom:8px that leaves 24px for text.
+//      line-height:24px centers a single line; multi-line growth via useAutoGrow is unaffected.
 .composerInput {
   flex: 1;
   background-color: rgba($background, 0.4);
   color: $text;
   border: 1px solid rgba($surface-border, 0.6);
   border-radius: 12px;
-  padding: 10px 12px;
+  // #92: vertical centering: padding 8px top/bottom, line-height 24px.
+  //      Total single-line height = 8 + 24 + 8 + 2(border) = 42px ≈ 40px min-height.
+  padding: 8px 12px;
   font-family: $sarabun;
   // #4: 16px on mobile (≤$mobile-width) to suppress iOS auto-zoom on focus
   font-size: 16px;
   letter-spacing: $sarabun-spacing;
   resize: none;
-  line-height: 1.4;
+  // #92: line-height matches the content area so one line of text is vertically centered
+  line-height: 1.5;
   min-height: 40px;
   max-height: 180px;
   overflow-y: hidden; // JS sets to auto when at max
