@@ -455,7 +455,9 @@ interface NutritionChatProps {
 }
 
 // Sheet height constants
-const PEEK_HEIGHT = 96;     // px — drag handle + composer
+// #93: Peek height now includes the floating attach-button row above the composer.
+// dragHandleBtn≈18 + composerAttachRow≈52 (8+36+8) + composer≈54 (4+40+10) ≈ 124px.
+const PEEK_HEIGHT = 136;    // px — drag handle + attach row + composer row (+ a little breathing room)
 const EXPANDED_HEIGHT_VH = 88; // dvh
 
 export default function NutritionChat({ open, onClose, selectedDate }: NutritionChatProps) {
@@ -960,22 +962,44 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
           <p className={styles.photoError}>{photoError}</p>
         )}
 
-        {/* Composer — #3/#61: safe-area padding, #4: 16px font-size on mobile */}
-        <div className={styles.composer}>
-          {/* Photo attach button */}
-          <button
-            type="button"
-            className={styles.composerBtn}
-            onClick={() => fileInputRef.current?.click()}
-            aria-label="Attach photo"
-            title="Attach photo"
-          >
-            <svg className={styles.composerBtnIcon} viewBox="0 0 22 22" fill="none" aria-hidden="true">
-              <rect x="2" y="5" width="18" height="13" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
-              <circle cx="11" cy="12" r="3.5" stroke="currentColor" strokeWidth="1.8" />
-              <path d="M8 5l1.5-2h3L14 5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-            </svg>
-          </button>
+        {/* Composer — #3/#61: safe-area padding, #4: 16px font-size on mobile
+            #93: camera + barcode moved above textarea as floating circles (left-aligned).
+            #92: textarea now spans full width; placeholder centering fixed via CSS. */}
+        <div className={styles.composerWrap}>
+          {/* #93: Floating circular attach buttons — above the textarea, left-aligned */}
+          <div className={styles.composerAttachRow}>
+            {/* Photo attach button */}
+            <button
+              type="button"
+              className={styles.composerCircleBtn}
+              onClick={() => fileInputRef.current?.click()}
+              aria-label="Attach photo"
+              title="Attach photo"
+            >
+              <svg className={styles.composerCircleBtnIcon} viewBox="0 0 22 22" fill="none" aria-hidden="true">
+                <rect x="2" y="5" width="18" height="13" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
+                <circle cx="11" cy="12" r="3.5" stroke="currentColor" strokeWidth="1.8" />
+                <path d="M8 5l1.5-2h3L14 5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+              </svg>
+            </button>
+
+            {/* Barcode button */}
+            <button
+              type="button"
+              className={styles.composerCircleBtn}
+              onClick={() => setBarcodeOpen(true)}
+              aria-label="Scan barcode"
+              title="Scan barcode"
+            >
+              <svg className={styles.composerCircleBtnIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="2" y="4" width="3" height="16" rx="0.5" fill="currentColor" stroke="none" />
+                <rect x="7" y="4" width="1.5" height="16" rx="0.5" fill="currentColor" stroke="none" />
+                <rect x="10.5" y="4" width="2.5" height="16" rx="0.5" fill="currentColor" stroke="none" />
+                <rect x="15" y="4" width="1.5" height="16" rx="0.5" fill="currentColor" stroke="none" />
+                <rect x="18.5" y="4" width="3.5" height="16" rx="0.5" fill="currentColor" stroke="none" />
+              </svg>
+            </button>
+          </div>
 
           <input
             ref={fileInputRef}
@@ -989,63 +1013,49 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
             tabIndex={-1}
           />
 
-          {/* Barcode button */}
-          <button
-            type="button"
-            className={styles.composerBtn}
-            onClick={() => setBarcodeOpen(true)}
-            aria-label="Scan barcode"
-            title="Scan barcode"
-          >
-            <svg className={styles.composerBtnIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <rect x="2" y="4" width="3" height="16" rx="0.5" fill="currentColor" stroke="none" />
-              <rect x="7" y="4" width="1.5" height="16" rx="0.5" fill="currentColor" stroke="none" />
-              <rect x="10.5" y="4" width="2.5" height="16" rx="0.5" fill="currentColor" stroke="none" />
-              <rect x="15" y="4" width="1.5" height="16" rx="0.5" fill="currentColor" stroke="none" />
-              <rect x="18.5" y="4" width="3.5" height="16" rx="0.5" fill="currentColor" stroke="none" />
-            </svg>
-          </button>
+          {/* #93: Bottom row — textarea spans full width + send button at right */}
+          <div className={styles.composer}>
+            {/* #4/#92: 16px font-size (no iOS zoom); placeholder vertically centered via CSS */}
+            <textarea
+              ref={textareaRef}
+              className={styles.composerInput}
+              placeholder="Describe what you ate…"
+              value={text}
+              onChange={e => setText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onFocus={() => {
+                setExpanded(true);
+              }}
+              rows={1}
+              aria-label="Chat message"
+            />
 
-          {/* #4: 16px font-size set via CSS class to prevent iOS zoom */}
-          <textarea
-            ref={textareaRef}
-            className={styles.composerInput}
-            placeholder="Describe what you ate…"
-            value={text}
-            onChange={e => setText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onFocus={() => {
-              setExpanded(true);
-            }}
-            rows={1}
-            aria-label="Chat message"
-          />
-
-          {/* #14: Send/Stop button — shows Stop icon while streaming */}
-          {isStreaming ? (
-            <button
-              type="button"
-              className={`${styles.sendBtn} ${styles.stopBtn}`}
-              onClick={handleStop}
-              aria-label="Stop generation"
-            >
-              <svg className={styles.sendIcon} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                <rect x="5" y="5" width="10" height="10" rx="2" fill="currentColor" />
-              </svg>
-            </button>
-          ) : (
-            <button
-              type="button"
-              className={styles.sendBtn}
-              onClick={handleSend}
-              disabled={!canSend}
-              aria-label="Send"
-            >
-              <svg className={styles.sendIcon} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                <path d="M2 10l16-8-8 16V10H2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-              </svg>
-            </button>
-          )}
+            {/* #14: Send/Stop button — shows Stop icon while streaming */}
+            {isStreaming ? (
+              <button
+                type="button"
+                className={`${styles.sendBtn} ${styles.stopBtn}`}
+                onClick={handleStop}
+                aria-label="Stop generation"
+              >
+                <svg className={styles.sendIcon} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <rect x="5" y="5" width="10" height="10" rx="2" fill="currentColor" />
+                </svg>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={styles.sendBtn}
+                onClick={handleSend}
+                disabled={!canSend}
+                aria-label="Send"
+              >
+                <svg className={styles.sendIcon} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path d="M2 10l16-8-8 16V10H2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
