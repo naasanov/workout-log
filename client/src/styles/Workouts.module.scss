@@ -291,10 +291,14 @@
   grid-template-rows: 1fr;
 }
 
-.movements {
-  // min-height:0 + overflow:hidden let the grid row collapse to 0 when closed
+// Grid item: clips its content (including the ul's padding) so the collapsed
+// state is exactly 0px — prevents a sliver of the exercise list peeking through.
+.movementsInner {
   min-height: 0;
   overflow: hidden;
+}
+
+.movements {
   padding-bottom: 5px;
   margin: 0;
 
@@ -329,8 +333,8 @@
   background: transparent;
   border: none;
   border-radius: 8px;
-  // Match the brightness of the adjacent collapse chevron / other workout icons
-  color: $text;
+  // Green, matching the collapse chevron and other accent icons
+  color: $primary;
   cursor: pointer;
   display: flex;
   align-items: center;
