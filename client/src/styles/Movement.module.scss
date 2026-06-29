@@ -2,7 +2,6 @@
 
 .section {
   display: flex;
-  overflow: hidden;
   flex-direction: column;
 
   background-color: $surface;
@@ -145,7 +144,8 @@
   background: transparent;
   border: none;
   border-radius: 8px;
-  color: rgba($text, 0.4);
+  // Match the brightness of other workout icons
+  color: $text;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -192,6 +192,7 @@
   border-radius: 7px;
   cursor: pointer;
   text-align: left;
+  white-space: nowrap;
   min-height: 44px;
   display: flex;
   align-items: center;
