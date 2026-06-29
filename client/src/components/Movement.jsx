@@ -1,21 +1,98 @@
 import Editable from "./Editable";
 import Variation from "./variation/Variation";
 import ConfirmModal from "./ConfirmModal";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import useAuth from '../hooks/useAuth.js';
 import clientApi from "../api/clientApi.js";
 import styles from "../styles/Movement.module.scss";
-import plus from "../assets/plus.svg";
-import X from "../assets/delete.svg";
 import { v4 as uuid } from "uuid";
-import useIsMobile from "../hooks/useIsMobile.js";
+
+// ---- Three-dots exercise menu (#95) ----
+function MovementMenu({ onAddVariation, onDeleteExercise }) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef(null);
+  const btnRef = useRef(null);
+
+  // Close on outside tap/click
+  useEffect(() => {
+    if (!open) return;
+    function handleOutside(e) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
+  }, [open]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return;
+    function handleKey(e) {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        btnRef.current?.focus();
+      }
+    }
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [open]);
+
+  return (
+    <div className={styles.dotsMenuWrapper} ref={wrapperRef}>
+      <button
+        ref={btnRef}
+        className={styles.dotsBtn}
+        onClick={() => setOpen(v => !v)}
+        aria-label="Exercise options"
+        aria-haspopup="true"
+        aria-expanded={open}
+        type="button"
+      >
+        <svg
+          className={styles.dotsIcon}
+          viewBox="0 0 4 18"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <circle cx="2" cy="2" r="1.6" />
+          <circle cx="2" cy="9" r="1.6" />
+          <circle cx="2" cy="16" r="1.6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className={styles.dotsDropdown} role="menu">
+          <button
+            className={styles.dotsDropdownItem}
+            role="menuitem"
+            type="button"
+            onClick={() => { setOpen(false); onAddVariation(); }}
+          >
+            Add variation
+          </button>
+          <button
+            className={`${styles.dotsDropdownItem} ${styles.dotsDropdownItemDanger}`}
+            role="menuitem"
+            type="button"
+            onClick={() => { setOpen(false); onDeleteExercise(); }}
+          >
+            Delete exercise
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Movement({ movement, setMovements }) {
   const [variations, setVariations] = useState([])
-  const [hovering, setHovering] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const { withAuth } = useAuth();
-  const { isMobile } = useIsMobile();
 
   useEffect(() => {
     const fetchMovements = async () => {
@@ -50,8 +127,7 @@ function Movement({ movement, setMovements }) {
     setShowConfirm(false);
   }
 
-  async function handleVariationSubmit(e) {
-    e.preventDefault();
+  async function handleVariationSubmit() {
     const res = await withAuth(() => (
       clientApi.post(`/variations/${movement.id}`, {
         label: "Variation"
@@ -88,36 +164,20 @@ function Movement({ movement, setMovements }) {
           onCancel={handleCancelRemove}
         />
       )}
-      <div className={styles.header} onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
+      <div className={styles.header}>
         {/* label */}
         <Editable className={styles.sectionPart} value={movement.label} onSubmit={handleNameEdit} />
 
-        {/* add item button */}
-        {!isMobile && (
-          <div className={`${styles.sectionPart} ${styles.addItem}`} style={{ display: hovering ? 'block' : 'none' }}>
-            <button onClick={handleVariationSubmit}>Add Variation</button>
-            <img src={plus} alt="plus" />
-          </div>
-        )}
-
-        {/* remove item button */}
-        <div className={styles.sectionPart} style={{ display: (hovering || isMobile) ? 'block' : 'none' }}>
-          <button className={styles.icon} onClick={handleRemoveClick}>
-            <img src={X} alt="delete" />
-          </button>
-        </div>
+        {/* three-dots menu */}
+        <MovementMenu
+          onAddVariation={handleVariationSubmit}
+          onDeleteExercise={handleRemoveClick}
+        />
       </div>
 
       {/* variations */}
       <div className={styles.variations}>
         {variations.map(v => <Variation key={v.id} variation={v} setVariations={setVariations} removeAllowed={variations.length > 1}/>)}
-        {/* add item button */}
-        {isMobile && (
-          <div className={styles.addItem}>
-            <button onClick={handleVariationSubmit}>Add Variation</button>
-            <img src={plus} alt="plus" />
-          </div>
-        )}
       </div>
     </li>
   )

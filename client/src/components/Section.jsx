@@ -1,22 +1,99 @@
 import Movement from "./Movement.jsx";
 import Editable from "./Editable.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import styles from "../styles/Workouts.module.scss";
-import plus from "../assets/plus.svg";
 import CollapseButton from "./CollapseButton.jsx";
-import X from "../assets/delete.svg";
 import useAuth from '../hooks/useAuth.js';
 import clientApi from "../api/clientApi.js";
 import { v4 as uuid } from "uuid";
-import useIsMobile from "../hooks/useIsMobile.js";
+
+// ---- Three-dots section menu (#95) ----
+function SectionMenu({ onAddExercise, onDeleteSection }) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef(null);
+  const btnRef = useRef(null);
+
+  // Close on outside tap/click
+  useEffect(() => {
+    if (!open) return;
+    function handleOutside(e) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
+  }, [open]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return;
+    function handleKey(e) {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        btnRef.current?.focus();
+      }
+    }
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [open]);
+
+  return (
+    <div className={styles.dotsMenuWrapper} ref={wrapperRef}>
+      <button
+        ref={btnRef}
+        className={styles.dotsBtn}
+        onClick={() => setOpen(v => !v)}
+        aria-label="Section options"
+        aria-haspopup="true"
+        aria-expanded={open}
+        type="button"
+      >
+        <svg
+          className={styles.dotsIcon}
+          viewBox="0 0 4 18"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <circle cx="2" cy="2" r="1.6" />
+          <circle cx="2" cy="9" r="1.6" />
+          <circle cx="2" cy="16" r="1.6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className={styles.dotsDropdown} role="menu">
+          <button
+            className={styles.dotsDropdownItem}
+            role="menuitem"
+            type="button"
+            onClick={() => { setOpen(false); onAddExercise(); }}
+          >
+            Add exercise
+          </button>
+          <button
+            className={`${styles.dotsDropdownItem} ${styles.dotsDropdownItemDanger}`}
+            role="menuitem"
+            type="button"
+            onClick={() => { setOpen(false); onDeleteSection(); }}
+          >
+            Delete section
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Section({ setSections, section }) {
-  const [hovering, setHovering] = useState(false);
   const [movements, setMovements] = useState([]);
   const [showConfirm, setShowConfirm] = useState(false);
   const { withAuth } = useAuth();
-  const { isMobile } = useIsMobile();
 
   useEffect(() => {
     const fetchMovements = async () => {
@@ -47,8 +124,7 @@ function Section({ setSections, section }) {
     setShowConfirm(false);
   }
 
-  async function handleMovementSubmit(e) {
-    e.preventDefault();
+  async function handleMovementSubmit() {
     const isFirst = movements.length === 0;
     const res = await withAuth(() => (
       clientApi.post(`/movements/${section.id}`, { label: "Exercise" })
@@ -100,7 +176,7 @@ function Section({ setSections, section }) {
           onCancel={handleCancelRemove}
         />
       )}
-      <div className={styles.section} onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
+      <div className={styles.section}>
         <div className={styles.sectionHeader}>
           <div className={styles.sectionPart}>
             <Editable
@@ -108,45 +184,28 @@ function Section({ setSections, section }) {
               value={section.label}
               onSubmit={handleEditSubmit}
             />
-            {(hovering && (section.showItems || movements.length === 0) && !isMobile) && (
-              <div className={styles.addItem} >
-                <button type='button' onClick={handleMovementSubmit}>Add Exercise</button>
-                <img src={plus} alt="plus" />
-              </div>
-            )}
           </div>
           <div className={`${styles.sectionPart} ${styles.remove}`}>
-            {(hovering || isMobile) &&
-              <button type='button' onClick={handleRemoveClick} className={styles.icon}>
-                <img src={X} alt="delete" />
-              </button>
-            }
+            <SectionMenu
+              onAddExercise={handleMovementSubmit}
+              onDeleteSection={handleRemoveClick}
+            />
             {movements.length > 0 &&
               <CollapseButton isOpen={section.showItems} onClick={handleDropdownClick} />
             }
           </div>
         </div>
-        <div className={styles.mobileAdd}>
-          {(section.showItems || movements.length === 0) && isMobile && (
-            <div className={styles.addItem} >
-              <button type='button' onClick={handleMovementSubmit}>Add Exercise</button>
-              <img src={plus} alt="plus" />
-            </div>
-          )}
-        </div>
       </div>
-      {
-        <ul className={styles.movements} style={{ display: section.showItems ? 'block' : 'none' }}>
-          {movements.map((m) => (
-            <Movement
-              key={m.id ?? uuid()}
-              movement={m}
-              setMovements={setMovements}
-              sectionId={section.id}
-            />
-          ))}
-        </ul>
-      }
+      <ul className={styles.movements} style={{ display: section.showItems ? 'block' : 'none' }}>
+        {movements.map((m) => (
+          <Movement
+            key={m.id ?? uuid()}
+            movement={m}
+            setMovements={setMovements}
+            sectionId={section.id}
+          />
+        ))}
+      </ul>
     </section>
   );
 }

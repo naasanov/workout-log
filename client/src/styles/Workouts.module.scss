@@ -302,3 +302,79 @@
   transform: rotate(0deg);
   transition: transform 0.2s ease;
 }
+
+// ── Three-dots section menu (#95) ────────────────────────────────────────────
+.dotsMenuWrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.dotsBtn {
+  min-width: 40px;
+  min-height: 40px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: rgba($text, 0.4);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+
+  &:active {
+    background-color: rgba($primary, 0.1);
+    color: $primary;
+  }
+}
+
+.dotsIcon {
+  display: block; // iOS Safari SVG fix
+  width: 4px;
+  height: 16px;
+}
+
+.dotsDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background-color: $surface;
+  border: 1px solid $surface-border;
+  border-radius: 10px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 130px;
+  z-index: 200;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+.dotsDropdownItem {
+  background: transparent;
+  border: none;
+  color: $text;
+  font-family: $sarabun;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: $sarabun-spacing;
+  padding: 10px 14px;
+  border-radius: 7px;
+  cursor: pointer;
+  text-align: left;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+
+  &:active {
+    background-color: rgba($primary, 0.12);
+    color: $primary;
+  }
+}
+
+.dotsDropdownItemDanger {
+  &:active {
+    background-color: rgba($error, 0.12);
+    color: $error;
+  }
+}
