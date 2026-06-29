@@ -152,7 +152,6 @@
 .section {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   justify-content: space-between;
 
   background-color: $surface;
@@ -178,7 +177,7 @@
 
 .sectionHeader {
   display: flex;
-  margin: 9px 32px 0px;
+  margin: 9px 32px 9px;
   @media (min-width: $mobile-width) {
     min-height: 47px;
   }
@@ -280,7 +279,22 @@
   align-items: center;
 }
 
+// Animated expand/collapse wrapper for a section's movements.
+// grid-template-rows 0fr → 1fr animates auto height smoothly.
+.movementsWrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.28s ease;
+}
+
+.movementsWrapOpen {
+  grid-template-rows: 1fr;
+}
+
 .movements {
+  // min-height:0 + overflow:hidden let the grid row collapse to 0 when closed
+  min-height: 0;
+  overflow: hidden;
   padding-bottom: 5px;
   margin: 0;
 
@@ -315,7 +329,8 @@
   background: transparent;
   border: none;
   border-radius: 8px;
-  color: rgba($text, 0.4);
+  // Match the brightness of the adjacent collapse chevron / other workout icons
+  color: $text;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -362,6 +377,7 @@
   border-radius: 7px;
   cursor: pointer;
   text-align: left;
+  white-space: nowrap;
   min-height: 44px;
   display: flex;
   align-items: center;

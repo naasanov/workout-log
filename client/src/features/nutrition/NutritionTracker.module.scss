@@ -187,6 +187,44 @@
   letter-spacing: $sarabun-spacing;
 }
 
+// ---- Stat row: calories + macros on one row ----
+.statRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.statCard {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.statLabel {
+  font-family: $sarabun;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.6);
+  text-transform: uppercase;
+}
+
+.statValue {
+  font-family: $sarabun;
+  font-size: 20px;
+  font-weight: 700;
+  color: $text;
+  line-height: 1.1;
+}
+
+.statGoal {
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba($text, 0.45);
+}
+
 // ---- Progress bar (shared) ----
 .progressTrack {
   width: 100%;

@@ -196,16 +196,18 @@ function Section({ setSections, section }) {
           </div>
         </div>
       </div>
-      <ul className={styles.movements} style={{ display: section.showItems ? 'block' : 'none' }}>
-        {movements.map((m) => (
-          <Movement
-            key={m.id ?? uuid()}
-            movement={m}
-            setMovements={setMovements}
-            sectionId={section.id}
-          />
-        ))}
-      </ul>
+      <div className={`${styles.movementsWrap} ${section.showItems ? styles.movementsWrapOpen : ''}`}>
+        <ul className={styles.movements}>
+          {movements.map((m) => (
+            <Movement
+              key={m.id ?? uuid()}
+              movement={m}
+              setMovements={setMovements}
+              sectionId={section.id}
+            />
+          ))}
+        </ul>
+      </div>
     </section>
   );
 }

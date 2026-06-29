@@ -309,63 +309,54 @@ export default function NutritionTracker() {
 
       {/* Totals card */}
       <div className={styles.totalsCard}>
-        <div className={styles.caloriesRow}>
-          <span className={styles.caloriesBig}>
-            {totals ? Math.round(totals.calories) : 0}
-          </span>
-          <span className={styles.caloriesUnit}>kcal</span>
-          {goals.calories != null && (
-            <span className={styles.caloriesGoal}>
-              / {goals.calories} goal
+        {/* Calories + macros on a single row (each a compact stat card) */}
+        <div className={styles.statRow}>
+          <div className={styles.statCard}>
+            <span className={styles.statLabel}>Calories</span>
+            <span className={styles.statValue}>
+              {totals ? Math.round(totals.calories) : 0}
+              {goals.calories != null && (
+                <span className={styles.statGoal}> / {goals.calories}</span>
+              )}
             </span>
-          )}
-        </div>
-
-        {/* Calorie progress bar — only if calorie goal set */}
-        {goals.calories != null && totals && (
-          <ProgressBar value={totals.calories} goal={goals.calories} />
-        )}
-
-        {/* Macro bars — only for macros that have a goal */}
-        {totals && (
-          <div className={styles.macrosRow}>
-            {goals.protein_g != null && (
-              <div className={styles.macroItem}>
-                <div className={styles.macroHeader}>
-                  <span className={styles.macroName}>Protein</span>
-                  <span className={styles.macroValue}>
-                    {Math.round(totals.protein_g)}g / {goals.protein_g}g
-                  </span>
-                </div>
-                <ProgressBar value={totals.protein_g} goal={goals.protein_g} />
-              </div>
-            )}
-
-            {goals.carbs_g != null && (
-              <div className={styles.macroItem}>
-                <div className={styles.macroHeader}>
-                  <span className={styles.macroName}>Carbs</span>
-                  <span className={styles.macroValue}>
-                    {Math.round(totals.carbs_g)}g / {goals.carbs_g}g
-                  </span>
-                </div>
-                <ProgressBar value={totals.carbs_g} goal={goals.carbs_g} />
-              </div>
-            )}
-
-            {goals.fat_g != null && (
-              <div className={styles.macroItem}>
-                <div className={styles.macroHeader}>
-                  <span className={styles.macroName}>Fat</span>
-                  <span className={styles.macroValue}>
-                    {Math.round(totals.fat_g)}g / {goals.fat_g}g
-                  </span>
-                </div>
-                <ProgressBar value={totals.fat_g} goal={goals.fat_g} />
-              </div>
+            {goals.calories != null && totals && (
+              <ProgressBar value={totals.calories} goal={goals.calories} />
             )}
           </div>
-        )}
+
+          {totals && goals.protein_g != null && (
+            <div className={styles.statCard}>
+              <span className={styles.statLabel}>Protein</span>
+              <span className={styles.statValue}>
+                {Math.round(totals.protein_g)}g
+                <span className={styles.statGoal}> / {goals.protein_g}g</span>
+              </span>
+              <ProgressBar value={totals.protein_g} goal={goals.protein_g} />
+            </div>
+          )}
+
+          {totals && goals.carbs_g != null && (
+            <div className={styles.statCard}>
+              <span className={styles.statLabel}>Carbs</span>
+              <span className={styles.statValue}>
+                {Math.round(totals.carbs_g)}g
+                <span className={styles.statGoal}> / {goals.carbs_g}g</span>
+              </span>
+              <ProgressBar value={totals.carbs_g} goal={goals.carbs_g} />
+            </div>
+          )}
+
+          {totals && goals.fat_g != null && (
+            <div className={styles.statCard}>
+              <span className={styles.statLabel}>Fat</span>
+              <span className={styles.statValue}>
+                {Math.round(totals.fat_g)}g
+                <span className={styles.statGoal}> / {goals.fat_g}g</span>
+              </span>
+              <ProgressBar value={totals.fat_g} goal={goals.fat_g} />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Loading / error */}
