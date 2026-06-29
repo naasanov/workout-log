@@ -1,7 +1,7 @@
 // Nutrition AI agent — Phase 2.
 // Runs a tool-calling loop via the Vercel AI SDK's streamText, returning
 // the StreamTextResult for the route to pipe to the HTTP response.
-import { streamText, tool, stepCountIs, hasToolCall, convertToModelMessages } from 'ai';
+import { streamText, tool, stepCountIs, convertToModelMessages } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { proposeEntryArgsSchema } from '../../schemas/nutrition';
@@ -70,7 +70,28 @@ Help the user identify, quantify, and log what they ate. When the user describes
    - Both \`search_usda\` and \`search_foods_batch\` automatically attach portion sizes to the top result, so you often do NOT need a separate \`get_portions\` call.
 2. Check \`search_food_history\` first for foods the user has logged before — prefer reusing those if the food matches, including the same serving they used last time.
 3. Estimate the portion in **grams**. When the user gives a weight in non-gram units (lbs, oz, kg, mg, etc.), call \`convert_to_grams\` — do NOT do the arithmetic yourself. Ask one brief clarifying question if the portion or food identity is genuinely ambiguous (e.g. "Was that a small, medium, or large banana?"). Do not ask multiple questions at once.
-4. When you are confident about identity + portion, call **\`propose_entry\`** with the fully structured entry. The user will review and confirm in the UI — you do NOT write to the database. After calling propose_entry, tell the user briefly what you proposed (e.g. "I've proposed logging 1 medium banana (118 g, ~105 kcal) for breakfast — check the entry below.").
+4. When you are confident about identity + portion, call **\`propose_entry\`** with the fully structured entry. The user will review and confirm in the UI — you do NOT write to the database.
+
+## Naming entries (CRITICAL — follow exactly)
+The \`name\` field on an entry is what the user sees in their log. Keep it **short and colloquial** — write what you'd tell a friend you had, not a product label or an order receipt.
+
+Rules:
+- Drop size descriptors (16 oz, large, grande, small) unless size is the entire identity (e.g. "Large fries" is fine; "16 oz iced latte" → "Iced latte").
+- Drop prep details (iced, blended, baked) when they are obvious or incidental — but keep them when they distinguish the food (e.g. "Iced coffee" stays "Iced coffee", not just "Coffee").
+- Drop brand names unless the brand IS the food (e.g. "Oreos" stays; "Starbucks iced hazelnut latte" → "Iced hazelnut latte").
+- Drop measurement units, exact weights, and ingredient ratios entirely (those belong in the ingredients list, not the name).
+- Good examples: "Chicken stir-fry", "Greek yogurt with granola", "Iced hazelnut latte", "Peanut butter toast", "Banana".
+- Bad examples: "16 oz iced hazelnut latte with whole milk and hazelnut syrup", "200g grilled chicken breast", "Starbucks Venti Caramel Macchiato".
+
+The ingredient \`name\` inside the ingredients list can stay precise for macro accuracy — only the top-level entry \`name\` must be short.
+
+## Logging multiple dishes in one message
+When the user describes **two or more distinct dishes or meals** in a single message (e.g. "I had a snack and then dinner", "lunch was a burger, and later I had ice cream"), call \`propose_entry\` **once per distinct dish** — do NOT lump them into one entry. Assign each its own \`meal\` value (breakfast / lunch / dinner / snack) based on context.
+
+When to split: separate meals or occasions described together ("snack and dinner"), clearly distinct items that each stand alone ("a burger and a slice of cake").
+When to keep as one entry: a single composite dish with multiple ingredients ("chicken stir-fry with rice and broccoli", "burrito bowl") — one entry, multiple ingredients.
+
+After proposing, briefly summarize what you proposed in a single short message (e.g. "Proposed two entries: an apple for snack and grilled salmon for dinner — check the cards below.").
 
 ## Web-search fallback
 - Only use \`web_search\` when \`search_usda\`, \`search_foods_batch\`, and \`lookup_barcode\` all return nothing useful (e.g. a local restaurant item, branded boba, or a food not in USDA/OFF).
@@ -118,7 +139,7 @@ ${summariseEntries(recent)}
     model: openai('gpt-5.5'),
     system,
     messages: modelMessages,
-    stopWhen: [stepCountIs(8), hasToolCall('propose_entry')],
+    stopWhen: [stepCountIs(16)],
     providerOptions: {
       openai: {
         reasoningEffort: effort ?? 'medium',
