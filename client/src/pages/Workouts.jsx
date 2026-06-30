@@ -10,6 +10,7 @@ import Header from '../components/Header.jsx';
 import clientApi from '../api/clientApi.js';
 import useAuth from '../hooks/useAuth.js';
 import { useQuery } from '@tanstack/react-query';
+import { ChevronDown, Check } from 'lucide-react';
 
 const TABS = {
   WORKOUTS: 'workouts',
@@ -144,18 +145,12 @@ function Workouts() {
             aria-label={`Current tab: ${TAB_LABELS[activeTab]}. Open tab menu`}
           >
             <span className={styles.mobileNavLabel}>{TAB_LABELS[activeTab]}</span>
-            {/* Chevron SVG — display:block to avoid iOS Safari inline-block bug */}
-            <svg
+            <ChevronDown
               className={`${styles.mobileNavChevron} ${menuOpen ? styles.mobileNavChevronOpen : ''}`}
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
+              size={16}
               aria-hidden="true"
               style={{ display: 'block' }}
-            >
-              <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            />
           </button>
 
           {menuOpen && (
@@ -168,17 +163,7 @@ function Workouts() {
                   >
                     {TAB_LABELS[tab]}
                     {tab === activeTab && (
-                      /* Checkmark SVG — display:block to avoid iOS Safari inline-block bug */
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 14 14"
-                        fill="none"
-                        aria-hidden="true"
-                        style={{ display: 'block' }}
-                      >
-                        <path d="M2.5 7l3.5 3.5 5.5-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
+                      <Check size={16} aria-hidden="true" style={{ display: 'block' }} />
                     )}
                   </button>
                 </li>

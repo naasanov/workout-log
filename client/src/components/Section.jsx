@@ -7,6 +7,7 @@ import CollapseButton from "./CollapseButton.jsx";
 import useAuth from '../hooks/useAuth.js';
 import clientApi from "../api/clientApi.js";
 import { v4 as uuid } from "uuid";
+import { MoreVertical } from 'lucide-react';
 
 // ---- Three-dots section menu (#95) ----
 function SectionMenu({ onAddExercise, onDeleteSection }) {
@@ -54,16 +55,7 @@ function SectionMenu({ onAddExercise, onDeleteSection }) {
         aria-expanded={open}
         type="button"
       >
-        <svg
-          className={styles.dotsIcon}
-          viewBox="0 0 4 18"
-          fill="currentColor"
-          aria-hidden="true"
-        >
-          <circle cx="2" cy="2" r="1.6" />
-          <circle cx="2" cy="9" r="1.6" />
-          <circle cx="2" cy="16" r="1.6" />
-        </svg>
+        <MoreVertical className={styles.dotsIcon} size={16} aria-hidden="true" />
       </button>
 
       {open && (

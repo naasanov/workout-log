@@ -44,6 +44,7 @@ import ToolCallCard from './ToolCallCard';
 import ConfirmModal from '../../components/ConfirmModal';
 import type { EntryInput, EntryEditorMode, ProposeEntryArgs } from './types';
 import styles from './NutritionChat.module.scss';
+import { ChevronDown, Trash2, Camera, ScanBarcode, Square, Send } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Auth helper — mirrors clientApi.js interceptor logic
@@ -212,21 +213,12 @@ function ReasoningBubble({ text, streaming }: ReasoningBubbleProps) {
         aria-expanded={open}
       >
         {/* #77: same chevron pattern as ToolCallCard */}
-        <svg
+        <ChevronDown
           className={`${styles.reasoningChevron} ${open ? styles.reasoningChevronOpen : ''}`}
-          viewBox="0 0 10 6"
-          fill="none"
+          size={16}
           aria-hidden="true"
           style={{ display: 'block' }}
-        >
-          <path
-            d="M1 1l4 4 4-4"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        />
         {streaming ? 'Thinking…' : 'Reasoning'}
         {/* Streaming pulse dot — matches ToolCallCard spinner */}
         {streaming && <span className={styles.reasoningSpinner} aria-hidden="true" />}
@@ -888,9 +880,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
               aria-label="Clear chat"
               title="Clear today's chat"
             >
-              <svg className={styles.clearIcon} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                <path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <Trash2 className={styles.clearIcon} size={16} aria-hidden="true" />
             </button>
 
             <button
@@ -900,9 +890,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
               onPointerDown={(e) => e.stopPropagation()}
               aria-label="Collapse"
             >
-              <svg className={styles.collapseSvg} viewBox="0 0 14 8" fill="none" aria-hidden="true">
-                <path d="M1 1l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <ChevronDown className={styles.collapseSvg} size={16} aria-hidden="true" />
             </button>
           </div>
         )}
@@ -976,11 +964,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
               aria-label="Attach photo"
               title="Attach photo"
             >
-              <svg className={styles.composerCircleBtnIcon} viewBox="0 0 22 22" fill="none" aria-hidden="true">
-                <rect x="2" y="5" width="18" height="13" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
-                <circle cx="11" cy="12" r="3.5" stroke="currentColor" strokeWidth="1.8" />
-                <path d="M8 5l1.5-2h3L14 5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-              </svg>
+              <Camera className={styles.composerCircleBtnIcon} size={16} aria-hidden="true" />
             </button>
 
             {/* Barcode button */}
@@ -991,13 +975,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
               aria-label="Scan barcode"
               title="Scan barcode"
             >
-              <svg className={styles.composerCircleBtnIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <rect x="2" y="4" width="3" height="16" rx="0.5" fill="currentColor" stroke="none" />
-                <rect x="7" y="4" width="1.5" height="16" rx="0.5" fill="currentColor" stroke="none" />
-                <rect x="10.5" y="4" width="2.5" height="16" rx="0.5" fill="currentColor" stroke="none" />
-                <rect x="15" y="4" width="1.5" height="16" rx="0.5" fill="currentColor" stroke="none" />
-                <rect x="18.5" y="4" width="3.5" height="16" rx="0.5" fill="currentColor" stroke="none" />
-              </svg>
+              <ScanBarcode className={styles.composerCircleBtnIcon} size={16} aria-hidden="true" />
             </button>
           </div>
 
@@ -1038,9 +1016,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
                 onClick={handleStop}
                 aria-label="Stop generation"
               >
-                <svg className={styles.sendIcon} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <rect x="5" y="5" width="10" height="10" rx="2" fill="currentColor" />
-                </svg>
+                <Square className={styles.sendIcon} size={16} aria-hidden="true" />
               </button>
             ) : (
               <button
@@ -1050,9 +1026,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
                 disabled={!canSend}
                 aria-label="Send"
               >
-                <svg className={styles.sendIcon} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path d="M2 10l16-8-8 16V10H2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-                </svg>
+                <Send className={styles.sendIcon} size={16} aria-hidden="true" />
               </button>
             )}
           </div>
