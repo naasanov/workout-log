@@ -420,6 +420,24 @@
   color: $error;
 }
 
+.habitMenuItemToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.habitMenuToggleInput {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  accent-color: $primary;
+  cursor: pointer;
+  // Ensure 44px tap target is met via the parent label
+  margin: 0;
+}
+
 // ── Rename input ───────────────────────────────────────────────────────────────
 .renameRow {
   flex: 1;

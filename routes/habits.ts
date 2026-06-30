@@ -17,7 +17,7 @@ router.get('/', async (req, res): Promise<any> => {
     let data: RowDataPacket[];
     try {
         [data] = await pool.query<RowDataPacket[]>(`
-            SELECT id, name, ordering, created_at
+            SELECT id, name, ordering, ignore_empty_days, created_at
             FROM habits
             WHERE user_uuid = UUID_TO_BIN(?)
             ORDER BY ordering ASC, created_at ASC
@@ -71,13 +71,37 @@ router.post('/', async (req, res): Promise<any> => {
     });
 });
 
-// PATCH /habits/:id — rename a habit (also renames its tallies)
+// PATCH /habits/:id — update a habit (rename or toggle ignore_empty_days)
 router.patch('/:id', async (req, res): Promise<any> => {
     const { uuid }: User = res.locals.user;
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) return res.status(400).json({ message: 'Invalid habit id' });
 
-    const { name } = req.body as { name?: string };
+    const { name, ignore_empty_days } = req.body as { name?: string; ignore_empty_days?: boolean };
+
+    // ── Branch: update ignore_empty_days ──────────────────────────────────────
+    if (ignore_empty_days !== undefined) {
+        if (typeof ignore_empty_days !== 'boolean') {
+            return res.status(400).json({ message: 'ignore_empty_days must be a boolean' });
+        }
+
+        let result: ResultSetHeader;
+        try {
+            [result] = await pool.query<ResultSetHeader>(`
+                UPDATE habits SET ignore_empty_days = ?
+                WHERE id = ? AND user_uuid = UUID_TO_BIN(?)
+            `, [ignore_empty_days ? 1 : 0, id, uuid]);
+        } catch (error) {
+            return handleSqlError(error, res);
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: `Habit ${id} not found` });
+        }
+        return res.status(200).json({ message: 'Updated' });
+    }
+
+    // ── Branch: rename ─────────────────────────────────────────────────────────
     if (!name || typeof name !== 'string' || !name.trim()) {
         return res.status(400).json({ message: 'name is required' });
     }

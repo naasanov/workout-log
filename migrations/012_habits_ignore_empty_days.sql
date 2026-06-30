@@ -1,0 +1,2 @@
+ALTER TABLE habits
+ADD COLUMN ignore_empty_days TINYINT(1) NOT NULL DEFAULT 1;
