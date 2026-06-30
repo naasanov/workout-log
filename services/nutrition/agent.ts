@@ -91,10 +91,16 @@ When the user describes **two or more distinct dishes or meals** in a single mes
 When to split: separate meals or occasions described together ("snack and dinner"), clearly distinct items that each stand alone ("a burger and a slice of cake").
 When to keep as one entry: a single composite dish with multiple ingredients ("chicken stir-fry with rice and broccoli", "burrito bowl") — one entry, multiple ingredients.
 
-After proposing, briefly summarize what you proposed in a single short message (e.g. "Proposed two entries: an apple for snack and grilled salmon for dinner — check the cards below.").
+**After proposing entries:**
+- **Single entry:** add NO trailing chat message. The proposal card plus its \`notes\` field carry all needed context. Put any explanation into \`notes\` instead of a follow-up message.
+- **Multiple entries (two or more propose_entry calls in one turn):** add at most ONE short line tying them together, e.g. "Proposed a snack and a dinner — review the cards below." Nothing more.
+
+## Negligible-calorie ingredients (CRITICAL — follow exactly)
+When building a multi-ingredient entry (recipe, dish, or meal), do NOT add ingredients that contribute negligible calories — typically zero or near-zero calorie items such as: salt, pepper, spices, dried herbs (basil, oregano, cumin, etc.), garlic powder, onion powder, cinnamon, water, vinegar, zero-calorie seasonings, or cooking spray. These items are too small to affect the log meaningfully.
+Only include such ingredients if the user **explicitly asks** to log them (e.g. "include the salt" or "log all spices too").
 
 ## Web-search fallback
-- Only use \`web_search\` when \`search_usda\`, \`search_foods_batch\`, and \`lookup_barcode\` all return nothing useful (e.g. a local restaurant item, branded boba, or a food not in USDA/OFF).
+- Only use \`web_search\` when \`search_usda\`, \`search_foods_batch\`, and \`lookup_barcode\` all return nothing useful (e.g. a local restaurant item, branded boba, or a food not in USDA/OFF). **NEVER use \`web_search\` for arithmetic or calculation — use the \`calculator\` tool instead.**
 - Prefer official brand or restaurant nutrition pages. Extract per-serving or per-100g macros.
 - **Always cite the source URL** in your reply when using web-search data.
 - Use ingredient \`source: 'manual'\` for any web-derived items.
@@ -117,6 +123,9 @@ The \`notes\` field on a proposal is OPTIONAL and should only be populated when 
 - Why a specific portion size was picked when the user's description was ambiguous
 
 DO NOT populate \`notes\` when the proposal is straightforward (e.g. "200g chicken breast"). Do NOT use \`notes\` as an always-present summary of what you logged — your chat reply already serves that purpose. Leave \`notes\` null/absent in the vast majority of proposals.
+
+## Arithmetic and the calculator tool
+Use the \`calculator\` tool for **any non-trivial arithmetic** — gram conversions, macro scaling (per100g × grams/100), portion multiplications, totalling macros across ingredients, etc. Pass a standard math expression string (e.g. \`"0.28 * 210"\`). Do NOT perform multi-step arithmetic in your head; call \`calculator\` instead. NEVER use \`web_search\` for math.
 
 ## Other rules
 - Ground all macros in tool results. If a search returns no results, say so and ask the user for more info.
@@ -306,6 +315,100 @@ ${summariseEntries(recent)}
             grams: null,
             note: `Unknown unit "${unit}". Supported mass units: lb/lbs/pound, oz/ounce, kg, g, mg.`,
           };
+        },
+      }),
+
+      /**
+       * Safe arithmetic calculator — use for any non-trivial math (gram/macro scaling,
+       * portion multiplication, summing macros, etc.). NEVER use web_search for math.
+       * Supports +  -  *  /  parentheses, and decimal numbers.
+       */
+      calculator: tool({
+        description:
+          'Evaluate a simple arithmetic expression and return the numeric result. Use this for any non-trivial calculation: macro scaling (per100g × grams/100), portion multiplication, unit conversions, totalling macros, etc. Supports +, -, *, /, parentheses, and decimal numbers. Example input: "0.28 * 210". NEVER use web_search for arithmetic — use this tool instead.',
+        inputSchema: z.object({
+          expression: z
+            .string()
+            .describe(
+              'A math expression using +, -, *, /, parentheses, and decimal numbers. E.g. "0.28 * 210" or "(100 + 50) / 3".',
+            ),
+        }),
+        execute: async ({ expression }) => {
+          // Safe recursive-descent evaluator — NO eval() / Function().
+          // Grammar: expr = term (('+' | '-') term)*
+          //          term = factor (('*' | '/') factor)*
+          //          factor = '-' factor | '(' expr ')' | number
+          const src = expression.replace(/\s+/g, '');
+          let pos = 0;
+
+          function peek(): string {
+            return src[pos] ?? '';
+          }
+          function consume(): string {
+            return src[pos++] ?? '';
+          }
+
+          function parseNumber(): number {
+            let s = '';
+            if (peek() === '.') s += '0';
+            while (/[\d.]/.test(peek())) s += consume();
+            if (!s) throw new Error(`Unexpected character '${peek()}' at position ${pos}`);
+            return parseFloat(s);
+          }
+
+          function parseFactor(): number {
+            if (peek() === '-') {
+              consume();
+              return -parseFactor();
+            }
+            if (peek() === '+') {
+              consume();
+              return parseFactor();
+            }
+            if (peek() === '(') {
+              consume(); // '('
+              const val = parseExpr();
+              if (peek() !== ')') throw new Error('Missing closing parenthesis');
+              consume(); // ')'
+              return val;
+            }
+            return parseNumber();
+          }
+
+          function parseTerm(): number {
+            let val = parseFactor();
+            while (peek() === '*' || peek() === '/') {
+              const op = consume();
+              const right = parseFactor();
+              if (op === '*') val *= right;
+              else {
+                if (right === 0) throw new Error('Division by zero');
+                val /= right;
+              }
+            }
+            return val;
+          }
+
+          function parseExpr(): number {
+            let val = parseTerm();
+            while (peek() === '+' || peek() === '-') {
+              const op = consume();
+              const right = parseTerm();
+              if (op === '+') val += right;
+              else val -= right;
+            }
+            return val;
+          }
+
+          try {
+            const result = parseExpr();
+            if (pos !== src.length) {
+              throw new Error(`Unexpected token '${src[pos]}' at position ${pos}`);
+            }
+            return { result, expression };
+          } catch (err) {
+            return { error: (err as Error).message, expression };
+          }
         },
       }),
 
