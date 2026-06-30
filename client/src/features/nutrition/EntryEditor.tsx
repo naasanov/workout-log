@@ -28,6 +28,7 @@ import type {
 } from './types';
 import { MEALS } from './types';
 import styles from './EntryEditor.module.scss';
+import { ScanBarcode } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Module-level portions cache — keyed by source_ref, avoids redundant fetches
@@ -389,22 +390,7 @@ function IngredientRowEditor({ row, onChange, onRemove, onOpenBarcode }: Ingredi
           aria-label="Scan barcode"
           title="Scan barcode"
         >
-          <svg
-            className={styles.barcodeIcon}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <rect x="2" y="4" width="3" height="16" rx="0.5" fill="currentColor" stroke="none" />
-            <rect x="7" y="4" width="1.5" height="16" rx="0.5" fill="currentColor" stroke="none" />
-            <rect x="10.5" y="4" width="2.5" height="16" rx="0.5" fill="currentColor" stroke="none" />
-            <rect x="15" y="4" width="1.5" height="16" rx="0.5" fill="currentColor" stroke="none" />
-            <rect x="18.5" y="4" width="3.5" height="16" rx="0.5" fill="currentColor" stroke="none" />
-          </svg>
+          <ScanBarcode className={styles.barcodeIcon} size={16} aria-hidden="true" />
         </button>
       </div>
 

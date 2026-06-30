@@ -1,6 +1,6 @@
 import { useError } from '../context/ErrorProvider';
 import styles from "../styles/Workouts.module.scss";
-import plus from "../assets/plus.svg";
+import { Plus } from 'lucide-react';
 import useAuth from '../hooks/useAuth.js';
 import clientApi from '../api/clientApi.js';
 import { v4 as uuid } from 'uuid';
@@ -22,7 +22,7 @@ function AddSection({ setSections }) {
     <>
       <div className={styles.addItem}>
         <button onClick={handleSubmit}>Add Section</button>
-        <img src={plus} alt="plus" />
+        <Plus size={16} aria-hidden="true" />
       </div>
     </>
   );

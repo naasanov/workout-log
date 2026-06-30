@@ -178,8 +178,7 @@
 
 .collapseSvg {
   display: block; // iOS Safari SVG fix
-  width: 14px;
-  height: 8px;
+  flex-shrink: 0;
 }
 
 // ---- Message list ----
@@ -407,8 +406,6 @@
 // #77: Same chevron treatment as ToolCallCard — rotates on open
 .reasoningChevron {
   display: block; // iOS Safari SVG fix
-  width: 8px;
-  height: 5px;
   flex-shrink: 0;
   color: rgba($text, 0.3);
   transition: transform 0.2s ease;

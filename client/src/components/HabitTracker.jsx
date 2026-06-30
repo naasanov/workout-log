@@ -4,6 +4,7 @@ import clientApi from '../api/clientApi.js';
 import useAuth from '../hooks/useAuth.js';
 import styles from '../styles/HabitTracker.module.scss';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Minus, Plus, X, MoreVertical, ChevronDown } from 'lucide-react';
 
 // Returns today's local date as YYYY-MM-DD
 function getTodayLocalDate() {
@@ -157,19 +158,14 @@ function HabitRow({ row, isToday, onIncrement, onDecrement, onRangeChange }) {
             aria-label="Decrement tally"
             disabled={row.count === 0}
           >
-            <svg className={styles.adjustBtnIcon} viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-            </svg>
+            <Minus className={styles.adjustBtnIcon} size={16} aria-hidden="true" />
           </button>
           <button
             className={styles.adjustBtn}
             onClick={() => onIncrement(row.date)}
             aria-label="Increment tally"
           >
-            <svg className={styles.adjustBtnIcon} viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <line x1="8" y1="2" x2="8" y2="14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-              <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-            </svg>
+            <Plus className={styles.adjustBtnIcon} size={16} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -289,10 +285,7 @@ function NewHabitInput({ onSave, onCancel }) {
         Add
       </button>
       <button className={styles.newHabitCancelBtn} onClick={onCancel} type="button" aria-label="Cancel">
-        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          <line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
+        <X size={16} aria-hidden="true" />
       </button>
     </div>
   );
@@ -345,11 +338,7 @@ function HabitListItem({ habit, isActive, onSelect, onRename, onDelete }) {
           aria-label={`Options for ${habit.name}`}
           aria-expanded={menuOpen}
         >
-          <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <circle cx="8" cy="3" r="1.5" fill="currentColor" />
-            <circle cx="8" cy="8" r="1.5" fill="currentColor" />
-            <circle cx="8" cy="13" r="1.5" fill="currentColor" />
-          </svg>
+          <MoreVertical size={16} aria-hidden="true" />
         </button>
         {menuOpen && (
           <div className={styles.habitMenu} role="menu">
@@ -620,14 +609,11 @@ function HabitTracker() {
               ? 'No habits yet'
               : 'Select a habit'}
           </span>
-          <svg
+          <ChevronDown
             className={`${styles.habitSelectorChevron} ${habitsOpen ? styles.habitSelectorChevronOpen : ''}`}
-            viewBox="0 0 16 16"
-            xmlns="http://www.w3.org/2000/svg"
+            size={16}
             aria-hidden="true"
-          >
-            <polyline points="4,6 8,10 12,6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          />
         </button>
 
         {habitsOpen && (
@@ -654,10 +640,7 @@ function HabitTracker() {
                 type="button"
                 disabled={createHabitMutation.isPending}
               >
-                <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                  <line x1="8" y1="2" x2="8" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
+                <Plus size={16} aria-hidden="true" />
                 New habit
               </button>
             )}

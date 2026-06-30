@@ -322,8 +322,7 @@
 
 .dotsIcon {
   display: block;
-  width: 4px;
-  height: 18px;
+  flex-shrink: 0;
 }
 
 // #72: Dropdown menu

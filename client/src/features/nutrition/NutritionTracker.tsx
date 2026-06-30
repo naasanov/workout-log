@@ -7,6 +7,7 @@ import ConfirmModal from '../../components/ConfirmModal.jsx';
 import type { EntryEditorMode, EntryRow } from './types';
 import { MEALS } from './types';
 import styles from './NutritionTracker.module.scss';
+import { MoreVertical, ChevronLeft, ChevronRight, Target } from 'lucide-react';
 
 // ---- Helpers ----
 
@@ -108,17 +109,7 @@ function EntryMenu({ entry, onEdit, onDelete }: EntryMenuProps) {
         aria-haspopup="true"
         aria-expanded={open}
       >
-        {/* Vertical three-dots icon */}
-        <svg
-          className={styles.dotsIcon}
-          viewBox="0 0 4 18"
-          fill="currentColor"
-          aria-hidden="true"
-        >
-          <circle cx="2" cy="2" r="1.6" />
-          <circle cx="2" cy="9" r="1.6" />
-          <circle cx="2" cy="16" r="1.6" />
-        </svg>
+        <MoreVertical className={styles.dotsIcon} size={16} aria-hidden="true" />
       </button>
 
       {open && (
@@ -225,20 +216,7 @@ export default function NutritionTracker() {
           onClick={handlePrevDay}
           aria-label="Previous day"
         >
-          <svg
-            className={styles.arrowIcon}
-            viewBox="0 0 18 18"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="M11 4L6 9l5 5"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <ChevronLeft className={styles.arrowIcon} size={16} aria-hidden="true" />
         </button>
 
         <input
@@ -254,20 +232,7 @@ export default function NutritionTracker() {
           onClick={handleNextDay}
           aria-label="Next day"
         >
-          <svg
-            className={styles.arrowIcon}
-            viewBox="0 0 18 18"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="M7 4l5 5-5 5"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <ChevronRight className={styles.arrowIcon} size={16} aria-hidden="true" />
         </button>
       </div>
 
@@ -293,17 +258,7 @@ export default function NutritionTracker() {
           aria-label="Nutrition goals"
           title="Set nutrition goals"
         >
-          <svg
-            className={styles.settingsIcon}
-            viewBox="0 0 20 20"
-            fill="none"
-            aria-hidden="true"
-          >
-            {/* Bullseye / target icon: outer ring, middle ring, centre dot */}
-            <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.8" />
-            <circle cx="10" cy="10" r="4.5" stroke="currentColor" strokeWidth="1.8" />
-            <circle cx="10" cy="10" r="1.5" fill="currentColor" />
-          </svg>
+          <Target className={styles.settingsIcon} size={16} aria-hidden="true" />
         </button>
       </div>
 

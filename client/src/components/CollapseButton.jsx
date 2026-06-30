@@ -1,4 +1,4 @@
-import openDropdown from '../assets/dropdown_open.svg';
+import { ChevronDown } from 'lucide-react';
 import styles from '../styles/CollapseButton.module.scss';
 
 /**
@@ -15,10 +15,10 @@ function CollapseButton({ isOpen, onClick, label }) {
       onClick={onClick}
       aria-label={label ?? (isOpen ? 'Collapse' : 'Expand')}
     >
-      <img
-        src={openDropdown}
-        alt="toggle"
+      <ChevronDown
+        size={16}
         className={isOpen ? styles.open : styles.closed}
+        aria-hidden="true"
       />
     </button>
   );

@@ -39,8 +39,6 @@
 .chevronIcon {
   display: block; // iOS Safari SVG fix
   flex-shrink: 0;
-  width: 8px;
-  height: 5px;
   color: rgba($text, 0.3);
   transition: transform 0.2s ease;
 }

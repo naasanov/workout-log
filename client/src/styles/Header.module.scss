@@ -69,8 +69,6 @@
 .feedbackIcon {
   // iOS Safari SVG fix: block on a flex child
   display: block;
-  width: 22px;
-  height: 22px;
 }
 
 .authLinks {
@@ -134,8 +132,7 @@
 }
 
 .profileIcon {
-  width: 24px;
-  height: 24px;
+  display: block;
   color: $primary;
 }
 

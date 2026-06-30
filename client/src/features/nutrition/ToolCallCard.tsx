@@ -16,6 +16,7 @@ import { useRef, useState } from 'react';
 import { getToolName } from 'ai';
 import type { DynamicToolUIPart, ToolUIPart } from 'ai';
 import styles from './ToolCallCard.module.scss';
+import { ChevronDown } from 'lucide-react';
 
 type AnyToolUIPart = ToolUIPart | DynamicToolUIPart;
 
@@ -122,20 +123,11 @@ export default function ToolCallCard({ part }: ToolCallCardProps) {
         aria-expanded={expanded}
       >
         {/* Expand chevron */}
-        <svg
+        <ChevronDown
           className={`${styles.chevronIcon} ${expanded ? styles.chevronOpen : ''}`}
-          viewBox="0 0 10 6"
-          fill="none"
+          size={16}
           aria-hidden="true"
-        >
-          <path
-            d="M1 1l4 4 4-4"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        />
 
         {/* Item 11: tool label — always shown */}
         <span className={styles.toolName}>{displayName}</span>

@@ -84,7 +84,7 @@
   display: block;
   padding-right: 7px;
   color: $primary;
-  width: auto;
+  flex-shrink: 0;
 }
 
 .graphBtn {

@@ -14,11 +14,10 @@
   cursor: pointer;
 
   // #75: standardize collapse chevron to 16px on all breakpoints
-  img {
-    width: $icon-size;
-    height: $icon-size;
+  svg {
     // iOS Safari SVG fix: block prevents inline-block line-height gap
     display: block;
+    flex-shrink: 0;
   }
 
   &:hover {
