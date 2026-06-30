@@ -44,7 +44,7 @@ import ToolCallCard from './ToolCallCard';
 import ConfirmModal from '../../components/ConfirmModal';
 import type { EntryInput, EntryEditorMode, ProposeEntryArgs } from './types';
 import styles from './NutritionChat.module.scss';
-import { ChevronDown, Trash2, Camera, ScanBarcode, Square, Send, Images, AlertCircle, ChevronRight } from 'lucide-react';
+import { ChevronDown, Trash2, Camera, ScanBarcode, Square, Send, Images, AlertCircle, ChevronRight, MessageSquare } from 'lucide-react';
 import useIsMobile from '../../hooks/useIsMobile';
 
 // ---------------------------------------------------------------------------
@@ -494,9 +494,8 @@ interface NutritionChatProps {
 }
 
 // Sheet height constants
-// #93: Peek height now includes the floating attach-button row above the composer.
-// dragHandleBtn≈18 + composerAttachRow≈52 (8+36+8) + composer≈54 (4+40+10) ≈ 124px.
-const PEEK_HEIGHT = 136;    // px — drag handle + attach row + composer row (+ a little breathing room)
+// #116: PEEK_HEIGHT=0 — no visible sliver; floating FAB replaces the peek strip.
+const PEEK_HEIGHT = 0;
 const EXPANDED_HEIGHT_VH = 88; // dvh
 
 export default function NutritionChat({ open, onClose, selectedDate }: NutritionChatProps) {
@@ -710,10 +709,55 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   }, []);
 
   // ---- Barcode handling ----
-  const handleBarcodeDetected = useCallback((code: string) => {
+  const [barcodeLoading, setBarcodeLoading] = useState(false);
+
+  const handleBarcodeDetected = useCallback(async (code: string) => {
     setBarcodeOpen(false);
-    setText(prev => prev ? `${prev} barcode:${code}` : `barcode:${code}`);
-    textareaRef.current?.focus();
+    setBarcodeLoading(true);
+    try {
+      const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
+      const data = await res.json() as {
+        status: number;
+        product?: {
+          product_name?: string;
+          nutriments?: {
+            'energy-kcal_100g'?: number;
+            'proteins_100g'?: number;
+            'carbohydrates_100g'?: number;
+            'fat_100g'?: number;
+          };
+          serving_quantity?: number;
+          serving_quantity_unit?: string;
+        };
+      };
+
+      if (data.status === 1 && data.product) {
+        const p = data.product;
+        const name = p.product_name ?? 'Unknown product';
+        const n = p.nutriments ?? {};
+        const kcal = n['energy-kcal_100g'] != null ? Math.round(n['energy-kcal_100g']) : '?';
+        const protein = n['proteins_100g'] != null ? Math.round(n['proteins_100g']) : '?';
+        const carbs = n['carbohydrates_100g'] != null ? Math.round(n['carbohydrates_100g']) : '?';
+        const fat = n['fat_100g'] != null ? Math.round(n['fat_100g']) : '?';
+
+        let formatted = `[Scanned: ${code}]\nProduct: ${name}\nPer 100g: ${kcal} kcal | ${protein}g protein | ${carbs}g carbs | ${fat}g fat`;
+        if (p.serving_quantity != null) {
+          const unit = p.serving_quantity_unit ?? 'g';
+          formatted += `\nServing size: ${p.serving_quantity}${unit}`;
+        }
+
+        setText(prev => prev ? `${formatted}\n${prev}` : formatted);
+      } else {
+        console.warn('Open Food Facts: product not found for barcode', code);
+        setText(prev => prev ? `${prev} barcode:${code}` : `barcode:${code}`);
+      }
+    } catch (err) {
+      console.warn('Open Food Facts lookup failed:', err);
+      setText(prev => prev ? `${prev} barcode:${code}` : `barcode:${code}`);
+    } finally {
+      setBarcodeLoading(false);
+      textareaRef.current?.focus();
+    }
   }, []);
 
   // ---- Send ----
@@ -1040,7 +1084,8 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
               type="button"
               className={styles.composerCircleBtn}
               onClick={() => setBarcodeOpen(true)}
-              aria-label="Scan barcode"
+              disabled={barcodeLoading}
+              aria-label={barcodeLoading ? 'Looking up barcode…' : 'Scan barcode'}
               title="Scan barcode"
             >
               <ScanBarcode className={styles.composerCircleBtnIcon} size={16} aria-hidden="true" />
@@ -1124,6 +1169,71 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
           </div>
         </div>
       </div>
+
+      {/* #116: Floating chat FAB — visible only when sheet is closed (PEEK_HEIGHT=0 means
+          the sheet is invisible). Tap opens fully; drag upward drags sheet open. */}
+      {!isExpanded && (
+        <button
+          type="button"
+          className={styles.floatingChatBtn}
+          aria-label="Open AI chat"
+          onPointerDown={(e: React.PointerEvent<HTMLButtonElement>) => {
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+            dragStartYRef.current = e.clientY;
+            dragStartHeightRef.current = 0;
+            dragLastYRef.current = e.clientY;
+            dragLastTimeRef.current = e.timeStamp;
+            dragVelocityRef.current = 0;
+            setDraggingHeight(0);
+          }}
+          onPointerMove={(e: React.PointerEvent<HTMLButtonElement>) => {
+            if (dragStartYRef.current === null) return;
+            const delta = dragStartYRef.current - e.clientY;
+            const raw = dragStartHeightRef.current + delta;
+            const maxH = getExpandedPx();
+            const clamped = Math.max(0, Math.min(raw, maxH));
+            const dt = e.timeStamp - dragLastTimeRef.current;
+            if (dt > 0) {
+              dragVelocityRef.current = (dragLastYRef.current - e.clientY) / dt;
+            }
+            dragLastYRef.current = e.clientY;
+            dragLastTimeRef.current = e.timeStamp;
+            setDraggingHeight(clamped);
+          }}
+          onPointerUp={(e: React.PointerEvent<HTMLButtonElement>) => {
+            if (dragStartYRef.current === null) return;
+            const startY = dragStartYRef.current;
+            const endY = e.clientY;
+            const totalDelta = startY - endY;
+            dragStartYRef.current = null;
+            setDraggingHeight(null);
+
+            if (totalDelta < 10) {
+              // Tap (minimal drag) — open fully
+              setExpanded(true);
+            } else {
+              // Drag release — apply snap logic
+              const height = draggingHeight ?? 0;
+              const midpoint = getExpandedPx() / 2;
+              const velocity = dragVelocityRef.current;
+              const shouldExpand = Math.abs(velocity) > 0.3 ? velocity > 0 : height > midpoint;
+              if (shouldExpand) {
+                setExpanded(true);
+              }
+            }
+          }}
+          onPointerCancel={() => {
+            dragStartYRef.current = null;
+            setDraggingHeight(null);
+          }}
+          onClick={(e) => {
+            // Prevent click from firing after a drag that didn't cross threshold
+            e.stopPropagation();
+          }}
+        >
+          <MessageSquare className={styles.floatingChatBtnIcon} size={16} aria-hidden="true" />
+        </button>
+      )}
 
       {/* Barcode scanner — rendered outside the sheet */}
       {barcodeOpen && (
