@@ -44,7 +44,7 @@ import ToolCallCard from './ToolCallCard';
 import ConfirmModal from '../../components/ConfirmModal';
 import type { EntryInput, EntryEditorMode, ProposeEntryArgs } from './types';
 import styles from './NutritionChat.module.scss';
-import { ChevronDown, Trash2, Camera, ScanBarcode, Square, Send, Images, AlertCircle, ChevronRight, MessageSquare } from 'lucide-react';
+import { ChevronDown, Trash2, Camera, ScanBarcode, Square, Send, Images, AlertCircle, ChevronRight } from 'lucide-react';
 import useIsMobile from '../../hooks/useIsMobile';
 
 // ---------------------------------------------------------------------------
@@ -494,8 +494,9 @@ interface NutritionChatProps {
 }
 
 // Sheet height constants
-// #116: PEEK_HEIGHT=0 — no visible sliver; floating FAB replaces the peek strip.
-const PEEK_HEIGHT = 0;
+// #116 (revised): PEEK_HEIGHT=52px — tall drag-handle bar visible when collapsed;
+// no chat content peeks through; tap or drag the bar upward to expand.
+const PEEK_HEIGHT = 52;
 const EXPANDED_HEIGHT_VH = 88; // dvh
 
 export default function NutritionChat({ open, onClose, selectedDate }: NutritionChatProps) {
@@ -846,6 +847,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   const dragLastYRef = useRef<number>(0);
   const dragLastTimeRef = useRef<number>(0);
   const dragVelocityRef = useRef<number>(0); // px/ms — negative = upward (expand)
+  const dragMaxDeltaRef = useRef<number>(0); // max absolute vertical movement during drag
   const [draggingHeight, setDraggingHeight] = useState<number | null>(null);
 
   // Compute full expanded height in px
@@ -860,6 +862,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     dragLastYRef.current = e.clientY;
     dragLastTimeRef.current = e.timeStamp;
     dragVelocityRef.current = 0;
+    dragMaxDeltaRef.current = 0;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     setDraggingHeight(currentHeight);
   }, [expanded, getExpandedPx]);
@@ -868,6 +871,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     if (dragStartYRef.current === null) return;
 
     const delta = dragStartYRef.current - e.clientY; // positive = dragged up = bigger height
+    dragMaxDeltaRef.current = Math.max(dragMaxDeltaRef.current, Math.abs(delta));
     const raw = dragStartHeightRef.current + delta;
     const maxH = getExpandedPx();
     const clamped = Math.max(PEEK_HEIGHT, Math.min(raw, maxH));
@@ -883,8 +887,26 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     setDraggingHeight(clamped);
   }, [getExpandedPx]);
 
+  // Below this much total pointer movement (px), a release is treated as a tap
+  // rather than a drag — toggles expand/collapse instead of snapping by position.
+  const TAP_THRESHOLD_PX = 8;
+
   const handleDragPointerUp = useCallback(() => {
     if (dragStartYRef.current === null) return;
+    const isTap = dragMaxDeltaRef.current < TAP_THRESHOLD_PX;
+
+    setDraggingHeight(null);
+    dragStartYRef.current = null;
+
+    if (isTap) {
+      if (expanded) {
+        collapse();
+      } else {
+        setExpanded(true);
+      }
+      return;
+    }
+
     const height = draggingHeight ?? (expanded ? getExpandedPx() : PEEK_HEIGHT);
     const midpoint = (PEEK_HEIGHT + getExpandedPx()) / 2;
     const velocity = dragVelocityRef.current; // px/ms, positive=upward
@@ -897,9 +919,6 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
       // Slow drag — snap based on position
       shouldExpand = height > midpoint;
     }
-
-    setDraggingHeight(null);
-    dragStartYRef.current = null;
 
     if (shouldExpand) {
       setExpanded(true);
@@ -1169,71 +1188,6 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
           </div>
         </div>
       </div>
-
-      {/* #116: Floating chat FAB — visible only when sheet is closed (PEEK_HEIGHT=0 means
-          the sheet is invisible). Tap opens fully; drag upward drags sheet open. */}
-      {!isExpanded && (
-        <button
-          type="button"
-          className={styles.floatingChatBtn}
-          aria-label="Open AI chat"
-          onPointerDown={(e: React.PointerEvent<HTMLButtonElement>) => {
-            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-            dragStartYRef.current = e.clientY;
-            dragStartHeightRef.current = 0;
-            dragLastYRef.current = e.clientY;
-            dragLastTimeRef.current = e.timeStamp;
-            dragVelocityRef.current = 0;
-            setDraggingHeight(0);
-          }}
-          onPointerMove={(e: React.PointerEvent<HTMLButtonElement>) => {
-            if (dragStartYRef.current === null) return;
-            const delta = dragStartYRef.current - e.clientY;
-            const raw = dragStartHeightRef.current + delta;
-            const maxH = getExpandedPx();
-            const clamped = Math.max(0, Math.min(raw, maxH));
-            const dt = e.timeStamp - dragLastTimeRef.current;
-            if (dt > 0) {
-              dragVelocityRef.current = (dragLastYRef.current - e.clientY) / dt;
-            }
-            dragLastYRef.current = e.clientY;
-            dragLastTimeRef.current = e.timeStamp;
-            setDraggingHeight(clamped);
-          }}
-          onPointerUp={(e: React.PointerEvent<HTMLButtonElement>) => {
-            if (dragStartYRef.current === null) return;
-            const startY = dragStartYRef.current;
-            const endY = e.clientY;
-            const totalDelta = startY - endY;
-            dragStartYRef.current = null;
-            setDraggingHeight(null);
-
-            if (totalDelta < 10) {
-              // Tap (minimal drag) — open fully
-              setExpanded(true);
-            } else {
-              // Drag release — apply snap logic
-              const height = draggingHeight ?? 0;
-              const midpoint = getExpandedPx() / 2;
-              const velocity = dragVelocityRef.current;
-              const shouldExpand = Math.abs(velocity) > 0.3 ? velocity > 0 : height > midpoint;
-              if (shouldExpand) {
-                setExpanded(true);
-              }
-            }
-          }}
-          onPointerCancel={() => {
-            dragStartYRef.current = null;
-            setDraggingHeight(null);
-          }}
-          onClick={(e) => {
-            // Prevent click from firing after a drag that didn't cross threshold
-            e.stopPropagation();
-          }}
-        >
-          <MessageSquare className={styles.floatingChatBtnIcon} size={16} aria-hidden="true" />
-        </button>
-      )}
 
       {/* Barcode scanner — rendered outside the sheet */}
       {barcodeOpen && (
