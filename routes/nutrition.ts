@@ -320,6 +320,10 @@ router.post('/chat', async (req, res): Promise<any> => {
     });
   } catch (error) {
     // Only reached if streamText itself throws before streaming begins
+    // #107: log detailed error info so it shows up in Heroku logs
+    const err = error as Error;
+    console.error('[nutrition/chat] Stream error:', err?.message ?? String(error));
+    if (err?.stack) console.error('[nutrition/chat] Stack:', err.stack);
     return handleSqlError(error, res);
   }
 });

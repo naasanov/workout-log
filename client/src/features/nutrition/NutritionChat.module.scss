@@ -795,6 +795,76 @@
   height: 16px;
 }
 
+// ---- #107: Error bubble ----
+.errorBubble {
+  max-width: min(80%, 500px);
+  min-width: 0;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background-color: rgba($error, 0.06);
+  border: 1px solid rgba($error, 0.25);
+  overflow: hidden;
+}
+
+.errorBubbleToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  min-height: 36px;
+  box-sizing: border-box;
+}
+
+.errorBubbleIcon {
+  display: block; // iOS Safari SVG fix
+  flex-shrink: 0;
+  color: rgba($error, 0.8);
+  width: 16px;
+  height: 16px;
+}
+
+.errorBubbleLabel {
+  flex: 1;
+  font-family: $sarabun;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($error, 0.85);
+}
+
+.errorBubbleChevron {
+  display: block; // iOS Safari SVG fix
+  flex-shrink: 0;
+  color: rgba($error, 0.5);
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s ease;
+}
+
+.errorBubbleChevronOpen {
+  transform: rotate(90deg);
+}
+
+.errorBubbleDetail {
+  margin: 0;
+  padding: 6px 12px 10px;
+  border-top: 1px solid rgba($error, 0.15);
+  font-family: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: rgba($error, 0.7);
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow-x: auto;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
 // ---- Animations ----
 @keyframes fadeIn {
   from { opacity: 0; }
