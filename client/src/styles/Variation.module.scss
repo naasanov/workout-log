@@ -87,6 +87,15 @@
   flex-shrink: 0;
 }
 
+// #124: the weight/reps icons sit inline next to the numbers (22px) but render
+// at the standard 16px, looking tiny. Scale just those (direct children of
+// .part) to match the adjacent number height. Graph/delete icons live inside
+// buttons, so they're unaffected.
+.part > .icon {
+  width: 1em;
+  height: 1em;
+}
+
 .graphBtn {
   display: flex;
   width: 40px;
