@@ -9,10 +9,10 @@ import {
   ChevronDown,
   ChevronRight,
   CircleUserRound,
-  Plus,
+  Plus as PlusIcon,
   Hash,
   BarChart3,
-  Dumbbell,
+  Dumbbell as DumbbellIcon,
 } from 'lucide-react';
 
 export function Calender({ className }) {
@@ -35,7 +35,9 @@ export function Profile({ className }) {
   return <CircleUserRound className={className} size={16} />;
 }
 
-export { Plus };
+export function Plus({ className, ...props }) {
+  return <PlusIcon className={className} {...props} size={16} />;
+}
 
 export function Number({ className }) {
   return <Hash className={className} size={16} />;
@@ -45,4 +47,6 @@ export function Chart({ className }) {
   return <BarChart3 className={className} size={16} />;
 }
 
-export { Dumbbell };
+export function Dumbbell({ className, ...props }) {
+  return <DumbbellIcon className={className} {...props} size={16} />;
+}
