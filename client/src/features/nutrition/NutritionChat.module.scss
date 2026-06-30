@@ -35,11 +35,10 @@
   &:focus { outline: none; }
 }
 
-// Peek: drag handle + floating attach buttons + composer row
-// #61: height uses calc() to account for safe-area on iPhone
-// #93: attach row added ≈ 52px → bump peek from 96→136px
+// #116: PEEK_HEIGHT=0 — sheet is invisible when closed; FAB replaces the sliver.
 .sheetPeek {
-  height: calc(136px + env(safe-area-inset-bottom));
+  height: 0;
+  overflow: hidden;
 }
 
 // Expanded: full chat
@@ -863,6 +862,37 @@
   overflow-x: auto;
   max-height: 200px;
   overflow-y: auto;
+}
+
+// ---- Floating chat button (shown when sheet is closed, PEEK_HEIGHT=0) ----
+.floatingChatBtn {
+  position: fixed;
+  right: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: $primary;
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  touch-action: none;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 997;
+  padding: 0;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.floatingChatBtnIcon {
+  display: block; // iOS Safari SVG fix
+  width: 16px;
+  height: 16px;
 }
 
 // ---- Animations ----
