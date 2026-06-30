@@ -352,12 +352,14 @@ export default function NutritionTracker() {
                 />
               </div>
 
-              {/* kcal + macros on one row */}
+              {/* kcal left, macro chips right (#101) */}
               <div className={styles.macroChips}>
                 <span className={styles.entryCalories}>{Math.round(entry.calories)} kcal</span>
-                <span className={styles.chip}>{Math.round(entry.protein_g)}g P</span>
-                <span className={styles.chip}>{Math.round(entry.carbs_g)}g C</span>
-                <span className={styles.chip}>{Math.round(entry.fat_g)}g F</span>
+                <div className={styles.macroChipsGroup}>
+                  <span className={styles.chip}>{Math.round(entry.protein_g)}g P</span>
+                  <span className={styles.chip}>{Math.round(entry.carbs_g)}g C</span>
+                  <span className={styles.chip}>{Math.round(entry.fat_g)}g F</span>
+                </div>
               </div>
             </div>
           ))}

@@ -387,11 +387,20 @@
   flex-shrink: 0;
 }
 
+// #101: kcal on left, P/C/F chips pushed right
 .macroChips {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+}
+
+// Sub-container for the three macro chips so they stay grouped on the right
+.macroChipsGroup {
+  display: flex;
   align-items: center;
   gap: 5px;
+  flex-shrink: 0;
 }
 
 .chip {

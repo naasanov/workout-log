@@ -117,7 +117,7 @@ function Section({ setSections, section }) {
   }
 
   async function handleMovementSubmit() {
-    const isFirst = movements.length === 0;
+    const wasClosed = !section.showItems;
     const res = await withAuth(() => (
       clientApi.post(`/movements/${section.id}`, { label: "Exercise" })
     ));
@@ -125,7 +125,7 @@ function Section({ setSections, section }) {
     setMovements(prevMovements => (
       [...prevMovements, { id: key, label: 'Exercise' }]
     ))
-    if (isFirst) {
+    if (wasClosed) {
       setSections(prevSections => (
         prevSections.map(s => s.id === section.id ? { ...s, showItems: true } : s)
       ));
