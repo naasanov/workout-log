@@ -1,9 +1,9 @@
 @import "../../styles/variables";
 
 // ---- Container ----
-// Extra bottom padding to keep content from hiding behind the peeking chat bar (~88px)
+// Extra bottom padding to keep content clear of the floating chat FAB (~80px)
 .container {
-  padding: 16px 14px 120px;
+  padding: 16px 14px 96px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -267,13 +267,13 @@
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 // #72: Entry top row — name on left (wraps up to 2 lines), three-dots on right
 .entryTop {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
 }
 

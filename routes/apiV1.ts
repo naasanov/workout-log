@@ -8,6 +8,9 @@ import { validateId, validateLabel, validateVariation } from '../utils/validatio
 import { authenticateApiKey, hashApiKey } from '../middleware/apiKey';
 import { authenticateToken } from './auth';
 import SqlError from '../utils/sqlErrors';
+import { streamNutritionChat } from '../services/nutrition/agent';
+import * as nutritionStore from '../services/nutrition/store';
+import type { EntryInput } from '../schemas/nutrition';
 const { NO_REFERENCE_ERROR, WRONG_VALUE_ERROR } = SqlError;
 
 const router = Router();
@@ -593,6 +596,103 @@ router.post('/habits/:habitName/tally', async (req, res): Promise<any> => {
             },
             message: `Tally incremented for ${habitName} on ${todayDate}`
         });
+    }
+});
+
+// ---------------------------------------------------------------------------
+// Nutrition entry via AI agent (no-confirmation, automated)
+// ---------------------------------------------------------------------------
+
+router.post('/nutrition/entry', async (req, res): Promise<any> => {
+    const { uuid } = res.locals.user;
+    const { prompt, image, date } = req.body as { prompt?: string; image?: string; date?: string };
+
+    if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+        return res.status(400).json({ message: 'prompt is required and must be a non-empty string' });
+    }
+
+    const selectedDate = (date && /^\d{4}-\d{2}-\d{2}$/.test(date))
+        ? date
+        : new Date().toISOString().slice(0, 10);
+
+    // Build a single user message — include the image as a data URL part if provided
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const parts: any[] = [{ type: 'text', text: prompt.trim() }];
+    if (image && typeof image === 'string' && image.startsWith('data:')) {
+        // Extract mime type and base64 data from the data URL
+        const match = image.match(/^data:([^;]+);base64,(.+)$/);
+        if (match) {
+            parts.push({ type: 'image', image, mimeType: match[1] });
+        }
+    }
+
+    const messages = [{ role: 'user', parts }];
+
+    const TIMEOUT_MS = 30_000;
+    let timedOut = false;
+    const timeoutHandle = setTimeout(() => { timedOut = true; }, TIMEOUT_MS);
+
+    try {
+        const result = await streamNutritionChat({
+            userUuid: uuid,
+            selectedDate,
+            messages,
+            effort: 'low',
+            autoConfirm: true,
+        });
+
+        // Consume the stream and collect all tool results to find propose_entry output
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let proposedEntry: any = null;
+
+        for await (const part of result.fullStream) {
+            if (timedOut) break;
+            if (part.type === 'tool-result' && part.toolName === 'propose_entry') {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                proposedEntry = (part as any).output;
+                break;
+            }
+        }
+
+        clearTimeout(timeoutHandle);
+
+        if (timedOut) {
+            return res.status(500).json({ message: 'Agent timed out without proposing an entry' });
+        }
+
+        if (!proposedEntry) {
+            return res.status(500).json({ message: 'Agent did not produce a food entry' });
+        }
+
+        // Convert ProposeEntryArgs → EntryInput: add localDate, strip serving metadata from ingredients
+        const entryInput: EntryInput = {
+            localDate: selectedDate,
+            meal: proposedEntry.meal,
+            name: proposedEntry.name,
+            source: proposedEntry.source ?? 'text',
+            barcode: proposedEntry.barcode ?? null,
+            raw_llm_json: proposedEntry,
+            ingredients: (proposedEntry.ingredients as any[]).map((ing: any) => ({
+                name: ing.name,
+                grams: ing.grams,
+                source: ing.source,
+                source_ref: ing.source_ref ?? null,
+                calories: ing.calories,
+                protein_g: ing.protein_g,
+                carbs_g: ing.carbs_g,
+                fat_g: ing.fat_g,
+            })),
+        };
+
+        const { id } = await nutritionStore.createEntry(uuid, entryInput);
+
+        return res.status(200).json({
+            data: { entryId: id },
+            message: 'Food entry added successfully',
+        });
+    } catch (error) {
+        clearTimeout(timeoutHandle);
+        return handleSqlError(error, res);
     }
 });
 

@@ -18,6 +18,8 @@ export interface NutritionChatOptions {
   messages: any[];
   /** Reasoning effort: none | minimal | low | medium | high (default: medium) */
   effort?: 'none' | 'minimal' | 'low' | 'medium' | 'high';
+  /** When true, instructs the agent to log the entry immediately without asking follow-up questions. */
+  autoConfirm?: boolean;
 }
 
 /** Build a compact text summary of recent entries for the system prompt context block. */
@@ -39,6 +41,7 @@ export async function streamNutritionChat({
   selectedDate,
   messages,
   effort,
+  autoConfirm,
 }: NutritionChatOptions) {
   // Fetch context in parallel — degrade gracefully if DB not available
   const [recent, goals, todayDay] = await Promise.all([
@@ -140,7 +143,9 @@ Use the \`calculator\` tool for **any non-trivial arithmetic** — gram conversi
 
 **Recent meals (last 3 days):**
 ${summariseEntries(recent)}
-`;
+` + (autoConfirm
+    ? '\n\nIMPORTANT: This is an automated API call. Do NOT ask any follow-up questions. Do NOT ask for confirmation. Log the food entry immediately based on the prompt provided. Use your best judgment on quantities and macros. Call propose_entry as soon as you have identified the food and estimated the portion.'
+    : '');
 
   const modelMessages = await convertToModelMessages(messages);
 
