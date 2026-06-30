@@ -12,6 +12,8 @@
   border: none;
   border-radius: 100px;
   cursor: pointer;
+  // Green chevron (lucide uses currentColor) to match the other workout accents
+  color: $primary;
 
   // #75: standardize collapse chevron to 16px on all breakpoints
   svg {
