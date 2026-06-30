@@ -292,7 +292,7 @@ function NewHabitInput({ onSave, onCancel }) {
 }
 
 // ─── Habit list item (inside dropdown) ─────────────────────────────────────────
-function HabitListItem({ habit, isActive, onSelect, onRename, onDelete }) {
+function HabitListItem({ habit, isActive, onSelect, onRename, onDelete, onToggleIgnoreEmpty }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const menuRef = useRef(null);
@@ -321,6 +321,8 @@ function HabitListItem({ habit, isActive, onSelect, onRename, onDelete }) {
     );
   }
 
+  const ignoreEmptyDays = !!habit.ignore_empty_days;
+
   return (
     <div className={`${styles.habitItem} ${isActive ? styles.habitItemActive : ''}`}>
       <button
@@ -342,6 +344,21 @@ function HabitListItem({ habit, isActive, onSelect, onRename, onDelete }) {
         </button>
         {menuOpen && (
           <div className={styles.habitMenu} role="menu">
+            <label
+              className={`${styles.habitMenuItem} ${styles.habitMenuItemToggle}`}
+              role="menuitem"
+              onClick={e => e.stopPropagation()}
+            >
+              <input
+                type="checkbox"
+                className={styles.habitMenuToggleInput}
+                checked={ignoreEmptyDays}
+                onChange={e => {
+                  onToggleIgnoreEmpty(habit.id, e.target.checked);
+                }}
+              />
+              <span>Skip days with no tallys</span>
+            </label>
             <button
               className={styles.habitMenuItem}
               role="menuitem"
@@ -408,14 +425,14 @@ function HabitTracker() {
 
   const habits = habitsQuery.data ?? [];
 
-  // Auto-select the first habit when registry loads; keep active in sync on rename
+  // Auto-select the first habit when registry loads; keep active in sync on rename/setting changes
   useEffect(() => {
     if (activeHabit === null && habits.length > 0) {
       setActiveHabit(habits[0]);
     }
     if (activeHabit !== null) {
       const fresh = habits.find(h => h.id === activeHabit.id);
-      if (fresh && fresh.name !== activeHabit.name) {
+      if (fresh && (fresh.name !== activeHabit.name || fresh.ignore_empty_days !== activeHabit.ignore_empty_days)) {
         setActiveHabit(fresh);
       }
     }
@@ -466,6 +483,35 @@ function HabitTracker() {
         // Remove old tallies cache key; will refetch under new name
         queryClient.removeQueries({ queryKey: ['habits', activeHabit.name] });
         setActiveHabit(prev => ({ ...prev, name: updated.name }));
+      }
+    },
+  });
+
+  const patchHabitSettingsMutation = useMutation({
+    mutationFn: async ({ id, ignore_empty_days }) => {
+      await clientApi.patch(`/habits/${id}`, { ignore_empty_days });
+      return { id, ignore_empty_days };
+    },
+    onMutate: async ({ id, ignore_empty_days }) => {
+      // Optimistic update: update registry cache
+      const prevRegistry = queryClient.getQueryData(['habits-registry']);
+      queryClient.setQueryData(['habits-registry'], (prev) =>
+        (prev ?? []).map(h => h.id === id ? { ...h, ignore_empty_days } : h)
+      );
+      // Also update activeHabit local state optimistically
+      if (activeHabit?.id === id) {
+        setActiveHabit(prev => ({ ...prev, ignore_empty_days }));
+      }
+      return { prevRegistry };
+    },
+    onError: (_err, { id }, context) => {
+      // Roll back on error
+      if (context?.prevRegistry) {
+        queryClient.setQueryData(['habits-registry'], context.prevRegistry);
+      }
+      if (activeHabit?.id === id) {
+        const rolled = (context?.prevRegistry ?? []).find(h => h.id === id);
+        if (rolled) setActiveHabit(prev => ({ ...prev, ignore_empty_days: rolled.ignore_empty_days }));
       }
     },
   });
@@ -521,9 +567,39 @@ function HabitTracker() {
   // ── Ensure today row is always present ────────────────────────────────────
   const today = getTodayLocalDate();
   const todayExists = rows.some(r => r.date === today);
-  const displayRows = todayExists
+  const rowsWithToday = todayExists
     ? rows
     : [{ date: today, count: 0, range_start: null, range_end: null }, ...rows];
+
+  // ── Fill zeros when ignore_empty_days is false ─────────────────────────────
+  // When showing all days: iterate every calendar day from the earliest tally
+  // date to today, inserting count=0 rows for missing days.
+  const ignoreEmptyDays = activeHabit ? !!activeHabit.ignore_empty_days : true;
+  let displayRows;
+  if (ignoreEmptyDays || rowsWithToday.length === 0) {
+    displayRows = rowsWithToday;
+  } else {
+    // Find the oldest date in the data
+    const dates = rowsWithToday.map(r => r.date).sort();
+    const minDate = dates[0];
+    const dateMap = {};
+    for (const r of rowsWithToday) dateMap[r.date] = r;
+
+    const filled = [];
+    // Walk from today back to minDate
+    const [minY, minM, minD] = minDate.split('-').map(Number);
+    const cursor = new Date(new Date(today + 'T00:00:00').getTime());
+    const stopDate = new Date(minY, minM - 1, minD);
+    while (cursor >= stopDate) {
+      const cy = cursor.getFullYear();
+      const cm = String(cursor.getMonth() + 1).padStart(2, '0');
+      const cd = String(cursor.getDate()).padStart(2, '0');
+      const key = `${cy}-${cm}-${cd}`;
+      filled.push(dateMap[key] ?? { date: key, count: 0, range_start: null, range_end: null });
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    displayRows = filled;
+  }
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   async function handleAddTally() {
@@ -626,6 +702,7 @@ function HabitTracker() {
                 onSelect={(h) => { setActiveHabit(h); setHabitsOpen(false); }}
                 onRename={(id, newName) => renameHabitMutation.mutate({ id, name: newName })}
                 onDelete={(h) => setHabitToDelete(h)}
+                onToggleIgnoreEmpty={(id, value) => patchHabitSettingsMutation.mutate({ id, ignore_empty_days: value })}
               />
             ))}
             {showNewHabit ? (
