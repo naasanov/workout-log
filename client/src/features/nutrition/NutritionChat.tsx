@@ -44,7 +44,8 @@ import ToolCallCard from './ToolCallCard';
 import ConfirmModal from '../../components/ConfirmModal';
 import type { EntryInput, EntryEditorMode, ProposeEntryArgs } from './types';
 import styles from './NutritionChat.module.scss';
-import { ChevronDown, Trash2, Camera, ScanBarcode, Square, Send } from 'lucide-react';
+import { ChevronDown, Trash2, Camera, ScanBarcode, Square, Send, Images, AlertCircle, ChevronRight } from 'lucide-react';
+import useIsMobile from '../../hooks/useIsMobile';
 
 // ---------------------------------------------------------------------------
 // Auth helper — mirrors clientApi.js interceptor logic
@@ -243,6 +244,49 @@ function ReasoningBubble({ text, streaming }: ReasoningBubbleProps) {
 }
 
 // ---------------------------------------------------------------------------
+// #107: Error bubble — shown in the chat thread when useChat surfaces an error
+// ---------------------------------------------------------------------------
+interface ErrorBubbleProps {
+  error: Error;
+}
+
+function ErrorBubble({ error }: ErrorBubbleProps) {
+  const [expanded, setExpanded] = useState(false);
+
+  const detail = (() => {
+    try {
+      // Try to parse as JSON for richer display
+      const parsed = JSON.parse(error.message);
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return error.message || String(error);
+    }
+  })();
+
+  return (
+    <div className={styles.errorBubble}>
+      <button
+        type="button"
+        className={styles.errorBubbleToggle}
+        onClick={() => setExpanded(p => !p)}
+        aria-expanded={expanded}
+      >
+        <AlertCircle className={styles.errorBubbleIcon} size={16} aria-hidden="true" />
+        <span className={styles.errorBubbleLabel}>Something went wrong</span>
+        <ChevronRight
+          className={`${styles.errorBubbleChevron} ${expanded ? styles.errorBubbleChevronOpen : ''}`}
+          size={16}
+          aria-hidden="true"
+        />
+      </button>
+      {expanded && (
+        <pre className={styles.errorBubbleDetail}>{detail}</pre>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // #76: Merge adjacent reasoning parts in a message into a single combined block
 // ---------------------------------------------------------------------------
 type MergedPart =
@@ -421,6 +465,9 @@ function ChatMessage({
             );
           }
 
+          // #104: hide the calculator tool card — it's an implementation detail
+          if (toolName === 'calculator') return null;
+
           return <ToolCallCard key={idx} part={part as ToolUIPart | DynamicToolUIPart} />;
         }
 
@@ -459,7 +506,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   const loadedDateRef = useRef(selectedDate);
 
   // ---- useChat setup ----
-  const { messages, setMessages, sendMessage, status, stop } = useChat({
+  const { messages, setMessages, sendMessage, status, stop, error: chatError } = useChat({
     transport: new DefaultChatTransport({
       api: `${VITE_API_URL}/nutrition/chat`,
       credentials: 'include',
@@ -525,6 +572,9 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     };
   }, [selectedDate, fetchAndApplyTranscript]);
 
+  // #105: detect mobile to suppress Enter-to-send
+  const { isMobile } = useIsMobile();
+
   // ---- Sheet expand/collapse state ----
   const [expanded, setExpanded] = useState(false);
 
@@ -569,6 +619,8 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
 
   // ---- Refs ----
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // #106: separate hidden input for photo library (no capture attribute)
+  const libraryInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -641,6 +693,14 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, [handlePhotoFiles]);
 
+  // #106: handler for the photo library input
+  const handleLibraryInputChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      await handlePhotoFiles(e.target.files);
+    }
+    if (libraryInputRef.current) libraryInputRef.current.value = '';
+  }, [handlePhotoFiles]);
+
   const removePhoto = useCallback((previewUrl: string) => {
     setPendingPhotos(prev => {
       const photo = prev.find(p => p.previewUrl === previewUrl);
@@ -690,13 +750,14 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     stop();
   }, [stop]);
 
-  // Enter to send, Shift+Enter for newline
+  // #105: Enter to send on desktop only; on mobile Enter inserts newline.
+  // Shift+Enter always inserts a newline regardless of platform.
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !isMobile) {
       e.preventDefault();
       handleSend();
     }
-  }, [handleSend]);
+  }, [handleSend, isMobile]);
 
   // ---- Proposal handlers ----
   const handleProposalDeny = useCallback((partKey: string) => {
@@ -922,6 +983,13 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
             />
           ))}
 
+          {/* #107: Error bubble — shown when the chat stream/API call fails */}
+          {chatError && (
+            <div className={styles.messageGroup}>
+              <ErrorBubble error={chatError} />
+            </div>
+          )}
+
           {/* #12: Scroll anchor — scrollIntoView targets this */}
           <div ref={messagesEndRef} />
         </div>
@@ -977,8 +1045,20 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
             >
               <ScanBarcode className={styles.composerCircleBtnIcon} size={16} aria-hidden="true" />
             </button>
+
+            {/* #106: Photo library button — opens file picker without capture */}
+            <button
+              type="button"
+              className={styles.composerCircleBtn}
+              onClick={() => libraryInputRef.current?.click()}
+              aria-label="Attach from photo library"
+              title="Attach from photo library"
+            >
+              <Images className={styles.composerCircleBtnIcon} size={16} aria-hidden="true" />
+            </button>
           </div>
 
+          {/* Camera capture input — opens direct camera on iOS */}
           <input
             ref={fileInputRef}
             type="file"
@@ -987,6 +1067,18 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
             multiple
             className={styles.hiddenFileInput}
             onChange={handleFileInputChange}
+            aria-hidden="true"
+            tabIndex={-1}
+          />
+
+          {/* #106: Photo library input — no capture attribute so iOS shows the file picker */}
+          <input
+            ref={libraryInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className={styles.hiddenFileInput}
+            onChange={handleLibraryInputChange}
             aria-hidden="true"
             tabIndex={-1}
           />
