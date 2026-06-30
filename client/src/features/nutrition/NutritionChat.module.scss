@@ -35,9 +35,10 @@
   &:focus { outline: none; }
 }
 
-// #116: PEEK_HEIGHT=0 — sheet is invisible when closed; FAB replaces the sliver.
+// #116 (revised): collapsed sheet shows only the tall drag-handle bar — no
+// chat content peeks through. overflow:hidden clips the messages/composer below.
 .sheetPeek {
-  height: 0;
+  height: calc(52px + env(safe-area-inset-bottom));
   overflow: hidden;
 }
 
@@ -62,7 +63,8 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  padding: 8px 0 6px;
+  // Tall padding so the collapsed bar fills ~52px — a large, easy grab/tap target.
+  padding: 20px 0;
   background: transparent;
   border: none;
   cursor: grab;
@@ -78,10 +80,10 @@
 
 .dragHandle {
   display: block;
-  width: 36px;
-  height: 4px;
+  width: 44px;
+  height: 5px;
   background-color: rgba($surface-border, 0.6);
-  border-radius: 2px;
+  border-radius: 2.5px;
 }
 
 // Accessibility: visually hidden title
@@ -862,37 +864,6 @@
   overflow-x: auto;
   max-height: 200px;
   overflow-y: auto;
-}
-
-// ---- Floating chat button (shown when sheet is closed, PEEK_HEIGHT=0) ----
-.floatingChatBtn {
-  position: fixed;
-  right: 20px;
-  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background-color: $primary;
-  color: #fff;
-  border: none;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  touch-action: none;
-  cursor: grab;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 997;
-  padding: 0;
-
-  &:active {
-    cursor: grabbing;
-  }
-}
-
-.floatingChatBtnIcon {
-  display: block; // iOS Safari SVG fix
-  width: 16px;
-  height: 16px;
 }
 
 // ---- Animations ----
