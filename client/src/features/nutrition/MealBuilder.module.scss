@@ -1,0 +1,567 @@
+@import "../../styles/variables";
+
+// Full-screen overlay
+.overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+
+  @media (min-width: #{$mobile-width + 1px}) {
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+// Sheet
+.sheet {
+  position: relative;
+  width: 100%;
+  max-width: 680px;
+  max-height: 96dvh;
+  background-color: $surface;
+  border-radius: 20px 20px 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom);
+
+  @media (min-width: #{$mobile-width + 1px}) {
+    border-radius: 20px;
+    max-height: 90dvh;
+    margin: 0 auto;
+  }
+}
+
+// Header
+.sheetHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid rgba($surface-border, 0.4);
+  flex-shrink: 0;
+}
+
+.sheetTitle {
+  flex: 1;
+  margin: 0;
+  font-family: $sarabun;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: $sarabun-spacing;
+  color: $text;
+}
+
+.closeBtn {
+  min-width: 36px;
+  min-height: 36px;
+  background: transparent;
+  border: none;
+  color: rgba($text, 0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+
+  &:active {
+    background-color: rgba($text, 0.1);
+  }
+}
+
+.saveBtn {
+  min-height: 36px;
+  padding: 6px 16px;
+  background-color: $primary;
+  color: $background;
+  border: none;
+  border-radius: 10px;
+  font-family: $sarabun;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  &:not(:disabled):active {
+    background-color: $primary-dark;
+  }
+}
+
+// Scrollable body
+.body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 16px 16px 24px;
+}
+
+// Field
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldLabelText {
+  font-family: $sarabun;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.6);
+  text-transform: uppercase;
+}
+
+.input {
+  background-color: transparent;
+  color: $text;
+  border: none;
+  border-bottom: 2px solid $primary-border;
+  padding: 6px 4px;
+  font-family: $sarabun;
+  font-size: 16px;
+  letter-spacing: $sarabun-spacing;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+
+  &::placeholder {
+    color: rgba($text, 0.4);
+  }
+
+  &:focus {
+    outline: none;
+    border-bottom-color: $primary;
+  }
+}
+
+.textarea {
+  @extend .input;
+  resize: vertical;
+  min-height: 60px;
+  line-height: 1.5;
+  padding: 8px 4px;
+  border: 1px solid rgba($surface-border, 0.5);
+  border-bottom: 2px solid $primary-border;
+  border-radius: 6px 6px 0 0;
+
+  &:focus {
+    outline: none;
+    border-bottom-color: $primary;
+  }
+}
+
+.inputSmall {
+  background-color: transparent;
+  color: $text;
+  border: none;
+  border-bottom: 2px solid $primary-border;
+  padding: 4px 2px;
+  font-family: $sarabun;
+  font-size: 14px;
+  letter-spacing: $sarabun-spacing;
+  min-height: 36px;
+  width: 70px;
+  text-align: right;
+  box-sizing: border-box;
+
+  &:focus {
+    outline: none;
+    border-bottom-color: $primary;
+  }
+
+  &[readonly] {
+    color: rgba($text, 0.55);
+    border-bottom-style: dashed;
+  }
+}
+
+// Section with label
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sectionLabel {
+  font-family: $sarabun;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.6);
+  text-transform: uppercase;
+}
+
+// Batch scale
+.scaleSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scaleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.scaleBtn {
+  min-width: 40px;
+  min-height: 40px;
+  background: transparent;
+  border: 2px solid rgba($surface-border, 0.7);
+  border-radius: 10px;
+  color: $text;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  &:not(:disabled):active {
+    border-color: $primary-border;
+    color: $primary;
+  }
+}
+
+.scaleValue {
+  font-family: $sarabun;
+  font-size: 17px;
+  font-weight: 700;
+  color: $primary;
+  letter-spacing: $sarabun-spacing;
+  min-width: 40px;
+  text-align: center;
+}
+
+.scaleHint {
+  font-family: $sarabun;
+  font-size: 12px;
+  color: rgba($text, 0.45);
+  letter-spacing: $sarabun-spacing;
+}
+
+// Ingredient list
+.ingredientList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ingredientRow {
+  background-color: rgba($background, 0.5);
+  border: 1px solid rgba($surface-border, 0.5);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rowNameWrap {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  position: relative;
+}
+
+.rowNameInputWrap {
+  flex: 1;
+  position: relative;
+}
+
+.removeBtn {
+  flex-shrink: 0;
+  min-width: 36px;
+  min-height: 36px;
+  background: transparent;
+  border: none;
+  color: rgba($text, 0.4);
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+
+  &:active {
+    color: $error;
+    background-color: rgba($error, 0.12);
+  }
+}
+
+.rowFields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: flex-end;
+}
+
+.fieldLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: $sarabun;
+  font-size: 11px;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.55);
+}
+
+.unitSelect {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: transparent;
+  color: $text;
+  border: none;
+  border-bottom: 2px solid $primary-border;
+  padding: 4px 20px 4px 2px;
+  font-family: $sarabun;
+  font-size: 14px;
+  letter-spacing: $sarabun-spacing;
+  min-height: 36px;
+  min-width: 60px;
+  max-width: 160px;
+  cursor: pointer;
+  box-sizing: border-box;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23EBEDE9' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 2px center;
+
+  &:focus {
+    outline: none;
+    border-bottom-color: $primary;
+  }
+
+  option {
+    background-color: $surface;
+    color: $text;
+  }
+}
+
+.unitStatic {
+  display: inline-block;
+  font-family: $sarabun;
+  font-size: 14px;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.55);
+  border-bottom: 2px solid rgba($surface-border, 0.5);
+  padding: 4px 2px;
+  min-height: 36px;
+  min-width: 24px;
+  box-sizing: border-box;
+  line-height: 1.6;
+}
+
+.rowHint {
+  margin: 0;
+  font-family: $sarabun;
+  font-size: 11px;
+  color: rgba($text, 0.45);
+  letter-spacing: $sarabun-spacing;
+}
+
+.addIngredientBtn {
+  align-self: flex-start;
+  min-height: 40px;
+  padding: 8px 14px;
+  background-color: transparent;
+  color: $primary;
+  border: 2px dashed $primary-border;
+  border-radius: 10px;
+  font-family: $sarabun;
+  font-size: 14px;
+  letter-spacing: $sarabun-spacing;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  &:active {
+    background-color: $primary-translucent;
+  }
+}
+
+// Macro readouts
+.macroReadouts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.macroSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background-color: rgba($primary, 0.07);
+  border: 1px solid rgba($primary-border, 0.35);
+  border-radius: 10px;
+}
+
+.macroSectionLabel {
+  font-family: $sarabun;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: $sarabun-spacing;
+  color: $primary;
+  text-transform: uppercase;
+}
+
+.macroGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-family: $sarabun;
+  font-size: 14px;
+  color: rgba($text, 0.85);
+  letter-spacing: $sarabun-spacing;
+}
+
+// Servings list
+.servingList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.servingItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background-color: rgba($background, 0.4);
+  border-radius: 8px;
+  border: 1px solid rgba($surface-border, 0.4);
+}
+
+.servingName {
+  flex: 1;
+  font-family: $sarabun;
+  font-size: 14px;
+  color: $text;
+  letter-spacing: $sarabun-spacing;
+}
+
+.servingGrams {
+  font-family: $sarabun;
+  font-size: 13px;
+  color: rgba($text, 0.6);
+  letter-spacing: $sarabun-spacing;
+  flex-shrink: 0;
+}
+
+.addServingRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.addServingBtn {
+  min-height: 36px;
+  padding: 6px 12px;
+  background-color: transparent;
+  color: $primary;
+  border: 1px solid $primary-border;
+  border-radius: 8px;
+  font-family: $sarabun;
+  font-size: 14px;
+  letter-spacing: $sarabun-spacing;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  &:active {
+    background-color: $primary-translucent;
+  }
+}
+
+// Food mode macros grid
+.foodMacros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: flex-end;
+}
+
+// Search dropdown
+.dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 200;
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  background-color: $surface;
+  border: 1px solid $surface-border;
+  border-radius: 10px;
+  max-height: 240px;
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.dropdownItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  cursor: pointer;
+
+  &:active {
+    background-color: rgba($primary, 0.12);
+  }
+}
+
+.dropdownName {
+  font-family: $sarabun;
+  font-size: 15px;
+  color: $text;
+  letter-spacing: $sarabun-spacing;
+}
+
+.dropdownMeta {
+  font-family: $sarabun;
+  font-size: 12px;
+  color: rgba($text, 0.5);
+  letter-spacing: $sarabun-spacing;
+}
+
+.dropdownHint {
+  padding: 10px 14px;
+  font-family: $sarabun;
+  font-size: 14px;
+  color: rgba($text, 0.5);
+  letter-spacing: $sarabun-spacing;
+}
+
+// Error
+.errorMsg {
+  margin: 0;
+  font-family: $sarabun;
+  font-size: 14px;
+  color: $error;
+  letter-spacing: $sarabun-spacing;
+}

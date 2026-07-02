@@ -439,3 +439,68 @@
   letter-spacing: $sarabun-spacing;
   padding: 8px 0;
 }
+
+// ---- Recently used custom foods ----
+.recentRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recentLabel {
+  font-family: $sarabun;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: rgba($text, 0.45);
+  text-transform: uppercase;
+}
+
+.recentItems {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+
+.recentItem {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  background-color: $surface;
+  border: 1px solid rgba($surface-border, 0.6);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  min-height: 52px;
+  min-width: 110px;
+  max-width: 160px;
+
+  &:active {
+    background-color: rgba($primary, 0.1);
+    border-color: rgba($primary-border, 0.5);
+  }
+}
+
+.recentName {
+  font-family: $sarabun;
+  font-size: 14px;
+  font-weight: 600;
+  color: $text;
+  letter-spacing: $sarabun-spacing;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.recentMeta {
+  font-family: $sarabun;
+  font-size: 11px;
+  color: rgba($text, 0.45);
+  letter-spacing: $sarabun-spacing;
+}

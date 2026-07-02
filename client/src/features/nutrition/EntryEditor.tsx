@@ -15,7 +15,7 @@ import {
 } from 'react';
 import Modal from '../../components/Modal.jsx';
 import BarcodeScanner from './BarcodeScanner';
-import { useCreateEntry, useUpdateEntry, useFoodSearch, lookupBarcode, getPortions } from './api';
+import { useCreateEntry, useUpdateEntry, useFoodSearch, lookupBarcode, getPortions, getCustomFood } from './api';
 import type {
   EntryEditorProps,
   Meal,
@@ -250,7 +250,7 @@ function SearchDropdown({ query, onSelect }: SearchDropdownProps) {
         >
           <span className={styles.dropdownName}>{food.name}</span>
           <span className={styles.dropdownMeta}>
-            {food.per100g.calories} kcal/100g · {food.source.toUpperCase()}
+            {food.per100g.calories} kcal/100g · {food.source === 'custom' ? (food.kind === 'meal' ? 'Custom · Meal' : food.kind === 'food' ? 'Custom · Food' : 'Custom') : food.source.toUpperCase()}
           </span>
         </li>
       ))}
@@ -266,9 +266,10 @@ interface IngredientRowProps {
   onChange: (updated: EditorRow) => void;
   onRemove: () => void;
   onOpenBarcode: () => void;
+  onExpandMeal?: (rows: EditorRow[]) => void;
 }
 
-function IngredientRowEditor({ row, onChange, onRemove, onOpenBarcode }: IngredientRowProps) {
+function IngredientRowEditor({ row, onChange, onRemove, onOpenBarcode, onExpandMeal }: IngredientRowProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
 
@@ -320,6 +321,40 @@ function IngredientRowEditor({ row, onChange, onRemove, onOpenBarcode }: Ingredi
   function handleSelectFood(food: FoodSearchResult) {
     setShowSearch(false);
     setSearchQuery('');
+
+    // Custom meal: expand its ingredients as a snapshot into the editor rows.
+    if (food.source === 'custom' && food.kind === 'meal' && onExpandMeal) {
+      const id = parseInt(food.source_ref, 10);
+      if (!isNaN(id)) {
+        getCustomFood(id).then(customFood => {
+          const expandedRows: EditorRow[] = customFood.ingredients.map(ing => ({
+            rowKey: nextKey(),
+            name: ing.name,
+            grams: ing.grams,
+            quantity: ing.grams,
+            unitLabel: 'g',
+            unitGrams: 1,
+            portions: [GRAMS_UNIT],
+            source: ing.source,
+            source_ref: ing.source_ref ?? null,
+            calories: ing.calories,
+            protein_g: ing.protein_g,
+            carbs_g: ing.carbs_g,
+            fat_g: ing.fat_g,
+            fiber_g: ing.fiber_g ?? null,
+            sugar_g: ing.sugar_g ?? null,
+            sodium_mg: ing.sodium_mg ?? null,
+            per100g: null,
+          }));
+          onExpandMeal(expandedRows);
+        }).catch(() => {
+          // Fallback: add as single row with batch macros
+          onChange(rowFromFood(food, immediatePortions(food)));
+        });
+        return;
+      }
+    }
+
     const cached = food.source === 'usda' && food.source_ref
       ? portionsCache.get(food.source_ref)
       : undefined;
@@ -706,6 +741,21 @@ export default function EntryEditor({
     setRows(prev => [...prev, emptyRow()]);
   }, []);
 
+  // Called when a custom meal is selected: replace the current empty row (or
+  // append if the row has content) with the meal's ingredient snapshot.
+  const handleExpandMeal = useCallback((rowKey: number, expandedRows: EditorRow[]) => {
+    setRows(prev => {
+      const idx = prev.findIndex(r => r.rowKey === rowKey);
+      if (idx === -1) return [...prev, ...expandedRows];
+      // Replace the trigger row with the expanded rows only if it's still empty.
+      const trigger = prev[idx];
+      if (!trigger.name.trim()) {
+        return [...prev.slice(0, idx), ...expandedRows, ...prev.slice(idx + 1)];
+      }
+      return [...prev, ...expandedRows];
+    });
+  }, []);
+
   // ----- Barcode callbacks -----
   const handleOpenBarcode = useCallback((rowKey: number) => {
     setBarcodeError(null);
@@ -864,6 +914,7 @@ export default function EntryEditor({
               onChange={updated => updateRow(row.rowKey, updated)}
               onRemove={() => removeRow(row.rowKey)}
               onOpenBarcode={() => handleOpenBarcode(row.rowKey)}
+              onExpandMeal={expandedRows => handleExpandMeal(row.rowKey, expandedRows)}
             />
           ))}
         </div>
