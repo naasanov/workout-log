@@ -44,6 +44,9 @@ export const entryInputSchema = z.object({
   source: z.enum(ENTRY_SOURCES),
   barcode: z.string().max(32).nullable().optional(),
   raw_llm_json: z.unknown().nullable().optional(),
+  // Provenance: set when this entry was logged from a custom food/meal so that
+  // recentCustomFoods (which INNER JOINs on this column) can populate.
+  from_custom_food_id: z.number().int().positive().nullable().optional(),
   ingredients: z.array(ingredientInputSchema).min(1),
 });
 
