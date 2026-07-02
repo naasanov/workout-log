@@ -5,8 +5,8 @@
 import { z } from 'zod';
 
 export const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
-export const ENTRY_SOURCES = ['manual', 'text', 'photo', 'barcode', 'mixed'] as const;
-export const INGREDIENT_SOURCES = ['usda', 'off', 'manual'] as const;
+export const ENTRY_SOURCES = ['manual', 'text', 'photo', 'barcode', 'mixed', 'custom'] as const;
+export const INGREDIENT_SOURCES = ['usda', 'off', 'manual', 'custom'] as const;
 
 // Per-100g nutrient profile returned by food search / barcode lookup.
 export const per100gSchema = z.object({
@@ -30,6 +30,10 @@ export const ingredientInputSchema = z.object({
   protein_g: z.number().nonnegative(),
   carbs_g: z.number().nonnegative(),
   fat_g: z.number().nonnegative(),
+  // Optional micros — carried so meal snapshots and entry totals can sum them.
+  fiber_g: z.number().nonnegative().nullable().optional(),
+  sugar_g: z.number().nonnegative().nullable().optional(),
+  sodium_mg: z.number().nonnegative().nullable().optional(),
 });
 
 // Create/replace an entry (POST /entries, PATCH /entries/:id share this shape).
@@ -53,7 +57,7 @@ export const goalsSchema = z.object({
 
 export const foodSearchResultSchema = z.object({
   name: z.string(),
-  source: z.enum(['usda', 'off']),
+  source: z.enum(['usda', 'off', 'custom']),
   source_ref: z.string(),
   per100g: per100gSchema,
   serving_grams: z.number().positive().nullable().optional(),
@@ -114,6 +118,51 @@ export const proposeEntryArgsSchema = entryInputSchema
   });
 export type ProposeEntryArgs = z.infer<typeof proposeEntryArgsSchema>;
 export type FoodSearchResult = z.infer<typeof foodSearchResultSchema>;
+
+// ---- Custom Foods & Meals schemas ----
+
+/** One custom serving definition stored alongside a custom food/meal. */
+export const customServingSchema = z.object({
+  label: z.string().min(1).max(64),
+  def_type: z.enum(['grams', 'fraction']),
+  def_value: z.number().positive(),
+  grams: z.number().positive(),
+});
+export type CustomServing = z.infer<typeof customServingSchema>;
+
+/** Input payload for creating or updating a custom food/meal. */
+export const customFoodInputSchema = z.object({
+  kind: z.enum(['food', 'meal']),
+  name: z.string().min(1).max(255),
+  notes: z.string().max(1000).nullable().optional(),
+  status: z.enum(['draft', 'saved']),
+  ingredients: z.array(ingredientInputSchema),
+  servings: z.array(customServingSchema),
+});
+export type CustomFoodInput = z.infer<typeof customFoodInputSchema>;
+
+/** The persisted custom food/meal row returned to the client. */
+export const customFoodRowSchema = z.object({
+  id: z.number().int().positive(),
+  kind: z.enum(['food', 'meal']),
+  status: z.enum(['draft', 'saved']),
+  name: z.string(),
+  notes: z.string().nullable(),
+  total_grams: z.number().nonnegative(),
+  calories: z.number().nonnegative(),
+  protein_g: z.number().nonnegative(),
+  carbs_g: z.number().nonnegative(),
+  fat_g: z.number().nonnegative(),
+  fiber_g: z.number().nullable(),
+  sugar_g: z.number().nullable(),
+  sodium_mg: z.number().nullable(),
+  per100g: per100gSchema,
+  ingredients: z.array(ingredientInputSchema.extend({ id: z.number() })),
+  servings: z.array(customServingSchema.extend({ id: z.number(), sort_order: z.number() })),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type CustomFoodRow = z.infer<typeof customFoodRowSchema>;
 
 // ---- DB row / response shapes returned to the client ----
 export interface IngredientRow extends IngredientInput {
