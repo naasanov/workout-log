@@ -83,18 +83,24 @@ function emptyRow(): EditorRow {
     protein_g: 0,
     carbs_g: 0,
     fat_g: 0,
+    fiber_g: null,
+    sugar_g: null,
+    sodium_mg: null,
     per100g: null,
   };
 }
 
 /** Recompute a row's macros from its per100g snapshot and effective grams. */
-function recomputeMacros(per100g: Per100g, grams: number): Pick<EditorRow, 'calories' | 'protein_g' | 'carbs_g' | 'fat_g'> {
+function recomputeMacros(per100g: Per100g, grams: number): Pick<EditorRow, 'calories' | 'protein_g' | 'carbs_g' | 'fat_g' | 'fiber_g' | 'sugar_g' | 'sodium_mg'> {
   const factor = grams / 100;
   return {
     calories: round2(per100g.calories * factor),
     protein_g: round2(per100g.protein_g * factor),
     carbs_g: round2(per100g.carbs_g * factor),
     fat_g: round2(per100g.fat_g * factor),
+    fiber_g: per100g.fiber_g != null ? round2(per100g.fiber_g * factor) : null,
+    sugar_g: per100g.sugar_g != null ? round2(per100g.sugar_g * factor) : null,
+    sodium_mg: per100g.sodium_mg != null ? round2(per100g.sodium_mg * factor) : null,
   };
 }
 
@@ -198,6 +204,9 @@ function rowFromProposedIngredient(ing: ProposeIngredient): EditorRow {
     protein_g: ing.protein_g,
     carbs_g: ing.carbs_g,
     fat_g: ing.fat_g,
+    fiber_g: ing.fiber_g ?? null,
+    sugar_g: ing.sugar_g ?? null,
+    sodium_mg: ing.sodium_mg ?? null,
     // Macros already resolved; no per100g needed for live recompute.
     per100g: null,
   };
@@ -669,6 +678,9 @@ export default function EntryEditor({
         unitLabel: 'g',
         unitGrams: 1,
         portions: [GRAMS_UNIT],
+        fiber_g: ing.fiber_g ?? null,
+        sugar_g: ing.sugar_g ?? null,
+        sodium_mg: ing.sodium_mg ?? null,
         per100g: null,
       }));
     }
@@ -711,6 +723,9 @@ export default function EntryEditor({
           unitLabel: 'g',
           unitGrams: 1,
           portions: [GRAMS_UNIT],
+          fiber_g: ing.fiber_g ?? null,
+          sugar_g: ing.sugar_g ?? null,
+          sodium_mg: ing.sodium_mg ?? null,
           per100g: null,
         })),
       );
@@ -805,6 +820,9 @@ export default function EntryEditor({
       protein_g: r.protein_g,
       carbs_g: r.carbs_g,
       fat_g: r.fat_g,
+      fiber_g: r.fiber_g ?? null,
+      sugar_g: r.sugar_g ?? null,
+      sodium_mg: r.sodium_mg ?? null,
     }));
 
     // Detect provenance: if any ingredient row was filled from a custom food/meal,
@@ -852,6 +870,9 @@ export default function EntryEditor({
       protein_g: r.protein_g,
       carbs_g: r.carbs_g,
       fat_g: r.fat_g,
+      fiber_g: r.fiber_g ?? null,
+      sugar_g: r.sugar_g ?? null,
+      sodium_mg: r.sodium_mg ?? null,
     }));
     const proposalSource = mode.kind === 'proposal' ? mode.proposal.source : 'manual';
     onConfirm({
