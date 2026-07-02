@@ -4,7 +4,7 @@
 import { streamText, tool, stepCountIs, convertToModelMessages } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
-import { proposeEntryArgsSchema } from '../../schemas/nutrition';
+import { proposeEntryArgsSchema, proposeCustomFoodArgsSchema } from '../../schemas/nutrition';
 import * as store from './store';
 import * as providers from './providers';
 import { recordUsage } from './usage';
@@ -68,9 +68,10 @@ TODAY'S DATE: ${selectedDate}
 
 ## Your job
 Help the user identify, quantify, and log what they ate. When the user describes food:
-1. Search for it with \`search_usda\` (or \`lookup_barcode\` for barcodes) to get accurate per-100g macros — NEVER invent or estimate calories without grounding them in a tool result.
-   - For a **multi-item meal** (two or more distinct foods in one message), use ONE \`search_foods_batch\` call with all queries at once instead of multiple \`search_usda\` calls. Use \`search_usda\` only for single-item lookups.
-   - Both \`search_usda\` and \`search_foods_batch\` automatically attach portion sizes to the top result, so you often do NOT need a separate \`get_portions\` call.
+1. Search for it with \`search_foods\` (or \`lookup_barcode\` for barcodes) to get accurate per-100g macros — NEVER invent or estimate calories without grounding them in a tool result.
+   - For a **multi-item meal** (two or more distinct foods in one message), use ONE \`search_foods_batch\` call with all queries at once instead of multiple \`search_foods\` calls. Use \`search_foods\` only for single-item lookups.
+   - Both \`search_foods\` and \`search_foods_batch\` automatically attach portion sizes to the top result, so you often do NOT need a separate \`get_portions\` call.
+   - Results may include the user's own saved custom foods/meals (source: 'custom'). **Prefer custom results when they match what the user is describing** — they already carry the user's preferred portions and notes. Logging a saved custom meal is identical to logging any other food: use the normal \`propose_entry\` flow with the custom item's ingredients.
 2. Check \`search_food_history\` first for foods the user has logged before — prefer reusing those if the food matches, including the same serving they used last time.
 3. Estimate the portion in **grams**. When the user gives a weight in non-gram units (lbs, oz, kg, mg, etc.), call \`convert_to_grams\` — do NOT do the arithmetic yourself. Ask one brief clarifying question if the portion or food identity is genuinely ambiguous (e.g. "Was that a small, medium, or large banana?"). Do not ask multiple questions at once.
 4. When you are confident about identity + portion, call **\`propose_entry\`** with the fully structured entry. The user will review and confirm in the UI — you do NOT write to the database.
@@ -103,7 +104,7 @@ When building a multi-ingredient entry (recipe, dish, or meal), do NOT add ingre
 Only include such ingredients if the user **explicitly asks** to log them (e.g. "include the salt" or "log all spices too").
 
 ## Web-search fallback
-- Only use \`web_search\` when \`search_usda\`, \`search_foods_batch\`, and \`lookup_barcode\` all return nothing useful (e.g. a local restaurant item, branded boba, or a food not in USDA/OFF). **NEVER use \`web_search\` for arithmetic or calculation — use the \`calculator\` tool instead.**
+- Only use \`web_search\` when \`search_foods\`, \`search_foods_batch\`, and \`lookup_barcode\` all return nothing useful (e.g. a local restaurant item, branded boba, or a food not in the food database). **NEVER use \`web_search\` for arithmetic or calculation — use the \`calculator\` tool instead.**
 - Prefer official brand or restaurant nutrition pages. Extract per-serving or per-100g macros.
 - **Always cite the source URL** in your reply when using web-search data.
 - Use ingredient \`source: 'manual'\` for any web-derived items.
@@ -129,6 +130,16 @@ DO NOT populate \`notes\` when the proposal is straightforward (e.g. "200g chick
 
 ## Arithmetic and the calculator tool
 Use the \`calculator\` tool for **any non-trivial arithmetic** — gram conversions, macro scaling (per100g × grams/100), portion multiplications, totalling macros across ingredients, etc. Pass a standard math expression string (e.g. \`"0.28 * 210"\`). Do NOT perform multi-step arithmetic in your head; call \`calculator\` instead. NEVER use \`web_search\` for math.
+
+## Saving a reusable custom food or meal
+When the user asks to save something for future reuse (e.g. "save this as my usual X", "add this meal to my library", "make a custom food for this"), call **\`propose_custom_food\`** to propose creating it. The user will review and confirm in the UI — you do NOT write to the database. You have full parity with the human builder:
+- Set \`kind\`: \`'meal'\` for multi-ingredient bundles; \`'food'\` for single items with directly entered macros.
+- Set \`name\` (required): a short, recognisable name the user will see in their library.
+- Set \`notes\` (optional): any useful detail about the food or meal (preparation notes, source, etc.).
+- Set \`ingredients\`: the full list of ingredients with grams + macros. Use the same macro-derivation rules as \`propose_entry\` (per100g × grams/100).
+- Set \`servings\` (optional): custom serving definitions. Use \`def_type: 'grams'\` with a gram weight, or \`def_type: 'fraction'\` with a decimal fraction of the full batch (e.g. 0.25 for ¼ batch). The grams field is resolved on save.
+
+Do NOT call \`propose_custom_food\` just because the user logged something once — only when they explicitly ask to save it for reuse. Also offer it proactively when you notice the user has logged the same composite meal multiple times and they haven't saved it yet.
 
 ## Other rules
 - Ground all macros in tool results. If a search returns no results, say so and ask the user for more info.
@@ -175,21 +186,21 @@ ${summariseEntries(recent)}
       });
     },
     tools: {
-      /** Full-text food search against USDA FoodData Central (+ OFF fallback).
+      /** Source-agnostic food search: user's custom foods/meals first, then USDA/OFF.
        *  Returns per-100g macros + portions attached to the top result. */
-      search_usda: tool({
+      search_foods: tool({
         description:
-          'Search for a SINGLE food in USDA FoodData Central and Open Food Facts. Returns up to 5 candidates with per-100g macros, and portions (household serving sizes) attached to the top result. Use search_foods_batch instead when the user describes two or more foods at once.',
+          'Search for a SINGLE food in the food database (USDA, Open Food Facts, and the user\'s saved custom foods/meals). Returns up to 5 candidates with per-100g macros, and portions (household serving sizes) attached to the top result. Results may include custom items (source: \'custom\') — prefer those when they match what the user describes. Use search_foods_batch instead when the user describes two or more foods at once.',
         inputSchema: z.object({
           query: z.string().describe('Food name or description to search for, e.g. "banana" or "chicken breast raw"'),
         }),
-        execute: async ({ query }) => providers.searchFoodsWithPortions(query),
+        execute: async ({ query }) => providers.searchAllFoodsWithPortions(userUuid, query),
       }),
 
-      /** Batched USDA search — one call for multi-item meals. Portions on top result per query. */
+      /** Batched food search — one call for multi-item meals. Portions on top result per query. */
       search_foods_batch: tool({
         description:
-          'Search for multiple foods in one call. Use this when the user describes two or more distinct foods in a single message (e.g. "rice, chicken, and broccoli"). Runs all searches in parallel and returns results grouped per query, with portions attached to the top result of each query.',
+          'Search for multiple foods in one call. Use this when the user describes two or more distinct foods in a single message (e.g. "rice, chicken, and broccoli"). Searches the food database (USDA, Open Food Facts, and the user\'s saved custom foods/meals). Runs all searches in parallel and returns results grouped per query, with portions attached to the top result of each query.',
         inputSchema: z.object({
           queries: z
             .array(z.string())
@@ -200,7 +211,7 @@ ${summariseEntries(recent)}
           const results = await Promise.all(
             queries.map(async (query) => ({
               query,
-              results: await providers.searchFoodsWithPortions(query),
+              results: await providers.searchAllFoodsWithPortions(userUuid, query),
             })),
           );
           return results;
@@ -217,13 +228,13 @@ ${summariseEntries(recent)}
         execute: async ({ code }) => providers.lookupBarcode(code),
       }),
 
-      /** USDA FDC household serving sizes for a food. */
+      /** Household serving sizes for a food (USDA FDC or OFF). */
       get_portions: tool({
         description:
-          'Fetch household serving sizes (e.g. "1 medium", "1 cup") for a food from USDA FDC or OFF. Call this after search_usda to help convert a described portion to grams. Not needed if portions are already attached to the search result.',
+          'Fetch household serving sizes (e.g. "1 medium", "1 cup") for a food from USDA FDC or OFF. Call this after search_foods to help convert a described portion to grams. Not needed if portions are already attached to the search result.',
         inputSchema: z.object({
           source: z.enum(['usda', 'off']).describe('Data source the food came from'),
-          ref: z.string().describe('source_ref from search_usda or lookup_barcode result'),
+          ref: z.string().describe('source_ref from search_foods or lookup_barcode result'),
         }),
         execute: async ({ source, ref }) => providers.getPortions(source, ref),
       }),
@@ -249,7 +260,7 @@ ${summariseEntries(recent)}
       /** Search the user's own food log history. */
       search_food_history: tool({
         description:
-          "Search the user's past food log entries by name. Useful to reuse a previous entry's ingredient breakdown (including the serving size) instead of re-searching USDA.",
+          "Search the user's past food log entries by name. Useful to reuse a previous entry's ingredient breakdown (including the serving size) instead of re-searching the food database.",
         inputSchema: z.object({
           query: z.string().describe('Food name or keyword to search for in past entries'),
         }),
@@ -418,9 +429,9 @@ ${summariseEntries(recent)}
       }),
 
       /**
-       * Web search — fallback for foods USDA/OFF don't have (e.g. local restaurant items,
-       * branded boba). Only use after search_usda / search_foods_batch / lookup_barcode
-       * all return nothing useful. Always cite the source URL in your reply.
+       * Web search — fallback for foods not in the food database (e.g. local restaurant
+       * items, branded boba). Only use after search_foods / search_foods_batch /
+       * lookup_barcode all return nothing useful. Always cite the source URL in your reply.
        * Use ingredient source: 'manual' for web-derived items.
        */
       web_search: openai.tools.webSearch(),
@@ -435,6 +446,19 @@ ${summariseEntries(recent)}
         description:
           'Propose a structured food entry for the user to review and confirm. Call this once you are confident about food identity and portion. Each ingredient must include quantity, unit (a real household serving label), portions list, and grams = quantity × unit_grams. The user will see an editor pre-filled with these values and can adjust before saving.',
         inputSchema: proposeEntryArgsSchema,
+        execute: async (args) => JSON.parse(JSON.stringify(args)),
+      }),
+
+      /**
+       * propose_custom_food: echoes its validated args as output so the stream
+       * terminates cleanly. The client renders an inline MealBuilder pre-filled with
+       * these values; on confirm it POSTs to /nutrition/custom-foods itself.
+       * The agent does NOT write to the DB — this is a proposal-and-confirm flow.
+       */
+      propose_custom_food: tool({
+        description:
+          'Propose creating a reusable custom food or meal for the user\'s library. Call this when the user explicitly asks to save something for future reuse (e.g. "save this as my usual X", "add this to my library"). Set kind (food/meal), name, optional notes, ingredients with macros, and optional custom servings. The user will review the pre-filled form and can edit before confirming. Do NOT call this just because the user logged something once.',
+        inputSchema: proposeCustomFoodArgsSchema,
         execute: async (args) => JSON.parse(JSON.stringify(args)),
       }),
     },

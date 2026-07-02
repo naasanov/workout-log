@@ -22,8 +22,9 @@ type AnyToolUIPart = ToolUIPart | DynamicToolUIPart;
 
 // ---- Item 8: Human-readable tool name map ----
 const TOOL_LABEL_MAP: Record<string, string> = {
-  search_usda: 'USDA search',
-  search_foods_batch: 'USDA search',
+  search_usda: 'Food search',
+  search_foods: 'Food search',
+  search_foods_batch: 'Food search',
   lookup_barcode: 'Barcode lookup',
   get_portions: 'Serving sizes',
   search_food_history: 'Food history',
@@ -33,6 +34,7 @@ const TOOL_LABEL_MAP: Record<string, string> = {
   web_search: 'Web search',
   web_search_preview: 'Web search',
   propose_entry: 'Propose entry',
+  propose_custom_food: 'Save custom food',
 };
 
 /** Convert snake_case / camelCase to Title Case as a fallback. */

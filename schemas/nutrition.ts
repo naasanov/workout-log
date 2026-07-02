@@ -121,6 +121,37 @@ export type FoodSearchResult = z.infer<typeof foodSearchResultSchema>;
 
 // ---- Custom Foods & Meals schemas ----
 
+// What the agent's `propose_custom_food` tool emits — a full builder payload for
+// creating a custom food or meal. Echoed back as output so the client can render
+// an inline proposal card. The user reviews/edits and confirms; the client POSTs
+// to /nutrition/custom-foods on confirm (agent does NOT write to DB).
+//
+// Serving definitions carry def_type + def_value; grams resolution happens on save.
+// The agent may include any field the human builder can set (full parity).
+export const proposeCustomFoodIngredientSchema = ingredientInputSchema.extend({
+  // Optional serving metadata so the builder can pre-select a real household serving
+  quantity: z.number().positive().nullable().optional(),
+  unit: z.string().max(64).nullable().optional(),
+  portions: z.array(foodPortionSchema).nullable().optional(),
+});
+export type ProposeCustomFoodIngredient = z.infer<typeof proposeCustomFoodIngredientSchema>;
+
+export const proposeCustomFoodServingSchema = z.object({
+  label: z.string().min(1).max(64),
+  def_type: z.enum(['grams', 'fraction']),
+  def_value: z.number().positive(),
+});
+export type ProposeCustomFoodServing = z.infer<typeof proposeCustomFoodServingSchema>;
+
+export const proposeCustomFoodArgsSchema = z.object({
+  kind: z.enum(['food', 'meal']),
+  name: z.string().min(1).max(255),
+  notes: z.string().max(1000).nullable().optional(),
+  ingredients: z.array(proposeCustomFoodIngredientSchema),
+  servings: z.array(proposeCustomFoodServingSchema),
+});
+export type ProposeCustomFoodArgs = z.infer<typeof proposeCustomFoodArgsSchema>;
+
 /** One custom serving definition stored alongside a custom food/meal. */
 export const customServingSchema = z.object({
   label: z.string().min(1).max(64),

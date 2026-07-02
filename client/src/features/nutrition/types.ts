@@ -158,6 +158,29 @@ export interface CustomFoodInput {
   servings: CustomServing[];
 }
 
+/** What the agent's propose_custom_food tool emits — full builder payload for
+ * creating a reusable custom food or meal. Rendered as an inline MealBuilder
+ * card in NutritionChat; on confirm the client POSTs to /nutrition/custom-foods. */
+export interface ProposeCustomFoodIngredient extends IngredientInput {
+  quantity?: number | null;
+  unit?: string | null;
+  portions?: FoodPortion[] | null;
+}
+
+export interface ProposeCustomFoodServing {
+  label: string;
+  def_type: 'grams' | 'fraction';
+  def_value: number;
+}
+
+export interface ProposeCustomFoodArgs {
+  kind: 'food' | 'meal';
+  name: string;
+  notes?: string | null;
+  ingredients: ProposeCustomFoodIngredient[];
+  servings: ProposeCustomFoodServing[];
+}
+
 /** A custom food/meal row returned from the server. */
 export interface CustomFoodRow {
   id: number;

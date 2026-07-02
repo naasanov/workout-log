@@ -565,3 +565,21 @@
   color: $error;
   letter-spacing: $sarabun-spacing;
 }
+
+// Proposal mode — inline card in NutritionChat thread (no overlay/backdrop)
+.proposalWrap {
+  // No overlay; renders in-flow in the chat message list
+  display: block;
+}
+
+.proposalSheet {
+  width: 100%;
+  background-color: $surface;
+  border: 1px solid rgba($surface-border, 0.5);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: 80dvh;
+  overflow-y: auto;
+}

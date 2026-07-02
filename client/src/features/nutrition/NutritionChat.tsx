@@ -36,13 +36,14 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, isToolUIPart, getToolName } from 'ai';
 import type { FileUIPart, UIMessage, ToolUIPart, DynamicToolUIPart } from 'ai';
 import ReactMarkdown from 'react-markdown';
-import { useCreateEntry, fetchTranscript, clearTranscript } from './api';
+import { useCreateEntry, useCreateCustomFood, fetchTranscript, clearTranscript } from './api';
 import type { StoredChatMessage } from './api';
 import EntryEditor from './EntryEditor';
+import MealBuilder from './MealBuilder';
 import BarcodeScanner from './BarcodeScanner';
 import ToolCallCard from './ToolCallCard';
 import ConfirmModal from '../../components/ConfirmModal';
-import type { EntryInput, EntryEditorMode, ProposeEntryArgs } from './types';
+import type { EntryInput, EntryEditorMode, ProposeEntryArgs, ProposeCustomFoodArgs, CustomFoodInput } from './types';
 import styles from './NutritionChat.module.scss';
 import { ChevronDown, Trash2, Camera, ScanBarcode, Square, Send, Images, AlertCircle, ChevronRight, MessageSquare } from 'lucide-react';
 import useIsMobile from '../../hooks/useIsMobile';
@@ -340,6 +341,10 @@ interface MessageProps {
   onProposalDeny: (partKey: string) => void;
   deniedProposals: Set<string>;
   confirmedProposals: Map<string, string>; // partKey → entry name
+  onCustomFoodConfirm: (payload: CustomFoodInput, partKey: string) => void;
+  onCustomFoodDeny: (partKey: string) => void;
+  deniedCustomFoodProposals: Set<string>;
+  confirmedCustomFoodProposals: Map<string, string>; // partKey → food name
 }
 
 function ChatMessage({
@@ -351,6 +356,10 @@ function ChatMessage({
   onProposalDeny,
   deniedProposals,
   confirmedProposals,
+  onCustomFoodConfirm,
+  onCustomFoodDeny,
+  deniedCustomFoodProposals,
+  confirmedCustomFoodProposals,
 }: MessageProps) {
   const isUser = message.role === 'user';
   // #15/#17: interrupted flag from StoredChatMessage cast
@@ -460,6 +469,49 @@ function ChatMessage({
                   onClose={() => onProposalDeny(partKey)}
                   onConfirm={(input) => onProposalConfirm(input, partKey)}
                   onDeny={() => onProposalDeny(partKey)}
+                />
+              </div>
+            );
+          }
+
+          // propose_custom_food: renders as an inline pre-filled MealBuilder card
+          if (toolName === 'propose_custom_food') {
+            const partKey = `${message.id}-${toolCallId}`;
+            const isDenied = deniedCustomFoodProposals.has(partKey);
+            const confirmedName = confirmedCustomFoodProposals.get(partKey);
+            const isConfirmed = confirmedName !== undefined;
+
+            if (isDenied) {
+              return (
+                <div key={idx} className={styles.proposalDenied}>
+                  Proposal declined — please refine your request.
+                </div>
+              );
+            }
+            if (isConfirmed) {
+              return (
+                <div key={idx} className={styles.proposalConfirmed}>
+                  {confirmedName ? `Saved: ${confirmedName}` : 'Custom food saved!'}
+                </div>
+              );
+            }
+            if (part.state !== 'input-available' && part.state !== 'output-available') {
+              return <ToolCallCard key={idx} part={part as ToolUIPart | DynamicToolUIPart} />;
+            }
+
+            const rawArgs = (part.state === 'output-available'
+              ? (part as { output: unknown }).output
+              : part.input) as ProposeCustomFoodArgs;
+
+            return (
+              <div key={idx} className={styles.proposalInlineWrap}>
+                <MealBuilder
+                  open={true}
+                  kind={rawArgs.kind}
+                  proposalArgs={rawArgs}
+                  onClose={() => onCustomFoodDeny(partKey)}
+                  onDenyProposal={() => onCustomFoodDeny(partKey)}
+                  onConfirmProposal={(payload) => onCustomFoodConfirm(payload, partKey)}
                 />
               </div>
             );
@@ -602,10 +654,17 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   // ---- Entry creation for confirmed proposals ----
   const createEntry = useCreateEntry(selectedDate);
 
+  // ---- Custom food creation for confirmed propose_custom_food proposals ----
+  const createCustomFood = useCreateCustomFood();
+
   // ---- Proposal state tracking ----
   const [deniedProposals, setDeniedProposals] = useState<Set<string>>(new Set());
   // #71: store name alongside confirmation so the message can display it
   const [confirmedProposals, setConfirmedProposals] = useState<Map<string, string>>(new Map());
+
+  // ---- Custom food proposal state tracking ----
+  const [deniedCustomFoodProposals, setDeniedCustomFoodProposals] = useState<Set<string>>(new Set());
+  const [confirmedCustomFoodProposals, setConfirmedCustomFoodProposals] = useState<Map<string, string>>(new Map());
 
   // ---- Composer state ----
   const [text, setText] = useState('');
@@ -819,6 +878,16 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     setConfirmedProposals(prev => new Map([...prev, [partKey, entryName]]));
   }, [createEntry]);
 
+  // ---- Custom food proposal handlers ----
+  const handleCustomFoodDeny = useCallback((partKey: string) => {
+    setDeniedCustomFoodProposals(prev => new Set([...prev, partKey]));
+  }, []);
+
+  const handleCustomFoodConfirm = useCallback(async (payload: CustomFoodInput, partKey: string) => {
+    const saved = await createCustomFood.mutateAsync(payload);
+    setConfirmedCustomFoodProposals(prev => new Map([...prev, [partKey, saved.name]]));
+  }, [createCustomFood]);
+
   // ---- #7/#70: Clear chat — guarded by ConfirmModal ----
   const executeClearChat = useCallback(async () => {
     setShowClearConfirm(false);
@@ -831,6 +900,8 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     setMessages([]);
     setDeniedProposals(new Set());
     setConfirmedProposals(new Map());
+    setDeniedCustomFoodProposals(new Set());
+    setConfirmedCustomFoodProposals(new Map());
   }, [selectedDate, setMessages]);
 
   const handleClearChat = useCallback(() => {
@@ -1024,6 +1095,10 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
               onProposalDeny={handleProposalDeny}
               deniedProposals={deniedProposals}
               confirmedProposals={confirmedProposals}
+              onCustomFoodConfirm={handleCustomFoodConfirm}
+              onCustomFoodDeny={handleCustomFoodDeny}
+              deniedCustomFoodProposals={deniedCustomFoodProposals}
+              confirmedCustomFoodProposals={confirmedCustomFoodProposals}
             />
           ))}
 
