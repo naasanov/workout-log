@@ -1,0 +1,379 @@
+@import "../../styles/variables";
+
+// Dim overlay
+.overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.45);
+  z-index: 998;
+  animation: fadeIn 120ms ease;
+}
+
+// Sheet — full-screen, bottom of screen on mobile
+.sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-width: 680px;
+  margin: 0 auto;
+  z-index: 999;
+  background-color: $surface;
+  border-radius: 20px 20px 0 0;
+  display: flex;
+  flex-direction: column;
+  height: 92dvh;
+  padding-bottom: env(safe-area-inset-bottom);
+  animation: slideUp 240ms cubic-bezier(0.32, 0.72, 0, 1);
+
+  @media (min-width: #{$mobile-width + 1px}) {
+    border-radius: 20px;
+    height: 88dvh;
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%);
+    animation: none;
+  }
+}
+
+// Header
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid rgba($surface-border, 0.4);
+  flex-shrink: 0;
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  font-family: $sarabun;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: $sarabun-spacing;
+  color: $text;
+}
+
+.closeBtn {
+  min-width: 36px;
+  min-height: 36px;
+  background: transparent;
+  border: none;
+  color: rgba($text, 0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+
+  &:active {
+    background-color: rgba($text, 0.1);
+  }
+}
+
+// Search
+.searchWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba($surface-border, 0.3);
+  flex-shrink: 0;
+}
+
+.searchIcon {
+  display: block; // iOS Safari SVG fix
+  flex-shrink: 0;
+  color: rgba($text, 0.4);
+}
+
+.searchInput {
+  flex: 1;
+  background-color: transparent;
+  color: $text;
+  border: none;
+  font-family: $sarabun;
+  font-size: 16px; // 16px prevents iOS zoom on focus
+  letter-spacing: $sarabun-spacing;
+  min-height: 36px;
+  outline: none;
+
+  &::placeholder {
+    color: rgba($text, 0.35);
+  }
+}
+
+// Scrollable content area
+.content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px 24px;
+}
+
+// Section
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sectionTitle {
+  font-family: $sarabun;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: rgba($text, 0.45);
+  text-transform: uppercase;
+}
+
+.newBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 5px 12px;
+  background-color: transparent;
+  color: $primary;
+  border: 1px solid rgba($primary-border, 0.7);
+  border-radius: 8px;
+  font-family: $sarabun;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  cursor: pointer;
+
+  &:active {
+    background-color: $primary-translucent;
+  }
+}
+
+// Food list
+.foodList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+// Food row
+.foodRow {
+  background-color: rgba($background, 0.4);
+  border: 1px solid rgba($surface-border, 0.5);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+
+  &:active {
+    background-color: rgba($primary, 0.07);
+    border-color: rgba($primary-border, 0.4);
+  }
+}
+
+.foodRowTop {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.foodRowLeft {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.foodName {
+  font-family: $sarabun;
+  font-size: 15px;
+  font-weight: 600;
+  color: $text;
+  letter-spacing: $sarabun-spacing;
+  word-break: break-word;
+}
+
+.draftBadge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background-color: rgba($surface-border, 0.25);
+  border: 1px solid rgba($surface-border, 0.4);
+  font-family: $sarabun;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.5);
+  text-transform: uppercase;
+  align-self: flex-start;
+}
+
+.foodNotes {
+  font-family: $sarabun;
+  font-size: 12px;
+  color: rgba($text, 0.45);
+  letter-spacing: $sarabun-spacing;
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// Macros row
+.foodMacros {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.macroCalories {
+  font-family: $sarabun;
+  font-size: 14px;
+  font-weight: 700;
+  color: $primary;
+  letter-spacing: $sarabun-spacing;
+  flex-shrink: 0;
+}
+
+.macroServingLabel {
+  font-family: $sarabun;
+  font-size: 12px;
+  color: rgba($text, 0.4);
+  letter-spacing: $sarabun-spacing;
+  flex-shrink: 0;
+}
+
+.macroChips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  font-family: $sarabun;
+  font-size: 12px;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.55);
+  background-color: rgba($text, 0.07);
+  border-radius: 5px;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+
+// Row overflow menu
+.rowMenuWrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.dotsBtn {
+  min-width: 36px;
+  min-height: 36px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: rgba($text, 0.4);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+
+  &:active {
+    background-color: rgba($primary, 0.1);
+    color: $primary;
+  }
+}
+
+.rowDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background-color: $surface;
+  border: 1px solid $surface-border;
+  border-radius: 10px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+  z-index: 200;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+.dropdownItem {
+  background: transparent;
+  border: none;
+  color: $text;
+  font-family: $sarabun;
+  font-size: 15px;
+  letter-spacing: $sarabun-spacing;
+  padding: 10px 14px;
+  border-radius: 7px;
+  cursor: pointer;
+  text-align: left;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+
+  &:active {
+    background-color: rgba($primary, 0.12);
+    color: $primary;
+  }
+}
+
+.dropdownItemDanger {
+  &:active {
+    background-color: rgba($error, 0.12);
+    color: $error;
+  }
+}
+
+// States
+.hint {
+  margin: 0;
+  padding: 24px 8px;
+  text-align: center;
+  font-family: $sarabun;
+  font-size: 15px;
+  color: rgba($text, 0.4);
+  letter-spacing: $sarabun-spacing;
+  line-height: 1.5;
+}
+
+.emptySection {
+  margin: 0;
+  font-family: $sarabun;
+  font-size: 14px;
+  color: rgba($text, 0.35);
+  letter-spacing: $sarabun-spacing;
+  padding: 4px 2px;
+}
+
+// Animations
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(40px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}

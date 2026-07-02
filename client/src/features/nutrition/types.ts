@@ -2,8 +2,8 @@
 // Kept in sync by hand (the client is a separate Vite/TS project).
 
 export type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snack';
-export type EntrySource = 'manual' | 'text' | 'photo' | 'barcode' | 'mixed';
-export type IngredientSource = 'usda' | 'off' | 'manual';
+export type EntrySource = 'manual' | 'text' | 'photo' | 'barcode' | 'mixed' | 'custom';
+export type IngredientSource = 'usda' | 'off' | 'manual' | 'custom';
 
 export const MEALS: Meal[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
@@ -26,12 +26,14 @@ export interface FoodPortion {
 
 export interface FoodSearchResult {
   name: string;
-  source: 'usda' | 'off';
+  source: 'usda' | 'off' | 'custom';
   source_ref: string;
   per100g: Per100g;
   serving_grams?: number | null;
   // Serving sizes attached inline for the top result(s) (#8).
   portions?: FoodPortion[] | null;
+  // For custom items: disambiguate food vs meal for badge display.
+  kind?: 'food' | 'meal';
 }
 
 export interface IngredientInput {
@@ -43,6 +45,10 @@ export interface IngredientInput {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
+  // Optional micros (Phase B — custom foods & meals)
+  fiber_g?: number | null;
+  sugar_g?: number | null;
+  sodium_mg?: number | null;
 }
 export interface IngredientRow extends IngredientInput {
   id: number;
@@ -79,6 +85,8 @@ export interface EntryInput {
   barcode?: string | null;
   raw_llm_json?: unknown;
   ingredients: IngredientInput[];
+  // Provenance for entries logged from a custom food/meal (non-authoritative).
+  from_custom_food_id?: number | null;
 }
 
 export interface EntryRow {
@@ -127,6 +135,54 @@ export type EntryEditorMode =
   | { kind: 'manual-add'; date: string; defaultMeal?: Meal }
   | { kind: 'manual-edit'; date: string; entry: EntryRow }
   | { kind: 'proposal'; date: string; proposal: ProposeEntryArgs };
+
+// ---- Custom Foods & Meals (Phase B — mirrors schemas/nutrition.ts) ----
+
+/** A user-defined serving size (by grams or fraction of batch). */
+export interface CustomServing {
+  id?: number;
+  label: string;
+  def_type: 'grams' | 'fraction';
+  def_value: number;
+  grams: number;
+  sort_order?: number;
+}
+
+/** Payload for creating or updating a custom food/meal. */
+export interface CustomFoodInput {
+  kind: 'food' | 'meal';
+  name: string;
+  notes?: string | null;
+  status: 'draft' | 'saved';
+  ingredients: IngredientInput[];
+  servings: CustomServing[];
+}
+
+/** A custom food/meal row returned from the server. */
+export interface CustomFoodRow {
+  id: number;
+  kind: 'food' | 'meal';
+  status: 'draft' | 'saved';
+  name: string;
+  notes?: string | null;
+  total_grams: number;
+  // Batch macros
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fiber_g?: number | null;
+  sugar_g?: number | null;
+  sodium_mg?: number | null;
+  // Derived per-100g macros
+  per100g: Per100g;
+  // Resolved ingredients (with ids)
+  ingredients: (IngredientInput & { id: number })[];
+  // Resolved servings (with ids and sort_order)
+  servings: (CustomServing & { id: number; sort_order: number })[];
+  created_at: string;
+  updated_at: string;
+}
 
 export interface EntryEditorProps {
   // `open` is ignored when `inline` is true (the editor renders in-flow in the

@@ -10,11 +10,16 @@ import type {
   Goals,
   FoodSearchResult,
   FoodPortion,
+  CustomFoodInput,
+  CustomFoodRow,
 } from './types';
 
 export const nutritionKeys = {
   day: (date: string) => ['nutrition', 'day', date] as const,
   goals: ['nutrition', 'goals'] as const,
+  customFoods: (status?: 'draft' | 'saved') =>
+    status ? ['nutrition', 'customFoods', status] as const : ['nutrition', 'customFoods'] as const,
+  recentCustomFoods: ['nutrition', 'recentCustomFoods'] as const,
 };
 
 export function useDay(date: string) {
@@ -126,6 +131,91 @@ export async function getPortions(
 ): Promise<FoodPortion[]> {
   const res = await clientApi.get('/nutrition/portions', { params: { source, ref } });
   return res.data.data;
+}
+
+// ---- Custom Foods & Meals (Phase B) ----
+
+export function useCustomFoods(status?: 'draft' | 'saved') {
+  return useQuery<CustomFoodRow[]>({
+    queryKey: nutritionKeys.customFoods(status),
+    queryFn: async () => {
+      const res = await clientApi.get('/nutrition/custom-foods', {
+        params: status ? { status } : undefined,
+      });
+      return res.data.data;
+    },
+  });
+}
+
+export function useRecentCustomFoods(limit = 5) {
+  return useQuery<FoodSearchResult[]>({
+    queryKey: nutritionKeys.recentCustomFoods,
+    queryFn: async () => {
+      const res = await clientApi.get('/nutrition/custom-foods/recent', {
+        params: { limit },
+      });
+      return res.data.data;
+    },
+  });
+}
+
+export async function getCustomFood(id: number): Promise<CustomFoodRow> {
+  const res = await clientApi.get(`/nutrition/custom-foods/${id}`);
+  return res.data.data;
+}
+
+export function useCreateCustomFood() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: CustomFoodInput): Promise<CustomFoodRow> => {
+      const res = await clientApi.post('/nutrition/custom-foods', input);
+      return res.data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['nutrition', 'customFoods'] });
+      qc.invalidateQueries({ queryKey: nutritionKeys.recentCustomFoods });
+    },
+  });
+}
+
+export function useUpdateCustomFood() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, input }: { id: number; input: Partial<CustomFoodInput> }): Promise<CustomFoodRow> => {
+      const res = await clientApi.patch(`/nutrition/custom-foods/${id}`, input);
+      return res.data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['nutrition', 'customFoods'] });
+      qc.invalidateQueries({ queryKey: nutritionKeys.recentCustomFoods });
+    },
+  });
+}
+
+export function useDeleteCustomFood() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number): Promise<void> => {
+      await clientApi.delete(`/nutrition/custom-foods/${id}`);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['nutrition', 'customFoods'] });
+      qc.invalidateQueries({ queryKey: nutritionKeys.recentCustomFoods });
+    },
+  });
+}
+
+export function useDuplicateCustomFood() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number): Promise<CustomFoodRow> => {
+      const res = await clientApi.post(`/nutrition/custom-foods/${id}/duplicate`);
+      return res.data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['nutrition', 'customFoods'] });
+    },
+  });
 }
 
 // ---- Chat transcripts (server-persisted; DB is source of truth, #15/#17) ----

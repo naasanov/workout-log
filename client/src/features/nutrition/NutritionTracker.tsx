@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
-import { useDay, useGoals, useDeleteEntry } from './api';
+import { useDay, useGoals, useDeleteEntry, useCreateEntry, useRecentCustomFoods, getCustomFood } from './api';
 import EntryEditor from './EntryEditor';
 import NutritionGoalsModal from './NutritionGoalsModal';
 import NutritionChat from './NutritionChat';
+import MyFoodsSheet from './MyFoodsSheet';
+import MealBuilder from './MealBuilder';
 import ConfirmModal from '../../components/ConfirmModal.jsx';
-import type { EntryEditorMode, EntryRow } from './types';
+import type { EntryEditorMode, EntryRow, Meal, IngredientInput } from './types';
 import { MEALS } from './types';
 import styles from './NutritionTracker.module.scss';
-import { MoreVertical, ChevronLeft, ChevronRight, Target } from 'lucide-react';
+import { MoreVertical, ChevronLeft, ChevronRight, Target, BookMarked } from 'lucide-react';
 
 // ---- Helpers ----
 
@@ -63,9 +65,10 @@ interface EntryMenuProps {
   entry: EntryRow;
   onEdit: (entry: EntryRow) => void;
   onDelete: (entry: EntryRow) => void;
+  onSaveAsMeal?: (entry: EntryRow) => void;
 }
 
-function EntryMenu({ entry, onEdit, onDelete }: EntryMenuProps) {
+function EntryMenu({ entry, onEdit, onDelete, onSaveAsMeal }: EntryMenuProps) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -121,6 +124,15 @@ function EntryMenu({ entry, onEdit, onDelete }: EntryMenuProps) {
           >
             Edit
           </button>
+          {onSaveAsMeal && (
+            <button
+              className={styles.entryDropdownItem}
+              role="menuitem"
+              onClick={() => { setOpen(false); onSaveAsMeal(entry); }}
+            >
+              Save as meal
+            </button>
+          )}
           <button
             className={`${styles.entryDropdownItem} ${styles.entryDropdownItemDanger}`}
             role="menuitem"
@@ -130,6 +142,80 @@ function EntryMenu({ entry, onEdit, onDelete }: EntryMenuProps) {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ---- Recently used custom foods row ----
+
+interface RecentlyUsedRowProps {
+  selectedDate: string;
+  defaultMeal?: Meal;
+}
+
+function RecentlyUsedRow({ selectedDate, defaultMeal }: RecentlyUsedRowProps) {
+  const { data: recent = [] } = useRecentCustomFoods(4);
+  const createEntry = useCreateEntry(selectedDate);
+
+  async function handleQuickReLog(food: { name: string; source: string; source_ref: string; per100g: any; portions?: any[] | null }) {
+    try {
+      const id = parseInt(food.source_ref, 10);
+      if (isNaN(id)) return;
+      const customFood = await getCustomFood(id);
+
+      let grams = customFood.total_grams;
+      if (customFood.servings.length > 0) {
+        grams = customFood.servings[0].grams;
+      }
+
+      const scaleFactor = grams / (customFood.total_grams || 1);
+      const ingredients: IngredientInput[] = customFood.ingredients.map(ing => ({
+        name: ing.name,
+        grams: Math.round(ing.grams * scaleFactor * 10) / 10,
+        source: 'custom' as const,
+        source_ref: ing.source_ref ?? null,
+        calories: Math.round(ing.calories * scaleFactor * 100) / 100,
+        protein_g: Math.round(ing.protein_g * scaleFactor * 100) / 100,
+        carbs_g: Math.round(ing.carbs_g * scaleFactor * 100) / 100,
+        fat_g: Math.round(ing.fat_g * scaleFactor * 100) / 100,
+        fiber_g: ing.fiber_g != null ? Math.round(ing.fiber_g * scaleFactor * 100) / 100 : null,
+        sugar_g: ing.sugar_g != null ? Math.round(ing.sugar_g * scaleFactor * 100) / 100 : null,
+        sodium_mg: ing.sodium_mg != null ? Math.round(ing.sodium_mg * scaleFactor * 100) / 100 : null,
+      }));
+
+      await createEntry.mutateAsync({
+        localDate: selectedDate,
+        meal: defaultMeal ?? 'breakfast',
+        name: food.name,
+        source: 'custom',
+        ingredients,
+        from_custom_food_id: id,
+      });
+    } catch {
+      // Silently ignore
+    }
+  }
+
+  if (recent.length === 0) return null;
+
+  return (
+    <div className={styles.recentRow}>
+      <span className={styles.recentLabel}>Recently used</span>
+      <div className={styles.recentItems}>
+        {recent.map(food => (
+          <button
+            key={food.source_ref}
+            type="button"
+            className={styles.recentItem}
+            onClick={() => handleQuickReLog(food)}
+            aria-label={`Quick re-log ${food.name}`}
+            title={`Quick re-log: ${food.name}`}
+          >
+            <span className={styles.recentName}>{food.name}</span>
+            <span className={styles.recentMeta}>{Math.round(food.per100g.calories)} kcal/100g</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -151,6 +237,13 @@ export default function NutritionTracker() {
 
   // Goals modal
   const [goalsModalOpen, setGoalsModalOpen] = useState(false);
+
+  // My Foods sheet
+  const [myFoodsOpen, setMyFoodsOpen] = useState(false);
+
+  // Meal builder (Save as meal)
+  const [mealBuilderOpen, setMealBuilderOpen] = useState(false);
+  const [mealBuilderPrefillRows, setMealBuilderPrefillRows] = useState<any[]>([]);
 
   // Pending delete
   const [pendingDeleteEntry, setPendingDeleteEntry] = useState<EntryRow | null>(null);
@@ -184,6 +277,31 @@ export default function NutritionTracker() {
 
   function handleEditorClose() {
     setEditorOpen(false);
+  }
+
+  function handleSaveAsMeal(entry: EntryRow) {
+    // Map entry ingredients to builder rows
+    const prefillRows = entry.ingredients.map((ing, i) => ({
+      rowKey: i + 1,
+      name: ing.name,
+      grams: ing.grams,
+      quantity: ing.grams,
+      unitLabel: 'g',
+      unitGrams: 1,
+      portions: [{ label: 'g', grams: 1 }],
+      source: ing.source,
+      source_ref: ing.source_ref ?? null,
+      calories: ing.calories,
+      protein_g: ing.protein_g,
+      carbs_g: ing.carbs_g,
+      fat_g: ing.fat_g,
+      fiber_g: ing.fiber_g ?? null,
+      sugar_g: ing.sugar_g ?? null,
+      sodium_mg: ing.sodium_mg ?? null,
+      per100g: null,
+    }));
+    setMealBuilderPrefillRows(prefillRows);
+    setMealBuilderOpen(true);
   }
 
   function handleDeleteConfirm() {
@@ -259,6 +377,16 @@ export default function NutritionTracker() {
           title="Set nutrition goals"
         >
           <Target className={styles.settingsIcon} size={16} aria-hidden="true" />
+        </button>
+
+        {/* My Foods button */}
+        <button
+          className={styles.settingsBtn}
+          onClick={() => setMyFoodsOpen(true)}
+          aria-label="My Foods"
+          title="My custom foods and meals"
+        >
+          <BookMarked className={styles.settingsIcon} size={16} aria-hidden="true" />
         </button>
       </div>
 
@@ -349,6 +477,7 @@ export default function NutritionTracker() {
                   entry={entry}
                   onEdit={openEditEditor}
                   onDelete={setPendingDeleteEntry}
+                  onSaveAsMeal={handleSaveAsMeal}
                 />
               </div>
 
@@ -365,6 +494,9 @@ export default function NutritionTracker() {
           ))}
         </div>
       ))}
+
+      {/* Recently used custom foods row */}
+      <RecentlyUsedRow selectedDate={selectedDate} defaultMeal={editorMode.kind === 'manual-add' ? (editorMode as any).defaultMeal : undefined} />
 
       {/* EntryEditor (always mounted, controlled by open) */}
       <EntryEditor
@@ -384,6 +516,20 @@ export default function NutritionTracker() {
       <NutritionGoalsModal
         open={goalsModalOpen}
         onClose={() => setGoalsModalOpen(false)}
+      />
+
+      {/* My Foods sheet */}
+      <MyFoodsSheet
+        open={myFoodsOpen}
+        onClose={() => setMyFoodsOpen(false)}
+      />
+
+      {/* Meal builder (Save as meal) */}
+      <MealBuilder
+        open={mealBuilderOpen}
+        kind="meal"
+        prefillRows={mealBuilderPrefillRows}
+        onClose={() => setMealBuilderOpen(false)}
       />
 
       {/* Delete confirmation */}
