@@ -10,6 +10,11 @@
  * Autosave: debounced PATCH (~600ms) to the single draft custom_food.
  * On open: if a draft for the given kind exists, load it.
  * Save: flip status to 'saved' and close.
+ *
+ * Proposal mode: when `proposalArgs` is provided (from the AI agent's
+ * propose_custom_food tool), the builder is pre-filled with those values and
+ * autosave is suppressed. The Save button calls `onConfirmProposal(payload)`
+ * instead of writing to the DB directly.
  */
 import {
   useState,
@@ -27,6 +32,7 @@ import type {
   IngredientInput,
   IngredientSource,
   Per100g,
+  ProposeCustomFoodArgs,
 } from './types';
 import styles from './MealBuilder.module.scss';
 import { X, Plus, Trash2 } from 'lucide-react';
@@ -351,12 +357,21 @@ export interface MealBuilderProps {
   prefillRows?: BuilderRow[];
   onClose: () => void;
   onSaved?: (saved: CustomFoodRow) => void;
+  /**
+   * Proposal mode: when provided, pre-fill from agent's propose_custom_food args
+   * and suppress autosave. The Save button calls onConfirmProposal(payload) instead
+   * of writing to the DB. Used by NutritionChat inline card.
+   */
+  proposalArgs?: ProposeCustomFoodArgs;
+  onConfirmProposal?: (payload: CustomFoodInput) => void;
+  onDenyProposal?: () => void;
 }
 
 // ---------------------------------------------------------------------------
 // Main MealBuilder component
 // ---------------------------------------------------------------------------
-export default function MealBuilder({ open, kind, initialDraft, prefillRows, onClose, onSaved }: MealBuilderProps) {
+export default function MealBuilder({ open, kind, initialDraft, prefillRows, onClose, onSaved, proposalArgs, onConfirmProposal, onDenyProposal }: MealBuilderProps) {
+  const isProposalMode = proposalArgs !== undefined;
   const [name, setName] = useState('');
   const [notes, setNotes] = useState('');
   const [rows, setRows] = useState<BuilderRow[]>([emptyBuilderRow()]);
@@ -396,6 +411,58 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
     setNewServingLabel('');
     setNewServingValue('');
     setNewServingType('grams');
+
+    // Proposal mode: pre-fill from agent args, no draft fetch
+    if (proposalArgs) {
+      setName(proposalArgs.name);
+      setNotes(proposalArgs.notes ?? '');
+      setDraftId(null);
+      if (proposalArgs.servings && proposalArgs.servings.length > 0) {
+        // Agent provides def_type + def_value but not resolved grams — use def_value as grams
+        // for fractions (approximate); server resolves on save.
+        setServings(proposalArgs.servings.map((s, i) => ({
+          label: s.label,
+          def_type: s.def_type,
+          def_value: s.def_value,
+          grams: s.def_type === 'grams' ? s.def_value : s.def_value * 100, // approx; resolved on save
+          sort_order: i,
+        })));
+      }
+      if (kind === 'meal' && proposalArgs.ingredients.length > 0) {
+        setRows(proposalArgs.ingredients.map(ing => ({
+          rowKey: nextKey(),
+          name: ing.name,
+          grams: ing.grams,
+          quantity: ing.quantity ?? ing.grams,
+          unitLabel: ing.unit ?? 'g',
+          unitGrams: ing.unit && ing.unit !== 'g' && ing.quantity && ing.quantity > 0
+            ? ing.grams / ing.quantity
+            : 1,
+          portions: ing.portions ?? [GRAMS_UNIT],
+          source: ing.source as IngredientSource,
+          source_ref: ing.source_ref ?? null,
+          calories: ing.calories,
+          protein_g: ing.protein_g,
+          carbs_g: ing.carbs_g,
+          fat_g: ing.fat_g,
+          fiber_g: ing.fiber_g ?? null,
+          sugar_g: ing.sugar_g ?? null,
+          sodium_mg: ing.sodium_mg ?? null,
+          per100g: null,
+        })));
+      } else if (kind === 'food' && proposalArgs.ingredients.length > 0) {
+        const ing = proposalArgs.ingredients[0];
+        setFoodServingGrams(ing.grams);
+        setFoodCalories(ing.calories);
+        setFoodProtein(ing.protein_g);
+        setFoodCarbs(ing.carbs_g);
+        setFoodFat(ing.fat_g);
+        setFoodFiber(ing.fiber_g != null ? String(ing.fiber_g) : '');
+        setFoodSugar(ing.sugar_g != null ? String(ing.sugar_g) : '');
+        setFoodSodium(ing.sodium_mg != null ? String(ing.sodium_mg) : '');
+      }
+      return;
+    }
 
     if (initialDraft) {
       loadFromRow(initialDraft);
@@ -537,6 +604,8 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
 
   useEffect(() => {
     if (!open) return;
+    // Suppress autosave in proposal mode
+    if (isProposalMode) return;
     // Only autosave if there's some content
     if (!name.trim() && rows.every(r => !r.name.trim()) && kind === 'meal') return;
     if (!name.trim() && kind === 'food') return;
@@ -554,7 +623,7 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
   }, [debouncedPayloadStr, open]);
 
   // ---------------------------------------------------------------------------
-  // Save (flip to saved)
+  // Save (flip to saved, or confirm proposal)
   // ---------------------------------------------------------------------------
   async function handleSave() {
     if (!name.trim()) {
@@ -562,6 +631,13 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
       return;
     }
     setSaveError(null);
+
+    // Proposal mode: hand payload back to caller; no DB write here.
+    if (isProposalMode && onConfirmProposal) {
+      onConfirmProposal(buildPayload('saved'));
+      return;
+    }
+
     setIsSaving(true);
     try {
       const payload = buildPayload('saved');
@@ -660,16 +736,23 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
   // ---------------------------------------------------------------------------
   if (!open) return null;
 
-  const title = kind === 'meal'
-    ? (draftId ? 'Edit Meal' : 'New Meal')
-    : (draftId ? 'Edit Food' : 'New Food');
+  const title = isProposalMode
+    ? (kind === 'meal' ? 'Save custom meal' : 'Save custom food')
+    : kind === 'meal'
+      ? (draftId ? 'Edit Meal' : 'New Meal')
+      : (draftId ? 'Edit Food' : 'New Food');
 
   return (
-    <div className={styles.overlay}>
-      <div className={styles.sheet} role="dialog" aria-modal="true" aria-label={title}>
+    <div className={isProposalMode ? styles.proposalWrap : styles.overlay}>
+      <div className={isProposalMode ? styles.proposalSheet : styles.sheet} role="dialog" aria-modal={!isProposalMode} aria-label={title}>
         {/* Header */}
         <div className={styles.sheetHeader}>
-          <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close">
+          <button
+            type="button"
+            className={styles.closeBtn}
+            onClick={isProposalMode ? (onDenyProposal ?? onClose) : onClose}
+            aria-label={isProposalMode ? 'Decline' : 'Close'}
+          >
             <X size={16} aria-hidden="true" style={{ display: 'block' }} />
           </button>
           <h2 className={styles.sheetTitle}>{title}</h2>
@@ -679,7 +762,7 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
             onClick={handleSave}
             disabled={isSaving || !name.trim()}
           >
-            {isSaving ? 'Saving…' : 'Save'}
+            {isProposalMode ? 'Confirm' : isSaving ? 'Saving…' : 'Save'}
           </button>
         </div>
 
