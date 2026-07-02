@@ -807,11 +807,21 @@ export default function EntryEditor({
       fat_g: r.fat_g,
     }));
 
+    // Detect provenance: if any ingredient row was filled from a custom food/meal,
+    // tag the entry with source='custom' and from_custom_food_id so that the
+    // recently-used list (which joins on from_custom_food_id) can bootstrap.
+    const customRow = rows.find(
+      r => r.source === 'custom' && r.source_ref != null && !isNaN(Number(r.source_ref)),
+    );
+    const entrySource: EntryInput['source'] = customRow ? 'custom' : 'manual';
+    const fromCustomFoodId = customRow ? Number(customRow.source_ref) : undefined;
+
     const input: EntryInput = {
       localDate: date,
       meal,
       name: effectiveName,
-      source: 'manual',
+      source: entrySource,
+      ...(fromCustomFoodId != null ? { from_custom_food_id: fromCustomFoodId } : {}),
       ingredients,
     };
 
