@@ -79,7 +79,8 @@ type IngredientInputFull = {
 /** Fetch ingredients for a given entry id using the provided connection or pool. */
 async function fetchIngredients(entryId: number): Promise<IngredientRow[]> {
   const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT id, name, grams, source, source_ref, calories, protein_g, carbs_g, fat_g
+    `SELECT id, name, grams, source, source_ref, calories, protein_g, carbs_g, fat_g,
+            fiber_g, sugar_g, sodium_mg
      FROM food_entry_ingredients
      WHERE entry_id = ?
      ORDER BY id ASC`,
@@ -102,7 +103,7 @@ export async function getDay(userUuid: string, date: string): Promise<DayRespons
   const entries: EntryRow[] = [];
   for (const row of entryRows) {
     const ingredients = await fetchIngredients(row.id as number);
-    const totals = sumIngredients(ingredients);
+    const totals = sumIngredientsFull(ingredients);
     entries.push({
       id: row.id as number,
       date: (row.date instanceof Date ? row.date.toISOString() : String(row.date)).slice(0, 10),
@@ -114,9 +115,9 @@ export async function getDay(userUuid: string, date: string): Promise<DayRespons
       protein_g: totals.protein_g,
       carbs_g: totals.carbs_g,
       fat_g: totals.fat_g,
-      fiber_g: null,
-      sugar_g: null,
-      sodium_mg: null,
+      fiber_g: totals.fiber_g,
+      sugar_g: totals.sugar_g,
+      sodium_mg: totals.sodium_mg,
       barcode: row.barcode ?? null,
       ingredients,
     });
@@ -127,9 +128,9 @@ export async function getDay(userUuid: string, date: string): Promise<DayRespons
     protein_g: entries.reduce((s, e) => s + e.protein_g, 0),
     carbs_g: entries.reduce((s, e) => s + e.carbs_g, 0),
     fat_g: entries.reduce((s, e) => s + e.fat_g, 0),
-    fiber_g: 0,
-    sugar_g: 0,
-    sodium_mg: 0,
+    fiber_g: entries.reduce((s, e) => s + (e.fiber_g ?? 0), 0),
+    sugar_g: entries.reduce((s, e) => s + (e.sugar_g ?? 0), 0),
+    sodium_mg: entries.reduce((s, e) => s + (e.sodium_mg ?? 0), 0),
   };
 
   return { date, totals: dayTotals, entries };
@@ -147,7 +148,7 @@ export async function getEntry(userUuid: string, id: number): Promise<EntryRow |
   if (rows.length === 0) return null;
   const row = rows[0];
   const ingredients = await fetchIngredients(id);
-  const totals = sumIngredients(ingredients);
+  const totals = sumIngredientsFull(ingredients);
   return {
     id: row.id as number,
     date: (row.date instanceof Date ? row.date.toISOString() : String(row.date)).slice(0, 10),
@@ -159,9 +160,9 @@ export async function getEntry(userUuid: string, id: number): Promise<EntryRow |
     protein_g: totals.protein_g,
     carbs_g: totals.carbs_g,
     fat_g: totals.fat_g,
-    fiber_g: null,
-    sugar_g: null,
-    sodium_mg: null,
+    fiber_g: totals.fiber_g,
+    sugar_g: totals.sugar_g,
+    sodium_mg: totals.sodium_mg,
     barcode: row.barcode ?? null,
     ingredients,
   };
@@ -172,14 +173,14 @@ export async function createEntry(
   userUuid: string,
   input: EntryInput,
 ): Promise<{ id: number; totals: EntryRow }> {
-  const totals = sumIngredients(input.ingredients);
+  const totals = sumIngredientsFull(input.ingredients);
 
   const id = await withTransaction(async (conn) => {
     const [result] = await conn.query<ResultSetHeader>(
       `INSERT INTO food_entries
          (user_uuid, date, meal, name, source, calories, protein_g, carbs_g, fat_g,
-          fiber_g, sugar_g, sodium_mg, barcode, raw_llm_json)
-       VALUES (UUID_TO_BIN(?), ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?, NULL)`,
+          fiber_g, sugar_g, sodium_mg, barcode, raw_llm_json, from_custom_food_id)
+       VALUES (UUID_TO_BIN(?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
       [
         userUuid,
         input.localDate,
@@ -190,20 +191,25 @@ export async function createEntry(
         totals.protein_g,
         totals.carbs_g,
         totals.fat_g,
+        totals.fiber_g,
+        totals.sugar_g,
+        totals.sodium_mg,
         input.barcode ?? null,
+        input.from_custom_food_id ?? null,
       ],
     );
     const entryId = result.insertId;
 
     if (input.ingredients.length > 0) {
-      const placeholders = input.ingredients.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+      const placeholders = input.ingredients.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
       const values: unknown[] = [];
       for (const ing of input.ingredients) {
         values.push(entryId, ing.name, ing.grams, ing.source, ing.source_ref ?? null,
-          ing.calories, ing.protein_g, ing.carbs_g, ing.fat_g);
+          ing.calories, ing.protein_g, ing.carbs_g, ing.fat_g,
+          ing.fiber_g ?? null, ing.sugar_g ?? null, ing.sodium_mg ?? null);
       }
       await conn.query(
-        `INSERT INTO food_entry_ingredients (entry_id, name, grams, source, source_ref, calories, protein_g, carbs_g, fat_g)
+        `INSERT INTO food_entry_ingredients (entry_id, name, grams, source, source_ref, calories, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg)
          VALUES ${placeholders}`,
         values,
       );
@@ -222,15 +228,15 @@ export async function updateEntry(
   id: number,
   input: EntryInput,
 ): Promise<EntryRow | null> {
-  const totals = sumIngredients(input.ingredients);
+  const totals = sumIngredientsFull(input.ingredients);
 
   const updated = await withTransaction(async (conn) => {
     const [check] = await conn.query<ResultSetHeader>(
       `UPDATE food_entries
        SET date = ?, meal = ?, name = ?, source = ?,
            calories = ?, protein_g = ?, carbs_g = ?, fat_g = ?,
-           fiber_g = NULL, sugar_g = NULL, sodium_mg = NULL,
-           barcode = ?
+           fiber_g = ?, sugar_g = ?, sodium_mg = ?,
+           barcode = ?, from_custom_food_id = ?
        WHERE id = ? AND user_uuid = UUID_TO_BIN(?)`,
       [
         input.localDate,
@@ -241,7 +247,11 @@ export async function updateEntry(
         totals.protein_g,
         totals.carbs_g,
         totals.fat_g,
+        totals.fiber_g,
+        totals.sugar_g,
+        totals.sodium_mg,
         input.barcode ?? null,
+        input.from_custom_food_id ?? null,
         id,
         userUuid,
       ],
@@ -251,14 +261,15 @@ export async function updateEntry(
     await conn.query(`DELETE FROM food_entry_ingredients WHERE entry_id = ?`, [id]);
 
     if (input.ingredients.length > 0) {
-      const placeholders = input.ingredients.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+      const placeholders = input.ingredients.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
       const values: unknown[] = [];
       for (const ing of input.ingredients) {
         values.push(id, ing.name, ing.grams, ing.source, ing.source_ref ?? null,
-          ing.calories, ing.protein_g, ing.carbs_g, ing.fat_g);
+          ing.calories, ing.protein_g, ing.carbs_g, ing.fat_g,
+          ing.fiber_g ?? null, ing.sugar_g ?? null, ing.sodium_mg ?? null);
       }
       await conn.query(
-        `INSERT INTO food_entry_ingredients (entry_id, name, grams, source, source_ref, calories, protein_g, carbs_g, fat_g)
+        `INSERT INTO food_entry_ingredients (entry_id, name, grams, source, source_ref, calories, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg)
          VALUES ${placeholders}`,
         values,
       );
@@ -339,7 +350,7 @@ export async function recentEntries(userUuid: string, days: number): Promise<Ent
   const entries: EntryRow[] = [];
   for (const row of entryRows) {
     const ingredients = await fetchIngredients(row.id as number);
-    const totals = sumIngredients(ingredients);
+    const totals = sumIngredientsFull(ingredients);
     entries.push({
       id: row.id as number,
       date: (row.date instanceof Date ? row.date.toISOString() : String(row.date)).slice(0, 10),
@@ -351,9 +362,9 @@ export async function recentEntries(userUuid: string, days: number): Promise<Ent
       protein_g: totals.protein_g,
       carbs_g: totals.carbs_g,
       fat_g: totals.fat_g,
-      fiber_g: null,
-      sugar_g: null,
-      sodium_mg: null,
+      fiber_g: totals.fiber_g,
+      sugar_g: totals.sugar_g,
+      sodium_mg: totals.sodium_mg,
       barcode: row.barcode ?? null,
       ingredients,
     });
@@ -378,7 +389,7 @@ export async function searchFoodHistory(userUuid: string, query: string): Promis
   const entries: EntryRow[] = [];
   for (const row of entryRows) {
     const ingredients = await fetchIngredients(row.id as number);
-    const totals = sumIngredients(ingredients);
+    const totals = sumIngredientsFull(ingredients);
     entries.push({
       id: row.id as number,
       date: (row.date instanceof Date ? row.date.toISOString() : String(row.date)).slice(0, 10),
@@ -390,9 +401,9 @@ export async function searchFoodHistory(userUuid: string, query: string): Promis
       protein_g: totals.protein_g,
       carbs_g: totals.carbs_g,
       fat_g: totals.fat_g,
-      fiber_g: null,
-      sugar_g: null,
-      sodium_mg: null,
+      fiber_g: totals.fiber_g,
+      sugar_g: totals.sugar_g,
+      sodium_mg: totals.sodium_mg,
       barcode: row.barcode ?? null,
       ingredients,
     });
