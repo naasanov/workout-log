@@ -4,9 +4,9 @@ import { authenticateToken } from './auth';
 import { validateId } from '../utils/validation';
 import handleSqlError from '../utils/handleSqlError';
 import { User } from '../types';
-import { entryInputSchema, goalsSchema } from '../schemas/nutrition';
+import { entryInputSchema, goalsSchema, customFoodInputSchema } from '../schemas/nutrition';
 import * as store from '../services/nutrition/store';
-import { searchFoods, lookupBarcode, getPortions } from '../services/nutrition/providers';
+import { searchAllFoodsWithPortions, lookupBarcode, getPortions } from '../services/nutrition/providers';
 import { streamNutritionChat } from '../services/nutrition/agent';
 import { getUserUsageTotals, getAllUsersUsage, getUserEmail } from '../services/nutrition/usage';
 import {
@@ -102,15 +102,127 @@ router.delete('/entries/:id', async (req, res): Promise<any> => {
   }
 });
 
+// GET /custom-foods/recent — most-recently-logged custom items (must be BEFORE /:id)
+router.get('/custom-foods/recent', async (req, res): Promise<any> => {
+  const { uuid }: User = res.locals.user;
+  const limit = Math.min(Number(req.query.limit ?? 5), 20);
+
+  try {
+    const data = await store.recentCustomFoods(uuid, limit);
+    return res.status(200).json({ data, message: `Found ${data.length} recent custom food(s)` });
+  } catch (error) {
+    return handleSqlError(error, res);
+  }
+});
+
+// GET /custom-foods — list custom foods/meals (optional ?status=draft|saved)
+router.get('/custom-foods', async (req, res): Promise<any> => {
+  const { uuid }: User = res.locals.user;
+  const statusParam = req.query.status as string | undefined;
+
+  if (statusParam && statusParam !== 'draft' && statusParam !== 'saved') {
+    return res.status(400).json({ message: 'status must be "draft" or "saved"' });
+  }
+
+  try {
+    const data = await store.listCustomFoods(uuid, statusParam as 'draft' | 'saved' | undefined);
+    return res.status(200).json({ data, message: `Found ${data.length} custom food(s)` });
+  } catch (error) {
+    return handleSqlError(error, res);
+  }
+});
+
+// POST /custom-foods — create a custom food/meal
+router.post('/custom-foods', async (req, res): Promise<any> => {
+  const { uuid }: User = res.locals.user;
+  const parsed = customFoodInputSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Invalid request body' });
+  }
+
+  try {
+    const data = await store.createCustomFood(uuid, parsed.data);
+    return res.status(201).json({ data, message: 'Custom food created' });
+  } catch (error) {
+    return handleSqlError(error, res);
+  }
+});
+
+// GET /custom-foods/:id — single custom food/meal
+router.get('/custom-foods/:id', async (req, res): Promise<any> => {
+  const { uuid }: User = res.locals.user;
+  if (!validateId(req.params.id, res)) return;
+  const id = Number(req.params.id);
+
+  try {
+    const data = await store.getCustomFood(uuid, id);
+    if (!data) return res.status(404).json({ message: `Custom food ${id} not found` });
+    return res.status(200).json({ data, message: `Successfully retrieved custom food ${id}` });
+  } catch (error) {
+    return handleSqlError(error, res);
+  }
+});
+
+// PATCH /custom-foods/:id — update / draft autosave
+router.patch('/custom-foods/:id', async (req, res): Promise<any> => {
+  const { uuid }: User = res.locals.user;
+  if (!validateId(req.params.id, res)) return;
+  const id = Number(req.params.id);
+
+  const parsed = customFoodInputSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Invalid request body' });
+  }
+
+  try {
+    const data = await store.updateCustomFood(uuid, id, parsed.data);
+    if (!data) return res.status(404).json({ message: `Custom food ${id} not found` });
+    return res.status(200).json({ data, message: `Custom food ${id} updated` });
+  } catch (error) {
+    return handleSqlError(error, res);
+  }
+});
+
+// DELETE /custom-foods/:id
+router.delete('/custom-foods/:id', async (req, res): Promise<any> => {
+  const { uuid }: User = res.locals.user;
+  if (!validateId(req.params.id, res)) return;
+  const id = Number(req.params.id);
+
+  try {
+    const deleted = await store.deleteCustomFood(uuid, id);
+    if (!deleted) return res.status(404).json({ message: `Custom food ${id} not found` });
+    return res.status(200).json({ message: `Custom food ${id} deleted` });
+  } catch (error) {
+    return handleSqlError(error, res);
+  }
+});
+
+// POST /custom-foods/:id/duplicate — clone a saved item into a new draft
+router.post('/custom-foods/:id/duplicate', async (req, res): Promise<any> => {
+  const { uuid }: User = res.locals.user;
+  if (!validateId(req.params.id, res)) return;
+  const id = Number(req.params.id);
+
+  try {
+    const data = await store.duplicateCustomFood(uuid, id);
+    if (!data) return res.status(404).json({ message: `Custom food ${id} not found` });
+    return res.status(201).json({ data, message: `Custom food ${id} duplicated` });
+  } catch (error) {
+    return handleSqlError(error, res);
+  }
+});
+
 // GET /foods/search?q=...
 router.get('/foods/search', async (req, res): Promise<any> => {
+  const { uuid }: User = res.locals.user;
   const q = (req.query.q ?? '') as string;
   if (!q.trim()) {
     return res.status(400).json({ message: 'Query parameter q is required' });
   }
 
   try {
-    const data = await searchFoods(q.trim());
+    const data = await searchAllFoodsWithPortions(uuid, q.trim());
     return res.status(200).json({ data, message: `Found ${data.length} result(s)` });
   } catch (error) {
     return handleSqlError(error, res);

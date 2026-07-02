@@ -12,6 +12,7 @@
 //   - lookupBarcode: GET https://world.openfoodfacts.org/api/v2/product/<code>.json
 //     (send a descriptive User-Agent). Return null when status:0 (not found).
 import { FoodSearchResult, FoodPortion } from '../../schemas/nutrition';
+import { searchCustomFoods } from './store';
 
 const USER_AGENT = 'WorkoutLogApp/1.0 (nutrition tracker; contact: admin@example.com)';
 
@@ -310,9 +311,12 @@ export async function searchFoodsWithPortions(query: string): Promise<FoodSearch
 
   // Fetch portions for the top result in parallel with nothing else to keep it simple
   const top = results[0];
-  const portions = await getPortions(top.source, top.source_ref);
-  // Mutate in-place so the result remains the same FoodSearchResult reference type.
-  (results[0] as FoodSearchResult).portions = portions;
+  // Only USDA/OFF results have external portions; custom items already carry their own.
+  if (top.source === 'usda' || top.source === 'off') {
+    const portions = await getPortions(top.source, top.source_ref);
+    // Mutate in-place so the result remains the same FoodSearchResult reference type.
+    (results[0] as FoodSearchResult).portions = portions;
+  }
 
   return results;
 }
@@ -331,6 +335,42 @@ export async function getPortionsBatch(
       portions: await getPortions(source, ref),
     })),
   );
+  return results;
+}
+
+/**
+ * Source-agnostic food search: custom items first, then USDA/OFF.
+ * Duplicate suppression: skip external results whose name exactly matches a custom
+ * result name (case-insensitive). Non-trivial fuzzy suppression is left for Phase B/C.
+ */
+export async function searchAllFoods(userUuid: string, query: string): Promise<FoodSearchResult[]> {
+  const [custom, external] = await Promise.all([
+    searchCustomFoods(userUuid, query),
+    searchFoods(query),
+  ]);
+
+  // Suppress external hits that exactly match a custom food name (case-insensitive).
+  const customNames = new Set(custom.map((c) => c.name.toLowerCase()));
+  const filtered = external.filter((e) => !customNames.has(e.name.toLowerCase()));
+
+  return [...custom, ...filtered];
+}
+
+/**
+ * Like searchAllFoods but also fetches portions for the top non-custom result (USDA only).
+ * Custom items already carry their portions; external top result still gets getPortions.
+ */
+export async function searchAllFoodsWithPortions(userUuid: string, query: string): Promise<FoodSearchResult[]> {
+  const results = await searchAllFoods(userUuid, query);
+  if (results.length === 0) return results;
+
+  // Find first non-custom result and fetch its portions
+  const firstExternal = results.find((r) => r.source === 'usda' || r.source === 'off');
+  if (firstExternal && (firstExternal.source === 'usda' || firstExternal.source === 'off')) {
+    const portions = await getPortions(firstExternal.source, firstExternal.source_ref);
+    firstExternal.portions = portions;
+  }
+
   return results;
 }
 
