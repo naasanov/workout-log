@@ -923,6 +923,7 @@
   display: block; // iOS Safari SVG fix
   width: 16px;
   height: 16px;
+  color: $background; // #145: dark stroke on the green FAB (was inheriting the button's white)
 }
 
 // ---- Animations ----
