@@ -3,14 +3,13 @@ import AddSection from '../components/AddSection.jsx';
 import BodyWeightTracker from '../components/BodyWeightTracker.jsx';
 import HabitTracker from '../components/HabitTracker.jsx';
 import NutritionTracker from '../features/nutrition/NutritionTracker';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import styles from "../styles/Workouts.module.scss";
 import Header from '../components/Header.jsx';
 import clientApi from '../api/clientApi.js';
 import useAuth from '../hooks/useAuth.js';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, Check } from 'lucide-react';
 
 const TABS = {
   WORKOUTS: 'workouts',
@@ -19,21 +18,12 @@ const TABS = {
   NUTRITION: 'nutrition',
 };
 
-const TAB_LABELS = {
-  [TABS.WORKOUTS]: 'Workouts',
-  [TABS.BODY_WEIGHT]: 'Body Weight',
-  [TABS.HABITS]: 'Habits',
-  [TABS.NUTRITION]: 'Nutrition',
-};
-
 const VALID_TABS = new Set(Object.values(TABS));
 
 function Workouts() {
   const [sections, setSections] = useState([]);
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef(null);
 
   // Derive active tab from URL; fall back to WORKOUTS for unknown values
   const tabParam = searchParams.get('tab');
@@ -46,34 +36,6 @@ function Workouts() {
       setSearchParams({ tab: TABS.WORKOUTS }, { replace: true });
     }
   }, [user, activeTab, setSearchParams]);
-
-  // Close mobile menu on outside tap or Escape key
-  useEffect(() => {
-    if (!menuOpen) return;
-    function handlePointerDown(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setMenuOpen(false);
-      }
-    }
-    function handleKeyDown(e) {
-      if (e.key === 'Escape') setMenuOpen(false);
-    }
-    document.addEventListener('pointerdown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [menuOpen]);
-
-  const switchTab = (tab) => {
-    setSearchParams({ tab }, { replace: false });
-  };
-
-  const handleMobileTabSelect = (tab) => {
-    switchTab(tab);
-    setMenuOpen(false);
-  };
 
   const sectionsQuery = useQuery({
     queryKey: ['sections'],
@@ -93,85 +55,10 @@ function Workouts() {
     }
   }, [sectionsQuery.data]);
 
-  // Build the list of available tabs (respecting auth gating)
-  const availableTabs = [
-    TABS.WORKOUTS,
-    ...(user ? [TABS.BODY_WEIGHT, TABS.HABITS, TABS.NUTRITION] : []),
-  ];
-
   return (
     <>
       <Header />
       <main className={styles.container}>
-        {/* Desktop tab row — hidden on mobile via CSS */}
-        <nav className={styles.tabs}>
-          <button
-            className={`${styles.tab} ${activeTab === TABS.WORKOUTS ? styles.tabActive : ''}`}
-            onClick={() => switchTab(TABS.WORKOUTS)}
-          >
-            Workouts
-          </button>
-          {user && (
-            <>
-              <button
-                className={`${styles.tab} ${activeTab === TABS.BODY_WEIGHT ? styles.tabActive : ''}`}
-                onClick={() => switchTab(TABS.BODY_WEIGHT)}
-              >
-                Body Weight
-              </button>
-              <button
-                className={`${styles.tab} ${activeTab === TABS.HABITS ? styles.tabActive : ''}`}
-                onClick={() => switchTab(TABS.HABITS)}
-              >
-                Habits
-              </button>
-              <button
-                className={`${styles.tab} ${activeTab === TABS.NUTRITION ? styles.tabActive : ''}`}
-                onClick={() => switchTab(TABS.NUTRITION)}
-              >
-                Nutrition
-              </button>
-            </>
-          )}
-        </nav>
-
-        {/* Mobile hamburger nav — shown on mobile, hidden on desktop via CSS */}
-        <div className={styles.mobileNav} ref={menuRef}>
-          <button
-            className={styles.mobileNavToggle}
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-haspopup="listbox"
-            aria-expanded={menuOpen}
-            aria-label={`Current tab: ${TAB_LABELS[activeTab]}. Open tab menu`}
-          >
-            <span className={styles.mobileNavLabel}>{TAB_LABELS[activeTab]}</span>
-            <ChevronDown
-              className={`${styles.mobileNavChevron} ${menuOpen ? styles.mobileNavChevronOpen : ''}`}
-              size={16}
-              aria-hidden="true"
-              style={{ display: 'block' }}
-            />
-          </button>
-
-          {menuOpen && (
-            <ul className={styles.mobileNavMenu} role="listbox" aria-label="Select tab">
-              {availableTabs.map((tab) => (
-                <li key={tab} role="option" aria-selected={tab === activeTab}>
-                  <button
-                    className={`${styles.mobileNavItem} ${tab === activeTab ? styles.mobileNavItemActive : ''}`}
-                    onClick={() => handleMobileTabSelect(tab)}
-                  >
-                    {TAB_LABELS[tab]}
-                    {tab === activeTab && (
-                      <Check size={16} aria-hidden="true" style={{ display: 'block' }} />
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
         {/* All panels stay mounted to preserve in-memory state; hidden via CSS */}
         <div style={{ display: activeTab === TABS.WORKOUTS ? undefined : 'none' }}>
           {sections.map((s) => (
