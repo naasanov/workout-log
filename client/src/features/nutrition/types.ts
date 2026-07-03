@@ -7,6 +7,13 @@ export type IngredientSource = 'usda' | 'off' | 'manual' | 'custom';
 
 export const MEALS: Meal[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
+export const MEAL_LABELS: Record<Meal, string> = {
+  breakfast: 'Breakfast',
+  lunch: 'Lunch',
+  dinner: 'Dinner',
+  snack: 'Snack / Other',
+};
+
 export interface Per100g {
   calories: number;
   protein_g: number;

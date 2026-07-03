@@ -7,7 +7,7 @@ import MyFoodsSheet from './MyFoodsSheet';
 import MealBuilder from './MealBuilder';
 import ConfirmModal from '../../components/ConfirmModal.jsx';
 import type { EntryEditorMode, EntryRow, Meal, IngredientInput } from './types';
-import { MEALS } from './types';
+import { MEALS, MEAL_LABELS } from './types';
 import styles from './NutritionTracker.module.scss';
 import { MoreVertical, ChevronLeft, ChevronRight, Target, BookMarked } from 'lucide-react';
 
@@ -322,8 +322,7 @@ export default function NutritionTracker() {
     entries: entries.filter(e => e.meal === meal),
   })).filter(g => g.entries.length > 0);
 
-  const mealLabel = (meal: string) =>
-    meal.charAt(0).toUpperCase() + meal.slice(1);
+  const mealLabel = (meal: Meal) => MEAL_LABELS[meal];
 
   return (
     <section className={styles.container}>

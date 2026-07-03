@@ -26,7 +26,7 @@ import type {
   Per100g,
   ProposeIngredient,
 } from './types';
-import { MEALS } from './types';
+import { MEALS, MEAL_LABELS } from './types';
 import styles from './EntryEditor.module.scss';
 import { ScanBarcode } from 'lucide-react';
 
@@ -914,7 +914,7 @@ export default function EntryEditor({
             className={`${styles.mealBtn} ${meal === m ? styles.mealBtnActive : ''}`}
             onClick={() => setMeal(m)}
           >
-            {m.charAt(0).toUpperCase() + m.slice(1)}
+            {MEAL_LABELS[m]}
           </button>
         ))}
       </div>
