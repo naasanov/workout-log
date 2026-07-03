@@ -23,139 +23,25 @@ import type {
   EntryInput,
   FoodSearchResult,
   FoodPortion,
-  Per100g,
   ProposeIngredient,
 } from './types';
 import { MEALS, MEAL_LABELS } from './types';
 import styles from './EntryEditor.module.scss';
 import { ScanBarcode } from 'lucide-react';
-
-// ---------------------------------------------------------------------------
-// Module-level portions cache — keyed by source_ref, avoids redundant fetches
-// when the user reselects the same food or edits then reopens.
-// ---------------------------------------------------------------------------
-const portionsCache = new Map<string, FoodPortion[]>();
-
-// Synthetic "grams" unit — always present as the first/fallback option.
-const GRAMS_UNIT: FoodPortion = { label: 'g', grams: 1 };
-
-// ---------------------------------------------------------------------------
-// Internal row shape — extends IngredientInput with UI-only fields:
-//   quantity   — the number the user types in the left input
-//   unitLabel  — the currently-selected unit label ('g', 'medium', 'serving', …)
-//   unitGrams  — grams per one unit (1 for 'g')
-//   portions   — available portion options for this row's food
-//   per100g    — non-null when filled from search/barcode (enables live recompute)
-// Effective grams = quantity × unitGrams.  row.grams always = effectiveGrams.
-// ---------------------------------------------------------------------------
-interface EditorRow extends IngredientInput {
-  /** Internal row id for React keys/removal. */
-  rowKey: number;
-  /** Quantity the user typed. */
-  quantity: number;
-  /** Label of the selected unit. */
-  unitLabel: string;
-  /** Grams per one unit of the selected option (1 for plain grams). */
-  unitGrams: number;
-  /** Available portion options for the dropdown (includes the 'g' sentinel). */
-  portions: FoodPortion[];
-  /** Non-null when row was filled from a search/barcode result (enables live recompute). */
-  per100g: Per100g | null;
-}
-
-let _rowKeyCounter = 0;
-function nextKey(): number {
-  return ++_rowKeyCounter;
-}
-
-function emptyRow(): EditorRow {
-  return {
-    rowKey: nextKey(),
-    name: '',
-    grams: 100,
-    quantity: 100,
-    unitLabel: 'g',
-    unitGrams: 1,
-    portions: [GRAMS_UNIT],
-    source: 'manual',
-    source_ref: null,
-    calories: 0,
-    protein_g: 0,
-    carbs_g: 0,
-    fat_g: 0,
-    fiber_g: null,
-    sugar_g: null,
-    sodium_mg: null,
-    per100g: null,
-  };
-}
-
-/** Recompute a row's macros from its per100g snapshot and effective grams. */
-function recomputeMacros(per100g: Per100g, grams: number): Pick<EditorRow, 'calories' | 'protein_g' | 'carbs_g' | 'fat_g' | 'fiber_g' | 'sugar_g' | 'sodium_mg'> {
-  const factor = grams / 100;
-  return {
-    calories: round2(per100g.calories * factor),
-    protein_g: round2(per100g.protein_g * factor),
-    carbs_g: round2(per100g.carbs_g * factor),
-    fat_g: round2(per100g.fat_g * factor),
-    fiber_g: per100g.fiber_g != null ? round2(per100g.fiber_g * factor) : null,
-    sugar_g: per100g.sugar_g != null ? round2(per100g.sugar_g * factor) : null,
-    sodium_mg: per100g.sodium_mg != null ? round2(per100g.sodium_mg * factor) : null,
-  };
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
-/**
- * Build the initial portions list visible immediately when a food is selected
- * (before the async USDA fetch resolves).  For OFF/barcode with serving_grams,
- * include a "serving" option.  Always starts with "g".
- */
-function immediatePortions(food: FoodSearchResult): FoodPortion[] {
-  const list: FoodPortion[] = [GRAMS_UNIT];
-  if (food.source === 'off' && food.serving_grams) {
-    list.push({ label: 'serving', grams: food.serving_grams });
-  }
-  return list;
-}
-
-/** Convert a FoodSearchResult into an editor row.
- *  Picks quantity=1 + first available portion if the food has a serving_grams,
- *  otherwise defaults to quantity=100, unit=g (same behaviour as before).
- */
-function rowFromFood(food: FoodSearchResult, existingPortions?: FoodPortion[]): EditorRow {
-  const portions = existingPortions ?? immediatePortions(food);
-
-  // Default: use first non-gram portion if available, else grams.
-  let quantity: number;
-  let selectedUnit: FoodPortion;
-  if (portions.length > 1) {
-    // First non-g option (index 1) is the preferred serving.
-    selectedUnit = portions[1];
-    quantity = 1;
-  } else {
-    selectedUnit = GRAMS_UNIT;
-    quantity = food.serving_grams ?? 100;
-  }
-
-  const effectiveGrams = quantity * selectedUnit.grams;
-
-  return {
-    rowKey: nextKey(),
-    name: food.name,
-    grams: effectiveGrams,
-    quantity,
-    unitLabel: selectedUnit.label,
-    unitGrams: selectedUnit.grams,
-    portions,
-    source: food.source,
-    source_ref: food.source_ref,
-    per100g: food.per100g,
-    ...recomputeMacros(food.per100g, effectiveGrams),
-  };
-}
+import {
+  portionsCache,
+  GRAMS_UNIT,
+  type EditorRow,
+  nextKey,
+  emptyRow,
+  round2,
+  recomputeMacros,
+  immediatePortions,
+  rowFromFood,
+  buildPortionListFromFetched,
+  buildPortionList,
+  applyNewPortions,
+} from './ingredientMath';
 
 // ---------------------------------------------------------------------------
 // #10: Build an EditorRow from a ProposeIngredient (serving-aware).
@@ -553,50 +439,6 @@ function IngredientRowEditor({ row, onChange, onRemove, onOpenBarcode, onExpandM
       )}
     </div>
   );
-}
-
-// ---------------------------------------------------------------------------
-// Helpers for building portions lists after a fetch
-// ---------------------------------------------------------------------------
-
-function buildPortionListFromFetched(food: FoodSearchResult, fetched: FoodPortion[]): FoodPortion[] {
-  const list: FoodPortion[] = [GRAMS_UNIT];
-  if (food.source === 'usda') {
-    for (const p of fetched) {
-      list.push(p);
-    }
-  }
-  if (food.source === 'off' && food.serving_grams) {
-    list.push({ label: 'serving', grams: food.serving_grams });
-  }
-  return list;
-}
-
-function buildPortionList(row: EditorRow, fetched: FoodPortion[]): FoodPortion[] {
-  if (row.source === 'usda') {
-    return [GRAMS_UNIT, ...fetched];
-  }
-  return row.portions;
-}
-
-function applyNewPortions(row: EditorRow, newPortions: FoodPortion[]): EditorRow {
-  const existing = newPortions.find(p => p.label === row.unitLabel);
-  if (existing) {
-    return { ...row, portions: newPortions };
-  }
-  const preferred = newPortions.length > 1 ? newPortions[1] : GRAMS_UNIT;
-  const quantity = row.unitLabel === 'g' ? 1 : row.quantity;
-  const effectiveGrams = quantity * preferred.grams;
-  const macros = row.per100g ? recomputeMacros(row.per100g, effectiveGrams) : {};
-  return {
-    ...row,
-    portions: newPortions,
-    unitLabel: preferred.label,
-    unitGrams: preferred.grams,
-    quantity,
-    grams: effectiveGrams,
-    ...macros,
-  };
 }
 
 // ---------------------------------------------------------------------------

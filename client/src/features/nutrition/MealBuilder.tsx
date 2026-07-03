@@ -31,103 +31,20 @@ import type {
   CustomServing,
   IngredientInput,
   IngredientSource,
-  Per100g,
   ProposeCustomFoodArgs,
 } from './types';
 import styles from './MealBuilder.module.scss';
 import { X, Plus, Trash2 } from 'lucide-react';
-
-// ---------------------------------------------------------------------------
-// Shared pure helpers (mirrors ingredientMath.ts to avoid circular deps)
-// ---------------------------------------------------------------------------
-const GRAMS_UNIT: FoodPortion = { label: 'g', grams: 1 };
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
-interface BuilderRow extends IngredientInput {
-  rowKey: number;
-  quantity: number;
-  unitLabel: string;
-  unitGrams: number;
-  portions: FoodPortion[];
-  per100g: Per100g | null;
-}
-
-let _key = 0;
-function nextKey() { return ++_key; }
-
-function emptyBuilderRow(): BuilderRow {
-  return {
-    rowKey: nextKey(),
-    name: '',
-    grams: 100,
-    quantity: 100,
-    unitLabel: 'g',
-    unitGrams: 1,
-    portions: [GRAMS_UNIT],
-    source: 'manual' as IngredientSource,
-    source_ref: null,
-    calories: 0,
-    protein_g: 0,
-    carbs_g: 0,
-    fat_g: 0,
-    fiber_g: null,
-    sugar_g: null,
-    sodium_mg: null,
-    per100g: null,
-  };
-}
-
-function recomputeMacros(per100g: Per100g, grams: number) {
-  const f = grams / 100;
-  return {
-    calories: round2(per100g.calories * f),
-    protein_g: round2(per100g.protein_g * f),
-    carbs_g: round2(per100g.carbs_g * f),
-    fat_g: round2(per100g.fat_g * f),
-    fiber_g: per100g.fiber_g != null ? round2(per100g.fiber_g * f) : null,
-    sugar_g: per100g.sugar_g != null ? round2(per100g.sugar_g * f) : null,
-    sodium_mg: per100g.sodium_mg != null ? round2(per100g.sodium_mg * f) : null,
-  };
-}
-
-function rowFromFood(food: FoodSearchResult, portions?: FoodPortion[]): BuilderRow {
-  const portionList = portions ?? [GRAMS_UNIT];
-  const selectedUnit = portionList.length > 1 ? portionList[1] : GRAMS_UNIT;
-  const quantity = portionList.length > 1 ? 1 : (food.serving_grams ?? 100);
-  const grams = quantity * selectedUnit.grams;
-  return {
-    rowKey: nextKey(),
-    name: food.name,
-    grams,
-    quantity,
-    unitLabel: selectedUnit.label,
-    unitGrams: selectedUnit.grams,
-    portions: portionList,
-    source: food.source,
-    source_ref: food.source_ref,
-    per100g: food.per100g,
-    ...recomputeMacros(food.per100g, grams),
-  };
-}
-
-function sumRows(rows: BuilderRow[]) {
-  return rows.reduce(
-    (acc, r) => ({
-      grams: acc.grams + r.grams,
-      calories: acc.calories + r.calories,
-      protein_g: acc.protein_g + r.protein_g,
-      carbs_g: acc.carbs_g + r.carbs_g,
-      fat_g: acc.fat_g + r.fat_g,
-      fiber_g: acc.fiber_g + (r.fiber_g ?? 0),
-      sugar_g: acc.sugar_g + (r.sugar_g ?? 0),
-      sodium_mg: acc.sodium_mg + (r.sodium_mg ?? 0),
-    }),
-    { grams: 0, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 },
-  );
-}
+import {
+  GRAMS_UNIT,
+  type EditorRow as BuilderRow,
+  nextKey,
+  emptyRow as emptyBuilderRow,
+  round2,
+  recomputeMacros,
+  rowFromFood,
+  sumRows,
+} from './ingredientMath';
 
 // ---------------------------------------------------------------------------
 // Debounce hook
@@ -1017,5 +934,6 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
   );
 }
 
-// Export BuilderRow type for external usage (e.g. prefillRows from EntryRow)
+// BuilderRow is an alias for EditorRow (shared shape from ingredientMath.ts).
+// Re-exported for external consumers (e.g. prefillRows from EntryRow).
 export type { BuilderRow };
