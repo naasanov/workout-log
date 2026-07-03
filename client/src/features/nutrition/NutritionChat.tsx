@@ -588,6 +588,14 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     messages: initialMessages,
   });
 
+  // Keep a ref to the latest messages so the (stable) refetch callback can compare
+  // the incoming DB transcript against what's currently loaded without re-creating
+  // itself on every message change.
+  const messagesRef = useRef<UIMessage[]>(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
   // Persist messages on every change
   useEffect(() => {
     if (messages.length > 0) {
@@ -595,15 +603,36 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     }
   }, [messages, selectedDate]);
 
-  // #15: Fetch transcript from DB on mount (DB is source of truth)
-  const fetchAndApplyTranscript = useCallback(async (date: string) => {
+  // #15: Fetch transcript from DB on mount (DB is source of truth).
+  //
+  // Bug fix (#chat-midstream-persistence, part 2): don't let a leaner DB transcript
+  // clobber a richer local cache. On return-after-disconnect the DB refetch could
+  // return fewer messages (e.g. only the user message) than what's currently loaded
+  // — a completed/partial assistant message. Combined with the effect above that
+  // persists `messages` to localStorage, blindly applying the shorter DB set would
+  // discard the more-complete transcript.
+  //
+  // Rule: the more-complete set wins. If the DB transcript has fewer messages than
+  // what's currently loaded, keep the loaded set (and re-save it, since a shorter DB
+  // may have overwritten the cache on a previous pass). Otherwise the DB version is
+  // at least as complete, so it wins — preserving DB-as-source-of-truth for the
+  // normal case and for runs that completed server-side while backgrounded.
+  const fetchAndApplyTranscript = useCallback(async (date: string, baseline?: UIMessage[]) => {
     try {
       const stored = await fetchTranscript(date);
-      if (stored.length > 0) {
-        const uiMessages = storedToUIMessages(stored);
-        setMessages(uiMessages);
-        saveMessagesForDate(date, uiMessages);
+      if (stored.length === 0) return;
+      const uiMessages = storedToUIMessages(stored);
+      // `baseline` is the known-correct current set for `date` (e.g. the freshly
+      // loaded cache on a day switch, where messagesRef may still hold the old day).
+      // Fall back to the live ref when no explicit baseline is given.
+      const current = baseline ?? messagesRef.current;
+      if (uiMessages.length < current.length) {
+        // DB is missing messages the cache/UI has — never lose them.
+        saveMessagesForDate(date, current);
+        return;
       }
+      setMessages(uiMessages);
+      saveMessagesForDate(date, uiMessages);
     } catch {
       // Silently fall back to localStorage cache
     }
@@ -621,7 +650,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
       loadedDateRef.current = selectedDate;
       const cached = loadMessagesForDate(selectedDate);
       setMessages(cached);
-      fetchAndApplyTranscript(selectedDate);
+      fetchAndApplyTranscript(selectedDate, cached);
     }
   }, [selectedDate, setMessages, fetchAndApplyTranscript]);
 
