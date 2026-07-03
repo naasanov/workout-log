@@ -4,15 +4,28 @@ import { Link } from "react-router-dom";
 import { useUser } from "../context/UserProvider";
 import AccountMenu from "./AccountMenu";
 import FeedbackModal from "../features/nutrition/FeedbackModal";
-import { MessageSquare } from 'lucide-react';
+import NavDrawer from "./NavDrawer";
+import { MessageSquare, Menu } from 'lucide-react';
 
 function Header() {
   const { user } = useUser();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
     <>
       <header className={styles.header}>
+        {/* Hamburger button — opens the left slide-out nav drawer */}
+        <button
+          className={styles.hamburgerBtn}
+          onClick={() => setDrawerOpen(true)}
+          aria-label="Open navigation menu"
+          aria-haspopup="dialog"
+          aria-expanded={drawerOpen}
+        >
+          <Menu size={16} aria-hidden="true" style={{ display: 'block' }} />
+        </button>
+
         <Link to="/" className={styles.logo}>
           <span className={styles.title}>Peak</span>
         </Link>
@@ -46,6 +59,13 @@ function Header() {
       <FeedbackModal
         open={feedbackOpen}
         onClose={() => setFeedbackOpen(false)}
+      />
+
+      {/* #143: Left slide-out navigation drawer */}
+      <NavDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        user={user}
       />
     </>
   );

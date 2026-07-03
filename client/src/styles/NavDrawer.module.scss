@@ -1,0 +1,134 @@
+@import "variables";
+
+// ── Overlay / scrim ──────────────────────────────────────────────────────────
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.overlayVisible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+// ── Drawer panel ─────────────────────────────────────────────────────────────
+.drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 280px;
+  max-width: 85vw;
+  background-color: $surface;
+  border-right: 2px solid $primary-border;
+  z-index: 201;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(-100%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.drawerOpen {
+  transform: translateX(0);
+}
+
+// ── Drawer header ────────────────────────────────────────────────────────────
+.drawerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px 0 20px;
+  height: 8vh;
+  border-bottom: 2px solid $primary-border;
+  flex-shrink: 0;
+}
+
+.drawerTitle {
+  color: $text;
+  font-family: $sarabun;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: $sarabun-spacing;
+  opacity: 0.6;
+  text-transform: uppercase;
+}
+
+.closeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-width: 44px;
+  min-height: 44px;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: rgba($text, 0.55);
+
+  &:active {
+    background-color: rgba($primary, 0.1);
+    color: $primary;
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      background-color: rgba($primary, 0.08);
+      color: $primary;
+    }
+  }
+}
+
+// ── Nav list ─────────────────────────────────────────────────────────────────
+.navList {
+  list-style: none;
+  margin: 0;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navItem {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 18px;
+  text-align: left;
+  cursor: pointer;
+  color: rgba($text, 0.7);
+  font-family: $sarabun;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: $sarabun-spacing;
+  // Mobile tap target
+  min-height: 44px;
+  transition: background 0.12s ease, color 0.12s ease;
+
+  &:active {
+    background: $primary-translucent;
+    color: $primary;
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      background: rgba($primary, 0.08);
+      color: $text;
+    }
+  }
+}
+
+.navItemActive {
+  color: $primary;
+  background: $primary-translucent;
+  font-weight: 600;
+}

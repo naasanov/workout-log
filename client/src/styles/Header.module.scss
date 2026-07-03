@@ -12,6 +12,7 @@
   position: sticky;
   top: 0;
   z-index: 50;
+  gap: 12px;
 
   > a {
     text-decoration: none;
@@ -30,6 +31,37 @@
   .logo {
     display: flex;
     align-items: flex-end;
+    // Let logo shrink if header is tight; headerRight gets its space
+    flex: 1;
+  }
+}
+
+// #143: Hamburger button — opens the left slide-out nav drawer
+.hamburgerBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-width: 44px;
+  min-height: 44px;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: rgba($text, 0.7);
+  flex-shrink: 0;
+
+  &:active {
+    background-color: rgba($primary, 0.1);
+    color: $primary;
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      background-color: rgba($primary, 0.08);
+      color: $primary;
+    }
   }
 }
 
