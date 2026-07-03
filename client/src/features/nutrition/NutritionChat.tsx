@@ -176,6 +176,24 @@ function storedToUIMessages(stored: StoredChatMessage[]): UIMessage[] {
 }
 
 // ---------------------------------------------------------------------------
+// Strip OpenAI-style citation tokens from assistant text.
+// Models sometimes emit markers like citeturn1view1 wrapped in private-use-area
+// unicode chars (U+E200–U+E2FF range). Strip both the PUA-delimited form and
+// any bare "cite…turn…" token so they don't show as garbage in the UI.
+// Applied only to assistant text, never to user input.
+// ---------------------------------------------------------------------------
+function stripCitationTokens(text: string): string {
+  return text
+    // Remove PUA-delimited citation spans. Models (e.g. some OpenAI runs) emit
+    // characters in U+E200-U+E2FF as open/close delimiters around tokens like
+    // "turn1view1". Strip the delimiters and any content they enclose.
+    .replace(/[-][^-]*[-]/g, '')
+    // Also strip bare cite-token patterns that may appear without PUA delimiters,
+    // e.g. citeturn1view1 or citeturn0search5.
+    .replace(/cite\w*turn\d+\w*/gi, '');
+}
+
+// ---------------------------------------------------------------------------
 // Auto-grow textarea hook
 // ---------------------------------------------------------------------------
 function useAutoGrow(ref: React.RefObject<HTMLTextAreaElement | null>, value: string) {
@@ -237,7 +255,7 @@ function ReasoningBubble({ text, streaming }: ReasoningBubbleProps) {
         aria-hidden={!open}
       >
         <div ref={innerRef} className={styles.reasoningText}>
-          <ReactMarkdown>{text}</ReactMarkdown>
+          <ReactMarkdown>{stripCitationTokens(text)}</ReactMarkdown>
         </div>
       </div>
     </div>
@@ -397,7 +415,7 @@ function ChatMessage({
                 <p className={styles.bubbleText}>{part.text}</p>
               ) : (
                 <div className={styles.bubbleMarkdown}>
-                  <ReactMarkdown>{part.text}</ReactMarkdown>
+                  <ReactMarkdown>{stripCitationTokens(part.text)}</ReactMarkdown>
                 </div>
               )}
             </div>
@@ -557,7 +575,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   const loadedDateRef = useRef(selectedDate);
 
   // ---- useChat setup ----
-  const { messages, setMessages, sendMessage, status, stop, error: chatError } = useChat({
+  const { messages, setMessages, sendMessage, status, stop, error: chatError, clearError } = useChat({
     transport: new DefaultChatTransport({
       api: `${VITE_API_URL}/nutrition/chat`,
       credentials: 'include',
@@ -898,11 +916,12 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     }
     dropMessagesForDate(selectedDate);
     setMessages([]);
+    clearError();
     setDeniedProposals(new Set());
     setConfirmedProposals(new Map());
     setDeniedCustomFoodProposals(new Set());
     setConfirmedCustomFoodProposals(new Map());
-  }, [selectedDate, setMessages]);
+  }, [selectedDate, setMessages, clearError]);
 
   const handleClearChat = useCallback(() => {
     setShowClearConfirm(true);
