@@ -1,12 +1,15 @@
 /**
  * IngredientSheet — reusable bottom-sheet editor for a single ingredient row.
  *
- * Portaled to document.body so it always overlays correctly even when rendered
- * inside an inline chat proposal card or inside MealBuilder's own sheet.
+ * Implemented as a Radix Dialog so it participates in Radix's focus/pointer-events
+ * layer stack. This means it works correctly when opened from inside another Radix
+ * Dialog (e.g. Add-Food modal, Edit-Entry modal, MyFoodsSheet) — nested Radix
+ * Dialogs are NOT inert-marked by the parent. It also works fine when opened from
+ * the inline chat proposal card (not inside any dialog).
  *
  * Usage pattern (two sub-components exported):
  *   <IngredientCardList>   — renders the static summary cards + "Add ingredient" button.
- *   <IngredientSheet>      — the actual portal sheet (controls its own open state via onClose).
+ *   <IngredientSheet>      — the actual sheet (controls its own open state via onClose).
  *
  * Callers (EntryEditor, MealBuilder) lift the state: they own the `rows` array
  * and call sheet callbacks to add / update / remove rows.
@@ -15,9 +18,8 @@ import {
   useState,
   useEffect,
   useCallback,
-  useRef,
 } from 'react';
-import { createPortal } from 'react-dom';
+import * as Dialog from '@radix-ui/react-dialog';
 import BarcodeScanner from './BarcodeScanner';
 import { useFoodSearch, lookupBarcode, getPortions, getCustomFood } from './api';
 import type {
@@ -380,7 +382,7 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
 }
 
 // ---------------------------------------------------------------------------
-// IngredientSheet — the portal sheet itself
+// IngredientSheet — the Radix Dialog bottom sheet
 // ---------------------------------------------------------------------------
 export interface IngredientSheetProps {
   /**
@@ -424,16 +426,6 @@ export default function IngredientSheet({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editRow?.rowKey]);
 
-  // Close on Escape key
-  useEffect(() => {
-    if (!open) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [open, onClose]);
-
   const handleOpenBarcode = useCallback(() => {
     setBarcodeError(null);
     setBarcodeOpen(true);
@@ -468,88 +460,87 @@ export default function IngredientSheet({
     onClose();
   }, [onDelete, onClose]);
 
-  if (!open) return null;
-
   const title = isEdit ? 'Edit ingredient' : 'Add ingredient';
   const canDone = row.name.trim().length > 0;
 
-  const sheetContent = (
-    <>
-      {/* Scrim — tap to close */}
-      <div
-        className={styles.overlay}
-        onClick={onClose}
-        aria-hidden="true"
-      />
+  return (
+    <Dialog.Root open={open} onOpenChange={isOpen => { if (!isOpen) onClose(); }}>
+      <Dialog.Portal>
+        {/* Scrim overlay */}
+        <Dialog.Overlay className={styles.overlay} />
 
-      {/* Sheet panel */}
-      <div
-        className={styles.sheet}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-      >
-        {/* Header */}
-        <div className={styles.header}>
-          <button
-            type="button"
-            className={styles.closeBtn}
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <X size={16} aria-hidden="true" style={{ display: 'block' }} />
-          </button>
-          <h2 className={styles.headerTitle}>{title}</h2>
-          <button
-            type="button"
-            className={styles.doneBtn}
-            onClick={handleDone}
-            disabled={!canDone}
-          >
-            {isEdit ? 'Done' : 'Add'}
-          </button>
-        </div>
+        {/* Sheet panel */}
+        <Dialog.Content
+          className={styles.sheet}
+          aria-label={title}
+          // Prevent auto-focus from jumping unexpectedly (mobile UX)
+          onOpenAutoFocus={e => e.preventDefault()}
+          // Stop Escape from bubbling up and closing the parent dialog.
+          // Radix will still close THIS dialog via onOpenChange → onClose.
+          onEscapeKeyDown={e => e.stopPropagation()}
+        >
+          <Dialog.Title className={styles.srOnly}>{title}</Dialog.Title>
 
-        {/* Form */}
-        <div className={styles.body}>
-          <IngredientForm
-            row={row}
-            onChange={setRow}
-            onOpenBarcode={handleOpenBarcode}
-            onExpandMeal={onExpandMeal ? handleExpandMeal : undefined}
-          />
-
-          {barcodeError && (
-            <p className={styles.rowHint} style={{ color: 'var(--error, #ED1518)' }}>
-              {barcodeError}
-            </p>
-          )}
-
-          {/* Delete button — only shown in edit mode */}
-          {isEdit && onDelete && (
+          {/* Header */}
+          <div className={styles.header}>
             <button
               type="button"
-              className={styles.deleteBtn}
-              onClick={handleDelete}
+              className={styles.closeBtn}
+              onClick={onClose}
+              aria-label="Close"
             >
-              <Trash2 size={16} aria-hidden="true" style={{ display: 'block' }} />
-              Delete ingredient
+              <X size={16} aria-hidden="true" style={{ display: 'block' }} />
             </button>
-          )}
-        </div>
-      </div>
+            <h2 className={styles.headerTitle}>{title}</h2>
+            <button
+              type="button"
+              className={styles.doneBtn}
+              onClick={handleDone}
+              disabled={!canDone}
+            >
+              {isEdit ? 'Done' : 'Add'}
+            </button>
+          </div>
 
-      {/* Barcode scanner — renders inside portal to overlay everything */}
-      {barcodeOpen && (
-        <BarcodeScanner
-          onDetected={handleBarcodeDetected}
-          onClose={() => setBarcodeOpen(false)}
-        />
-      )}
-    </>
+          {/* Form */}
+          <div className={styles.body}>
+            <IngredientForm
+              row={row}
+              onChange={setRow}
+              onOpenBarcode={handleOpenBarcode}
+              onExpandMeal={onExpandMeal ? handleExpandMeal : undefined}
+            />
+
+            {barcodeError && (
+              <p className={styles.rowHint} style={{ color: 'var(--error, #ED1518)' }}>
+                {barcodeError}
+              </p>
+            )}
+
+            {/* Delete button — only shown in edit mode */}
+            {isEdit && onDelete && (
+              <button
+                type="button"
+                className={styles.deleteBtn}
+                onClick={handleDelete}
+              >
+                <Trash2 size={16} aria-hidden="true" style={{ display: 'block' }} />
+                Delete ingredient
+              </button>
+            )}
+          </div>
+        </Dialog.Content>
+
+        {/* Barcode scanner — rendered inside the same portal layer */}
+        {barcodeOpen && (
+          <BarcodeScanner
+            onDetected={handleBarcodeDetected}
+            onClose={() => setBarcodeOpen(false)}
+          />
+        )}
+      </Dialog.Portal>
+    </Dialog.Root>
   );
-
-  return createPortal(sheetContent, document.body);
 }
 
 // ---------------------------------------------------------------------------

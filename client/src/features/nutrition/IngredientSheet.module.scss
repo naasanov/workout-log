@@ -5,13 +5,29 @@
 // z-index 1100 so it appears above MealBuilder (1000) and inline chat editors.
 // ---------------------------------------------------------------------------
 
-// Scrim / overlay
+// Scrim / overlay (Radix Dialog.Overlay)
 .overlay {
   position: fixed;
   inset: 0;
   background-color: rgba(0, 0, 0, 0.55);
   z-index: 1100;
-  animation: fadeIn 140ms ease;
+
+  &[data-state="open"] {
+    animation: fadeIn 140ms ease;
+  }
+}
+
+// Visually hidden title (accessible but invisible)
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 // Sheet container — slides up from bottom
