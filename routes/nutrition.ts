@@ -393,42 +393,42 @@ router.post('/chat', async (req, res): Promise<any> => {
     // Track the in-progress assistant row so we can mark it interrupted if needed.
     let assistantRowId: number | null = null;
 
-    // Consume the stream on the server regardless of client connection, so onFinish fires.
+    // Consume the stream on the server regardless of client connection, so onEnd fires.
     // This means the run completes even if the client disconnects mid-stream.
     result.consumeStream();
 
-    // Persist assistant message once the run finishes (best-effort, fire-and-forget).
-    // Use Promise.resolve() to promote PromiseLike → full Promise so we can use .catch().
-    Promise.resolve(result.finishReason)
-      .then(async () => {
-        try {
-          const response = await result.response;
-          const assistantMessages = response.messages ?? [];
-          // Find the last assistant message
-          const lastAssistant = assistantMessages.filter((m) => m.role === 'assistant').pop();
-          if (lastAssistant) {
-            const msgId = `asst-${Date.now()}`;
-            const rawParts = Array.isArray(lastAssistant.content)
-              ? lastAssistant.content
-              : [{ type: 'text', text: String(lastAssistant.content ?? '') }];
-            assistantRowId = await appendMessage(uuid, date, msgId, 'assistant', rawParts);
-          }
-        } catch {
-          // best-effort — don't break anything
-        }
-      })
-      .catch(async () => {
-        // Run errored/aborted before finish — mark interrupted if we inserted a row
-        if (assistantRowId !== null) {
-          await markInterrupted(assistantRowId).catch(() => {});
-        }
-      });
-
     // Stream the AI SDK UI message stream to the Express response using the
     // standalone helper (avoids the deprecated result method).
+    // onEnd — persist the assistant UIMessage (with full parts: text, reasoning, tool-calls)
+    //   so that after page reload, tool calls and reasoning render correctly.
+    // onError — surface the real error detail to the client instead of the SDK's
+    //   generic "An error occurred." (#130).
     pipeUIMessageStreamToResponse({
       response: res,
-      stream: result.toUIMessageStream({ sendReasoning: true }),
+      stream: result.toUIMessageStream({
+        sendReasoning: true,
+        // #127: capture the final UIMessage (which has parts: text/reasoning/tool-*) so
+        // that persisted transcripts round-trip correctly after reload.
+        onEnd: async ({ responseMessage, isAborted }) => {
+          try {
+            const msgId = (responseMessage as { id?: string }).id ?? `asst-${Date.now()}`;
+            const parts = Array.isArray(responseMessage.parts) ? responseMessage.parts : [];
+            assistantRowId = await appendMessage(uuid, date, msgId, 'assistant', parts);
+            if (isAborted && assistantRowId !== null) {
+              await markInterrupted(assistantRowId).catch(() => {});
+            }
+          } catch {
+            // best-effort — don't break anything
+          }
+        },
+        // #130: surface real error details (single-user personal app — leaking internals is fine)
+        onError: (error: unknown): string => {
+          if (error == null) return 'Unknown error';
+          if (typeof error === 'string') return error;
+          if (error instanceof Error) return error.message;
+          try { return JSON.stringify(error); } catch { return String(error); }
+        },
+      }),
     });
   } catch (error) {
     // Only reached if streamText itself throws before streaming begins
