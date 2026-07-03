@@ -22,10 +22,8 @@ import {
   useCallback,
   useRef,
 } from 'react';
-import { useFoodSearch, useCreateCustomFood, useUpdateCustomFood, getCustomFood } from './api';
+import { useCreateCustomFood, useUpdateCustomFood } from './api';
 import type {
-  FoodSearchResult,
-  FoodPortion,
   CustomFoodRow,
   CustomFoodInput,
   CustomServing,
@@ -35,19 +33,18 @@ import type {
 } from './types';
 import styles from './MealBuilder.module.scss';
 import { X, Plus, Trash2 } from 'lucide-react';
+import IngredientSheet, { IngredientCardList } from './IngredientSheet';
 import {
   GRAMS_UNIT,
   type EditorRow as BuilderRow,
   nextKey,
   emptyRow as emptyBuilderRow,
   round2,
-  recomputeMacros,
-  rowFromFood,
   sumRows,
 } from './ingredientMath';
 
 // ---------------------------------------------------------------------------
-// Debounce hook
+// Debounce hook (used for autosave)
 // ---------------------------------------------------------------------------
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -56,210 +53,6 @@ function useDebounce<T>(value: T, delay: number): T {
     return () => clearTimeout(t);
   }, [value, delay]);
   return debounced;
-}
-
-// ---------------------------------------------------------------------------
-// Mini search dropdown for ingredient rows
-// ---------------------------------------------------------------------------
-interface DropdownProps {
-  query: string;
-  onSelect: (food: FoodSearchResult) => void;
-}
-
-function IngredientDropdown({ query, onSelect }: DropdownProps) {
-  const debouncedQ = useDebounce(query, 300);
-  const { data: results = [], isFetching } = useFoodSearch(debouncedQ);
-
-  if (!query.trim() || (results.length === 0 && !isFetching)) return null;
-
-  return (
-    <ul className={styles.dropdown} role="listbox">
-      {isFetching && <li className={styles.dropdownHint}>Searching…</li>}
-      {!isFetching && results.length === 0 && <li className={styles.dropdownHint}>No results</li>}
-      {results.map(food => (
-        <li
-          key={`${food.source}:${food.source_ref}`}
-          className={styles.dropdownItem}
-          role="option"
-          aria-selected={false}
-          onPointerDown={e => { e.preventDefault(); onSelect(food); }}
-        >
-          <span className={styles.dropdownName}>{food.name}</span>
-          <span className={styles.dropdownMeta}>
-            {food.per100g.calories} kcal/100g ·{' '}
-            {food.source === 'custom'
-              ? (food.kind === 'meal' ? 'Custom · Meal' : food.kind === 'food' ? 'Custom · Food' : 'Custom')
-              : food.source.toUpperCase()}
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Single ingredient row for MealBuilder
-// ---------------------------------------------------------------------------
-interface IngredientRowProps {
-  row: BuilderRow;
-  onChange: (updated: BuilderRow) => void;
-  onRemove: () => void;
-  onExpandMeal?: (rows: BuilderRow[]) => void;
-}
-
-function BuilderIngredientRow({ row, onChange, onRemove, onExpandMeal }: IngredientRowProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
-
-  function handleNameChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const name = e.target.value;
-    setSearchQuery(name);
-    setShowSearch(true);
-    onChange({ ...row, name, source: 'manual', source_ref: null, per100g: null, portions: [GRAMS_UNIT], unitLabel: 'g', unitGrams: 1 });
-  }
-
-  async function handleSelectFood(food: FoodSearchResult) {
-    setShowSearch(false);
-    setSearchQuery('');
-
-    // Custom meal: expand ingredients as snapshot rows
-    if (food.source === 'custom' && food.kind === 'meal' && onExpandMeal) {
-      const id = parseInt(food.source_ref, 10);
-      if (!isNaN(id)) {
-        try {
-          const customFood = await getCustomFood(id);
-          const expandedRows: BuilderRow[] = customFood.ingredients.map(ing => ({
-            rowKey: nextKey(),
-            name: ing.name,
-            grams: ing.grams,
-            quantity: ing.grams,
-            unitLabel: 'g',
-            unitGrams: 1,
-            portions: [GRAMS_UNIT],
-            source: ing.source as IngredientSource,
-            source_ref: ing.source_ref ?? null,
-            calories: ing.calories,
-            protein_g: ing.protein_g,
-            carbs_g: ing.carbs_g,
-            fat_g: ing.fat_g,
-            fiber_g: ing.fiber_g ?? null,
-            sugar_g: ing.sugar_g ?? null,
-            sodium_mg: ing.sodium_mg ?? null,
-            per100g: null,
-          }));
-          onExpandMeal(expandedRows);
-        } catch {
-          onChange(rowFromFood(food));
-        }
-        return;
-      }
-    }
-
-    // Custom food or external: add as single row with custom portions
-    const portions: FoodPortion[] = food.source === 'custom' && food.portions?.length
-      ? [GRAMS_UNIT, ...food.portions.filter(p => p.label !== 'g')]
-      : [GRAMS_UNIT];
-    onChange(rowFromFood(food, portions));
-  }
-
-  function handleQuantityChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const quantity = parseFloat(e.target.value) || 0;
-    const grams = quantity * row.unitGrams;
-    onChange({ ...row, quantity, grams, ...(row.per100g ? recomputeMacros(row.per100g, grams) : {}) });
-  }
-
-  function handleUnitChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const label = e.target.value;
-    const selected = row.portions.find(p => p.label === label) ?? GRAMS_UNIT;
-    const grams = row.quantity * selected.grams;
-    onChange({ ...row, unitLabel: selected.label, unitGrams: selected.grams, grams, ...(row.per100g ? recomputeMacros(row.per100g, grams) : {}) });
-  }
-
-  function handleMacro(field: 'calories' | 'protein_g' | 'carbs_g' | 'fat_g' | 'fiber_g' | 'sugar_g' | 'sodium_mg', val: string) {
-    onChange({ ...row, [field]: parseFloat(val) || 0 });
-  }
-
-  const macrosReadOnly = row.per100g !== null;
-  const showUnit = row.portions.length > 1;
-
-  return (
-    <div className={styles.ingredientRow}>
-      <div className={styles.rowNameWrap}>
-        <div className={styles.rowNameInputWrap}>
-          <input
-            className={styles.input}
-            type="text"
-            placeholder="Ingredient name"
-            value={row.name}
-            onChange={handleNameChange}
-            onFocus={() => setShowSearch(true)}
-            onBlur={() => setTimeout(() => setShowSearch(false), 150)}
-            aria-label="Ingredient name"
-          />
-          {showSearch && <IngredientDropdown query={searchQuery} onSelect={handleSelectFood} />}
-        </div>
-        <button type="button" className={styles.removeBtn} onClick={onRemove} aria-label="Remove ingredient">
-          <X size={16} aria-hidden="true" style={{ display: 'block' }} />
-        </button>
-      </div>
-      <div className={styles.rowFields}>
-        <label className={styles.fieldLabel}>
-          <span>Qty</span>
-          <input
-            className={styles.inputSmall}
-            type="number" min="0" step="0.1"
-            value={row.quantity === 0 ? '' : row.quantity}
-            onChange={handleQuantityChange}
-            aria-label="Quantity"
-          />
-        </label>
-        {showUnit ? (
-          <label className={styles.fieldLabel}>
-            <span>Unit</span>
-            <select className={styles.unitSelect} value={row.unitLabel} onChange={handleUnitChange} aria-label="Unit">
-              {row.portions.map(p => (
-                <option key={p.label} value={p.label}>
-                  {p.label === 'g' ? 'g' : `${p.label} (${p.grams}g)`}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <label className={styles.fieldLabel}>
-            <span>Unit</span>
-            <span className={styles.unitStatic}>g</span>
-          </label>
-        )}
-        <label className={styles.fieldLabel}>
-          <span>kcal</span>
-          <input className={styles.inputSmall} type="number" min="0" step="0.1"
-            value={row.calories === 0 ? '' : row.calories}
-            onChange={e => handleMacro('calories', e.target.value)} readOnly={macrosReadOnly} aria-label="Calories" />
-        </label>
-        <label className={styles.fieldLabel}>
-          <span>Prot</span>
-          <input className={styles.inputSmall} type="number" min="0" step="0.1"
-            value={row.protein_g === 0 ? '' : row.protein_g}
-            onChange={e => handleMacro('protein_g', e.target.value)} readOnly={macrosReadOnly} aria-label="Protein g" />
-        </label>
-        <label className={styles.fieldLabel}>
-          <span>Carbs</span>
-          <input className={styles.inputSmall} type="number" min="0" step="0.1"
-            value={row.carbs_g === 0 ? '' : row.carbs_g}
-            onChange={e => handleMacro('carbs_g', e.target.value)} readOnly={macrosReadOnly} aria-label="Carbs g" />
-        </label>
-        <label className={styles.fieldLabel}>
-          <span>Fat</span>
-          <input className={styles.inputSmall} type="number" min="0" step="0.1"
-            value={row.fat_g === 0 ? '' : row.fat_g}
-            onChange={e => handleMacro('fat_g', e.target.value)} readOnly={macrosReadOnly} aria-label="Fat g" />
-        </label>
-      </div>
-      {macrosReadOnly && (
-        <p className={styles.rowHint}>Macros computed from per-100g values · adjust qty/unit to recalculate</p>
-      )}
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -624,29 +417,57 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
   // ---------------------------------------------------------------------------
   // Row helpers
   // ---------------------------------------------------------------------------
-  const updateRow = useCallback((key: number, updated: BuilderRow) => {
-    setRows(prev => prev.map(r => r.rowKey === key ? updated : r));
-  }, []);
-
   const removeRow = useCallback((key: number) => {
     setRows(prev => prev.filter(r => r.rowKey !== key));
   }, []);
 
-  const addRow = useCallback(() => {
-    setRows(prev => [...prev, emptyBuilderRow()]);
+  // Ingredient sheet state
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [editingRow, setEditingRow] = useState<BuilderRow | null>(null);
+
+  const openSheetForAdd = useCallback(() => {
+    setEditingRow(null);
+    setSheetOpen(true);
   }, []);
 
-  const handleExpandMeal = useCallback((rowKey: number, expandedRows: BuilderRow[]) => {
+  const openSheetForEdit = useCallback((row: BuilderRow) => {
+    setEditingRow(row);
+    setSheetOpen(true);
+  }, []);
+
+  const closeSheet = useCallback(() => {
+    setSheetOpen(false);
+    setEditingRow(null);
+  }, []);
+
+  const handleSheetDone = useCallback((row: BuilderRow) => {
     setRows(prev => {
-      const idx = prev.findIndex(r => r.rowKey === rowKey);
-      if (idx === -1) return [...prev, ...expandedRows];
-      const trigger = prev[idx];
-      if (!trigger.name.trim()) {
-        return [...prev.slice(0, idx), ...expandedRows, ...prev.slice(idx + 1)];
+      const idx = prev.findIndex(r => r.rowKey === row.rowKey);
+      if (idx !== -1) {
+        return prev.map(r => (r.rowKey === row.rowKey ? row : r));
+      }
+      return [...prev, row];
+    });
+  }, []);
+
+  const handleSheetDelete = useCallback(() => {
+    if (editingRow !== null) {
+      removeRow(editingRow.rowKey);
+    }
+  }, [editingRow, removeRow]);
+
+  const handleExpandMeal = useCallback((expandedRows: BuilderRow[]) => {
+    setRows(prev => {
+      if (editingRow !== null) {
+        const idx = prev.findIndex(r => r.rowKey === editingRow.rowKey);
+        if (idx !== -1 && !prev[idx].name.trim()) {
+          return [...prev.slice(0, idx), ...expandedRows, ...prev.slice(idx + 1)];
+        }
       }
       return [...prev, ...expandedRows];
     });
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingRow]);
 
   // ---------------------------------------------------------------------------
   // Render
@@ -723,23 +544,14 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
                 </div>
               </div>
 
-              {/* Ingredient rows */}
+              {/* Ingredient cards */}
               <div className={styles.section}>
                 <span className={styles.sectionLabel}>Ingredients</span>
-                <div className={styles.ingredientList}>
-                  {rows.map(row => (
-                    <BuilderIngredientRow
-                      key={row.rowKey}
-                      row={row}
-                      onChange={updated => updateRow(row.rowKey, updated)}
-                      onRemove={() => removeRow(row.rowKey)}
-                      onExpandMeal={expandedRows => handleExpandMeal(row.rowKey, expandedRows)}
-                    />
-                  ))}
-                </div>
-                <button type="button" className={styles.addIngredientBtn} onClick={addRow}>
-                  <Plus size={14} aria-hidden="true" style={{ display: 'block' }} /> Add ingredient
-                </button>
+                <IngredientCardList
+                  rows={rows}
+                  onEditRow={openSheetForEdit}
+                  onAddRow={openSheetForAdd}
+                />
               </div>
 
               {/* Macro readouts */}
@@ -930,6 +742,16 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
           {saveError && <p className={styles.errorMsg}>{saveError}</p>}
         </div>
       </div>
+
+      {/* Ingredient sheet — portaled to body so it overlays MealBuilder's own sheet */}
+      <IngredientSheet
+        open={sheetOpen}
+        editRow={editingRow}
+        onClose={closeSheet}
+        onDone={handleSheetDone}
+        onDelete={editingRow !== null ? handleSheetDelete : undefined}
+        onExpandMeal={handleExpandMeal}
+      />
     </div>
   );
 }

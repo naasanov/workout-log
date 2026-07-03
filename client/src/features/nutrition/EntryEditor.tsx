@@ -11,36 +11,26 @@ import {
   useState,
   useCallback,
   useEffect,
-  useRef,
 } from 'react';
 import Modal from '../../components/Modal.jsx';
-import BarcodeScanner from './BarcodeScanner';
-import { useCreateEntry, useUpdateEntry, useFoodSearch, lookupBarcode, getPortions, getCustomFood } from './api';
+import { useCreateEntry, useUpdateEntry } from './api';
 import type {
   EntryEditorProps,
   Meal,
   IngredientInput,
   EntryInput,
-  FoodSearchResult,
   FoodPortion,
   ProposeIngredient,
 } from './types';
 import { MEALS, MEAL_LABELS } from './types';
 import styles from './EntryEditor.module.scss';
-import { ScanBarcode } from 'lucide-react';
+import IngredientSheet, { IngredientCardList } from './IngredientSheet';
 import {
-  portionsCache,
   GRAMS_UNIT,
   type EditorRow,
   nextKey,
   emptyRow,
   round2,
-  recomputeMacros,
-  immediatePortions,
-  rowFromFood,
-  buildPortionListFromFetched,
-  buildPortionList,
-  applyNewPortions,
 } from './ingredientMath';
 
 // ---------------------------------------------------------------------------
@@ -96,349 +86,6 @@ function rowFromProposedIngredient(ing: ProposeIngredient): EditorRow {
     // Macros already resolved; no per100g needed for live recompute.
     per100g: null,
   };
-}
-
-// ---------------------------------------------------------------------------
-// Debounce hook
-// ---------------------------------------------------------------------------
-function useDebounce<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return debounced;
-}
-
-// ---------------------------------------------------------------------------
-// Search dropdown for a single ingredient row
-// ---------------------------------------------------------------------------
-interface SearchDropdownProps {
-  query: string;
-  onSelect: (food: FoodSearchResult) => void;
-}
-
-function SearchDropdown({ query, onSelect }: SearchDropdownProps) {
-  const debouncedQuery = useDebounce(query, 300);
-  const { data: results = [], isFetching } = useFoodSearch(debouncedQuery);
-
-  if (!query.trim() || (results.length === 0 && !isFetching)) return null;
-
-  return (
-    <ul className={styles.dropdown} role="listbox">
-      {isFetching && (
-        <li className={styles.dropdownHint}>Searching…</li>
-      )}
-      {!isFetching && results.length === 0 && (
-        <li className={styles.dropdownHint}>No results</li>
-      )}
-      {results.map(food => (
-        <li
-          key={`${food.source}:${food.source_ref}`}
-          className={styles.dropdownItem}
-          role="option"
-          aria-selected={false}
-          onPointerDown={e => {
-            e.preventDefault();
-            onSelect(food);
-          }}
-        >
-          <span className={styles.dropdownName}>{food.name}</span>
-          <span className={styles.dropdownMeta}>
-            {food.per100g.calories} kcal/100g · {food.source === 'custom' ? (food.kind === 'meal' ? 'Custom · Meal' : food.kind === 'food' ? 'Custom · Food' : 'Custom') : food.source.toUpperCase()}
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Single ingredient row
-// ---------------------------------------------------------------------------
-interface IngredientRowProps {
-  row: EditorRow;
-  onChange: (updated: EditorRow) => void;
-  onRemove: () => void;
-  onOpenBarcode: () => void;
-  onExpandMeal?: (rows: EditorRow[]) => void;
-}
-
-function IngredientRowEditor({ row, onChange, onRemove, onOpenBarcode, onExpandMeal }: IngredientRowProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
-
-  // ---- Async portion fetching for USDA foods ----
-  useEffect(() => {
-    if (row.source !== 'usda' || !row.source_ref) return;
-
-    const ref = row.source_ref;
-
-    if (portionsCache.has(ref)) {
-      const cached = portionsCache.get(ref)!;
-      const merged = buildPortionList(row, cached);
-      if (merged.length !== row.portions.length) {
-        onChange(applyNewPortions(row, merged));
-      }
-      return;
-    }
-
-    let cancelled = false;
-    getPortions('usda', ref).then(fetched => {
-      if (cancelled) return;
-      portionsCache.set(ref, fetched);
-      const merged = buildPortionList(row, fetched);
-      onChange(applyNewPortions(row, merged));
-    }).catch(() => {
-      // Silently ignore — user still has 'g' and any serving option.
-    });
-
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [row.source_ref]);
-
-  function handleNameChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const name = e.target.value;
-    setSearchQuery(name);
-    setShowSearch(true);
-    onChange({
-      ...row,
-      name,
-      source: 'manual',
-      source_ref: null,
-      per100g: null,
-      portions: [GRAMS_UNIT],
-      unitLabel: 'g',
-      unitGrams: 1,
-    });
-  }
-
-  function handleSelectFood(food: FoodSearchResult) {
-    setShowSearch(false);
-    setSearchQuery('');
-
-    // Custom meal: expand its ingredients as a snapshot into the editor rows.
-    if (food.source === 'custom' && food.kind === 'meal' && onExpandMeal) {
-      const id = parseInt(food.source_ref, 10);
-      if (!isNaN(id)) {
-        getCustomFood(id).then(customFood => {
-          const expandedRows: EditorRow[] = customFood.ingredients.map(ing => ({
-            rowKey: nextKey(),
-            name: ing.name,
-            grams: ing.grams,
-            quantity: ing.grams,
-            unitLabel: 'g',
-            unitGrams: 1,
-            portions: [GRAMS_UNIT],
-            source: ing.source,
-            source_ref: ing.source_ref ?? null,
-            calories: ing.calories,
-            protein_g: ing.protein_g,
-            carbs_g: ing.carbs_g,
-            fat_g: ing.fat_g,
-            fiber_g: ing.fiber_g ?? null,
-            sugar_g: ing.sugar_g ?? null,
-            sodium_mg: ing.sodium_mg ?? null,
-            per100g: null,
-          }));
-          onExpandMeal(expandedRows);
-        }).catch(() => {
-          // Fallback: add as single row with batch macros
-          onChange(rowFromFood(food, immediatePortions(food)));
-        });
-        return;
-      }
-    }
-
-    const cached = food.source === 'usda' && food.source_ref
-      ? portionsCache.get(food.source_ref)
-      : undefined;
-    const portions = cached
-      ? buildPortionListFromFetched(food, cached)
-      : immediatePortions(food);
-    onChange(rowFromFood(food, portions));
-  }
-
-  function handleQuantityChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const quantity = parseFloat(e.target.value) || 0;
-    const effectiveGrams = quantity * row.unitGrams;
-    if (row.per100g) {
-      onChange({ ...row, quantity, grams: effectiveGrams, ...recomputeMacros(row.per100g, effectiveGrams) });
-    } else {
-      onChange({ ...row, quantity, grams: effectiveGrams });
-    }
-  }
-
-  function handleUnitChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const label = e.target.value;
-    const selected = row.portions.find(p => p.label === label) ?? GRAMS_UNIT;
-    const effectiveGrams = row.quantity * selected.grams;
-    if (row.per100g) {
-      onChange({
-        ...row,
-        unitLabel: selected.label,
-        unitGrams: selected.grams,
-        grams: effectiveGrams,
-        ...recomputeMacros(row.per100g, effectiveGrams),
-      });
-    } else {
-      onChange({ ...row, unitLabel: selected.label, unitGrams: selected.grams, grams: effectiveGrams });
-    }
-  }
-
-  function handleMacroChange(field: 'calories' | 'protein_g' | 'carbs_g' | 'fat_g', value: string) {
-    onChange({ ...row, [field]: parseFloat(value) || 0 });
-  }
-
-  const macrosReadOnly = row.per100g !== null;
-  const showUnitDropdown = row.portions.length > 1;
-
-  return (
-    <div className={styles.row}>
-      <div className={styles.rowNameWrap}>
-        <div className={styles.rowNameInputWrap}>
-          <input
-            className={styles.input}
-            type="text"
-            placeholder="Ingredient name"
-            value={row.name}
-            onChange={handleNameChange}
-            onFocus={() => setShowSearch(true)}
-            onBlur={() => {
-              setTimeout(() => setShowSearch(false), 150);
-            }}
-            aria-label="Ingredient name"
-          />
-          {showSearch && (
-            <SearchDropdown query={searchQuery} onSelect={handleSelectFood} />
-          )}
-        </div>
-        <button
-          type="button"
-          className={styles.barcodeBtn}
-          onClick={onOpenBarcode}
-          aria-label="Scan barcode"
-          title="Scan barcode"
-        >
-          <ScanBarcode className={styles.barcodeIcon} size={16} aria-hidden="true" />
-        </button>
-      </div>
-
-      <div className={styles.rowNutrients}>
-        {/* Zone 1: Quantity + unit — stay together */}
-        <div className={styles.portionGroup}>
-          <label className={styles.nutrientLabel} aria-label="Quantity">
-            <span>Qty</span>
-            <input
-              className={styles.inputSmall}
-              type="number"
-              min="0"
-              step="0.1"
-              value={row.quantity === 0 ? '' : row.quantity}
-              onChange={handleQuantityChange}
-              aria-label="Quantity"
-            />
-          </label>
-          {showUnitDropdown ? (
-            <label className={styles.nutrientLabel}>
-              <span>Unit</span>
-              <select
-                className={styles.unitSelect}
-                value={row.unitLabel}
-                onChange={handleUnitChange}
-                aria-label="Unit"
-              >
-                {row.portions.map(p => (
-                  <option key={p.label} value={p.label}>
-                    {p.label === 'g' ? 'g' : `${p.label} (${p.grams}g)`}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : (
-            <label className={styles.nutrientLabel}>
-              <span>Unit</span>
-              <span className={styles.unitStatic}>g</span>
-            </label>
-          )}
-        </div>
-
-        {/* Zone 2: Macro fields */}
-        <div className={styles.macrosGroup}>
-          <label className={styles.nutrientLabel}>
-            <span>kcal</span>
-            <input
-              className={styles.inputSmall}
-              type="number"
-              min="0"
-              step="0.1"
-              value={row.calories === 0 ? '' : row.calories}
-              onChange={e => handleMacroChange('calories', e.target.value)}
-              readOnly={macrosReadOnly}
-              aria-label="Calories"
-            />
-          </label>
-
-          <label className={styles.nutrientLabel}>
-            <span>Prot</span>
-            <input
-              className={styles.inputSmall}
-              type="number"
-              min="0"
-              step="0.1"
-              value={row.protein_g === 0 ? '' : row.protein_g}
-              onChange={e => handleMacroChange('protein_g', e.target.value)}
-              readOnly={macrosReadOnly}
-              aria-label="Protein g"
-            />
-          </label>
-
-          <label className={styles.nutrientLabel}>
-            <span>Carbs</span>
-            <input
-              className={styles.inputSmall}
-              type="number"
-              min="0"
-              step="0.1"
-              value={row.carbs_g === 0 ? '' : row.carbs_g}
-              onChange={e => handleMacroChange('carbs_g', e.target.value)}
-              readOnly={macrosReadOnly}
-              aria-label="Carbs g"
-            />
-          </label>
-
-          <label className={styles.nutrientLabel}>
-            <span>Fat</span>
-            <input
-              className={styles.inputSmall}
-              type="number"
-              min="0"
-              step="0.1"
-              value={row.fat_g === 0 ? '' : row.fat_g}
-              onChange={e => handleMacroChange('fat_g', e.target.value)}
-              readOnly={macrosReadOnly}
-              aria-label="Fat g"
-            />
-          </label>
-        </div>
-
-        <button
-          type="button"
-          className={styles.removeRowBtn}
-          onClick={onRemove}
-          aria-label="Remove ingredient"
-        >
-          ✕
-        </button>
-      </div>
-
-      {macrosReadOnly && (
-        <p className={styles.rowHint}>
-          Macros computed from per-100g values · adjust qty/unit to recalculate
-        </p>
-      )}
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -533,11 +180,9 @@ export default function EntryEditor({
     return [emptyRow()];
   });
 
-  // ----- Barcode scanner state -----
-  const [scanningRowKey, setScanningRowKey] = useState<number | null>(null);
-  const [barcodeError, setBarcodeError] = useState<string | null>(null);
-  const scanningRowKeyRef = useRef<number | null>(null);
-  scanningRowKeyRef.current = scanningRowKey;
+  // ----- Ingredient sheet state -----
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [editingRow, setEditingRow] = useState<EditorRow | null>(null);
 
   // ----- Error display -----
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -586,59 +231,60 @@ export default function EntryEditor({
   }, [open, inline, modeKind]);
 
   // ----- Row helpers -----
-  const updateRow = useCallback((key: number, updated: EditorRow) => {
-    setRows(prev => prev.map(r => (r.rowKey === key ? updated : r)));
-  }, []);
-
   const removeRow = useCallback((key: number) => {
     setRows(prev => prev.filter(r => r.rowKey !== key));
   }, []);
 
-  const addRow = useCallback(() => {
-    setRows(prev => [...prev, emptyRow()]);
-  }, []);
-
-  // Called when a custom meal is selected: replace the current empty row (or
-  // append if the row has content) with the meal's ingredient snapshot.
-  const handleExpandMeal = useCallback((rowKey: number, expandedRows: EditorRow[]) => {
+  // Called when a custom meal is selected: replace the editing row (if editing
+  // an empty row) or append the expanded rows.
+  const handleExpandMeal = useCallback((expandedRows: EditorRow[]) => {
     setRows(prev => {
-      const idx = prev.findIndex(r => r.rowKey === rowKey);
-      if (idx === -1) return [...prev, ...expandedRows];
-      // Replace the trigger row with the expanded rows only if it's still empty.
-      const trigger = prev[idx];
-      if (!trigger.name.trim()) {
-        return [...prev.slice(0, idx), ...expandedRows, ...prev.slice(idx + 1)];
+      if (editingRow !== null) {
+        const idx = prev.findIndex(r => r.rowKey === editingRow.rowKey);
+        if (idx !== -1 && !prev[idx].name.trim()) {
+          return [...prev.slice(0, idx), ...expandedRows, ...prev.slice(idx + 1)];
+        }
       }
       return [...prev, ...expandedRows];
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingRow]);
+
+  // ----- Sheet open/close helpers -----
+  const openSheetForAdd = useCallback(() => {
+    setEditingRow(null);
+    setSheetOpen(true);
   }, []);
 
-  // ----- Barcode callbacks -----
-  const handleOpenBarcode = useCallback((rowKey: number) => {
-    setBarcodeError(null);
-    setScanningRowKey(rowKey);
+  const openSheetForEdit = useCallback((row: EditorRow) => {
+    setEditingRow(row);
+    setSheetOpen(true);
   }, []);
 
-  const handleBarcodeDetected = useCallback(async (code: string) => {
-    setScanningRowKey(null);
-    const targetKey = scanningRowKeyRef.current;
-    if (targetKey === null) return;
-    try {
-      const food = await lookupBarcode(code);
-      if (!food) {
-        setBarcodeError(`Barcode ${code} not found in database.`);
-        return;
+  const closeSheet = useCallback(() => {
+    setSheetOpen(false);
+    setEditingRow(null);
+  }, []);
+
+  // Sheet Done: add new row or update existing
+  const handleSheetDone = useCallback((row: EditorRow) => {
+    setRows(prev => {
+      const idx = prev.findIndex(r => r.rowKey === row.rowKey);
+      if (idx !== -1) {
+        // Update existing
+        return prev.map(r => (r.rowKey === row.rowKey ? row : r));
       }
-      const newRow = rowFromFood(food);
-      setRows(prev => prev.map(r => (r.rowKey === targetKey ? { ...newRow, rowKey: targetKey } : r)));
-    } catch {
-      setBarcodeError('Failed to look up barcode. Try again.');
-    }
+      // Add new
+      return [...prev, row];
+    });
   }, []);
 
-  const handleBarcodeClose = useCallback(() => {
-    setScanningRowKey(null);
-  }, []);
+  // Sheet Delete: remove the row being edited
+  const handleSheetDelete = useCallback(() => {
+    if (editingRow !== null) {
+      removeRow(editingRow.rowKey);
+    }
+  }, [editingRow, removeRow]);
 
   // ----- Save -----
   const firstValidIngredient = rows.find(r => r.name.trim().length > 0 && r.grams > 0);
@@ -776,34 +422,15 @@ export default function EntryEditor({
         />
       </div>
 
-      {/* Ingredient rows */}
+      {/* Ingredient cards + Add button */}
       <div className={styles.ingredientsSection}>
         <span className={styles.ingredientsLabel}>Ingredients</span>
-        <div className={styles.ingredientsList}>
-          {rows.map(row => (
-            <IngredientRowEditor
-              key={row.rowKey}
-              row={row}
-              onChange={updated => updateRow(row.rowKey, updated)}
-              onRemove={() => removeRow(row.rowKey)}
-              onOpenBarcode={() => handleOpenBarcode(row.rowKey)}
-              onExpandMeal={expandedRows => handleExpandMeal(row.rowKey, expandedRows)}
-            />
-          ))}
-        </div>
-        <button
-          type="button"
-          className={styles.addRowBtn}
-          onClick={addRow}
-        >
-          + Add ingredient
-        </button>
+        <IngredientCardList
+          rows={rows}
+          onEditRow={openSheetForEdit}
+          onAddRow={openSheetForAdd}
+        />
       </div>
-
-      {/* Barcode lookup error */}
-      {barcodeError && (
-        <p className={styles.errorMsg}>{barcodeError}</p>
-      )}
 
       {/* Live totals */}
       <Totals rows={rows} />
@@ -862,6 +489,19 @@ export default function EntryEditor({
     </div>
   );
 
+  // The portaled ingredient sheet is rendered outside of both inline and dialog modes
+  // so it always layers above the host container.
+  const ingredientSheet = (
+    <IngredientSheet
+      open={sheetOpen}
+      editRow={editingRow}
+      onClose={closeSheet}
+      onDone={handleSheetDone}
+      onDelete={editingRow !== null ? handleSheetDelete : undefined}
+      onExpandMeal={handleExpandMeal}
+    />
+  );
+
   // #9: inline mode — render as a card in the chat message thread, no Dialog
   if (inline) {
     return (
@@ -869,13 +509,7 @@ export default function EntryEditor({
         <div className={styles.inlineEditorCard}>
           {editorContent}
         </div>
-
-        {scanningRowKey !== null && (
-          <BarcodeScanner
-            onDetected={handleBarcodeDetected}
-            onClose={handleBarcodeClose}
-          />
-        )}
+        {ingredientSheet}
       </>
     );
   }
@@ -892,13 +526,7 @@ export default function EntryEditor({
       >
         {editorContent}
       </Modal>
-
-      {scanningRowKey !== null && (
-        <BarcodeScanner
-          onDetected={handleBarcodeDetected}
-          onClose={handleBarcodeClose}
-        />
-      )}
+      {ingredientSheet}
     </>
   );
 }
