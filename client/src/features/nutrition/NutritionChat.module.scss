@@ -263,6 +263,36 @@
   border-bottom-left-radius: 4px;
 }
 
+// Poll "working" indicator — assistant-side bubble reusing the streaming pulse
+// cue (same pulse dot as .reasoningSpinner). Shown while a dangling server-side
+// run is being polled and this client is not itself streaming.
+.workingBubble {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(80%, 500px);
+  background-color: rgba($surface-border, 0.25);
+  border-radius: 16px;
+  border-bottom-left-radius: 4px;
+  padding: 10px 14px;
+  box-sizing: border-box;
+  font-family: $sarabun;
+  font-size: 14px;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.6);
+}
+
+// Reuses the same pulsing dot animation as .reasoningSpinner / ToolCallCard.
+.workingSpinner {
+  display: block;
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: rgba($primary, 0.7);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
 .bubbleText {
   margin: 0;
   font-family: $sarabun;
