@@ -1,0 +1,499 @@
+@import "../../styles/variables";
+
+// ---------------------------------------------------------------------------
+// IngredientSheet — portal bottom sheet for editing a single ingredient.
+// z-index 1100 so it appears above MealBuilder (1000) and inline chat editors.
+// ---------------------------------------------------------------------------
+
+// Scrim / overlay
+.overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.55);
+  z-index: 1100;
+  animation: fadeIn 140ms ease;
+}
+
+// Sheet container — slides up from bottom
+.sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-width: 680px;
+  margin: 0 auto;
+  z-index: 1101;
+  background-color: $surface;
+  border-radius: 20px 20px 0 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 92dvh;
+  padding-bottom: env(safe-area-inset-bottom);
+  animation: slideUp 250ms cubic-bezier(0.32, 0.72, 0, 1);
+
+  @media (min-width: #{$mobile-width + 1px}) {
+    border-radius: 20px;
+    max-height: 88dvh;
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%);
+    animation: none;
+  }
+}
+
+// Header row: close button + title + primary action
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid rgba($surface-border, 0.4);
+  flex-shrink: 0;
+}
+
+.headerTitle {
+  flex: 1;
+  margin: 0;
+  font-family: $sarabun;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: $sarabun-spacing;
+  color: $text;
+}
+
+.closeBtn {
+  min-width: 36px;
+  min-height: 36px;
+  background: transparent;
+  border: none;
+  color: rgba($text, 0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+
+  &:active {
+    background-color: rgba($text, 0.1);
+  }
+}
+
+// Done / primary action button in the header
+.doneBtn {
+  min-height: 36px;
+  padding: 6px 16px;
+  background-color: $primary;
+  color: $background;
+  border: none;
+  border-radius: 10px;
+  font-family: $sarabun;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  &:not(:disabled):active {
+    background-color: $primary-dark;
+  }
+}
+
+// Scrollable body
+.body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 16px 16px 24px;
+}
+
+// ---------------------------------------------------------------------------
+// Single ingredient form — same visual language as EntryEditor/MealBuilder rows
+// ---------------------------------------------------------------------------
+
+// Name row (input + barcode button)
+.nameRow {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  position: relative;
+}
+
+.nameInputWrap {
+  flex: 1;
+  position: relative;
+}
+
+// Full-width text input (name field, base size for reuse)
+.input {
+  background-color: transparent;
+  color: $text;
+  border: none;
+  border-bottom: 2px solid $primary-border;
+  padding: 6px 4px;
+  font-family: $sarabun;
+  font-size: 16px; // 16px prevents iOS auto-zoom on focus
+  letter-spacing: $sarabun-spacing;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+
+  &::placeholder {
+    color: rgba($text, 0.4);
+  }
+
+  &:focus {
+    outline: none;
+    border-bottom-color: $primary;
+  }
+}
+
+// Smaller numeric inputs
+.inputSmall {
+  background-color: transparent;
+  color: $text;
+  border: none;
+  border-bottom: 2px solid $primary-border;
+  padding: 4px 2px;
+  font-family: $sarabun;
+  font-size: 16px; // 16px prevents iOS zoom
+  letter-spacing: $sarabun-spacing;
+  min-height: 40px;
+  width: 80px;
+  text-align: right;
+  box-sizing: border-box;
+
+  &[readonly] {
+    color: rgba($text, 0.55);
+    border-bottom-style: dashed;
+  }
+
+  &:focus {
+    outline: none;
+    border-bottom-color: $primary;
+  }
+}
+
+.barcodeBtn {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px;
+  background-color: transparent;
+  border: 2px solid $surface-border;
+  border-radius: 8px;
+  color: rgba($text, 0.7);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    color: $primary;
+    border-color: $primary-border;
+  }
+}
+
+.barcodeIcon {
+  display: block; // iOS Safari SVG flex-child fix
+  width: 16px;
+  height: 16px;
+}
+
+// Portion / qty row
+.portionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: flex-end;
+}
+
+.fieldLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: $sarabun;
+  font-size: 11px;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.55);
+}
+
+.unitSelect {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: transparent;
+  color: $text;
+  border: none;
+  border-bottom: 2px solid $primary-border;
+  padding: 4px 24px 4px 2px;
+  font-family: $sarabun;
+  font-size: 16px; // 16px prevents iOS zoom
+  letter-spacing: $sarabun-spacing;
+  min-height: 40px;
+  min-width: 64px;
+  max-width: 180px;
+  cursor: pointer;
+  box-sizing: border-box;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23EBEDE9' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 4px center;
+
+  &:focus {
+    outline: none;
+    border-bottom-color: $primary;
+  }
+
+  option {
+    background-color: $surface;
+    color: $text;
+  }
+}
+
+.unitStatic {
+  display: inline-block;
+  font-family: $sarabun;
+  font-size: 16px;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.55);
+  border-bottom: 2px solid rgba($surface-border, 0.5);
+  padding: 4px 2px;
+  min-height: 40px;
+  min-width: 28px;
+  box-sizing: border-box;
+  line-height: 1.6;
+}
+
+// Macros grid inside the sheet body
+.macrosSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.macrosSectionLabel {
+  font-family: $sarabun;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.6);
+  text-transform: uppercase;
+}
+
+.macrosGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: flex-end;
+}
+
+.rowHint {
+  margin: 0;
+  font-family: $sarabun;
+  font-size: 11px;
+  color: rgba($text, 0.4);
+  letter-spacing: $sarabun-spacing;
+}
+
+// Search dropdown (positioned inside .nameInputWrap)
+.dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 1200; // above sheet (1101)
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  background-color: $surface;
+  border: 1px solid $surface-border;
+  border-radius: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55);
+}
+
+.dropdownItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  cursor: pointer;
+
+  &:active {
+    background-color: rgba($primary, 0.12);
+  }
+}
+
+.dropdownName {
+  font-family: $sarabun;
+  font-size: 15px;
+  color: $text;
+  letter-spacing: $sarabun-spacing;
+}
+
+.dropdownMeta {
+  font-family: $sarabun;
+  font-size: 12px;
+  color: rgba($text, 0.5);
+  letter-spacing: $sarabun-spacing;
+}
+
+.dropdownHint {
+  padding: 10px 14px;
+  font-family: $sarabun;
+  font-size: 14px;
+  color: rgba($text, 0.5);
+  letter-spacing: $sarabun-spacing;
+}
+
+// Delete button — shown in edit mode at the bottom
+.deleteBtn {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 10px 20px;
+  background-color: transparent;
+  color: $error;
+  border: 2px solid rgba($error, 0.4);
+  border-radius: 10px;
+  font-family: $sarabun;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  &:active {
+    background-color: rgba($error, 0.1);
+    border-color: $error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Ingredient summary cards (shown in list before opening sheet)
+// ---------------------------------------------------------------------------
+
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card {
+  background-color: rgba($background, 0.5);
+  border: 1px solid rgba($surface-border, 0.5);
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  -webkit-tap-highlight-color: transparent;
+
+  &:active {
+    background-color: rgba($primary, 0.07);
+    border-color: rgba($primary-border, 0.35);
+  }
+}
+
+.cardContent {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.cardName {
+  font-family: $sarabun;
+  font-size: 15px;
+  font-weight: 600;
+  color: $text;
+  letter-spacing: $sarabun-spacing;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardMacros {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cardCalories {
+  font-family: $sarabun;
+  font-size: 14px;
+  font-weight: 700;
+  color: $primary;
+  letter-spacing: $sarabun-spacing;
+  flex-shrink: 0;
+}
+
+.macroChips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  font-family: $sarabun;
+  font-size: 12px;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.6);
+  background-color: rgba($text, 0.08);
+  border-radius: 5px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+.cardChevron {
+  display: block; // iOS Safari SVG fix
+  flex-shrink: 0;
+  color: rgba($text, 0.3);
+}
+
+// Add ingredient button
+.addBtn {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 8px 16px;
+  background-color: transparent;
+  color: $primary;
+  border: 2px dashed $primary-border;
+  border-radius: 10px;
+  font-family: $sarabun;
+  font-size: 15px;
+  letter-spacing: $sarabun-spacing;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  &:active {
+    background-color: $primary-translucent;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Animations
+// ---------------------------------------------------------------------------
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(48px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
