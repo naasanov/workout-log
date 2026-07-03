@@ -176,6 +176,20 @@ function storedToUIMessages(stored: StoredChatMessage[]): UIMessage[] {
 }
 
 // ---------------------------------------------------------------------------
+// Dangling-run detection.
+//
+// A transcript "ends in a dangling user message" when its last message has
+// role 'user' with no following assistant reply. On return-while-generating the
+// server has persisted the user row but not yet the assistant row (onEnd hasn't
+// fired), so the transcript looks like this until the run completes. We poll
+// while this condition holds and this client is NOT streaming live.
+// ---------------------------------------------------------------------------
+function endsInDanglingUser(messages: UIMessage[]): boolean {
+  if (messages.length === 0) return false;
+  return messages[messages.length - 1].role === 'user';
+}
+
+// ---------------------------------------------------------------------------
 // Strip OpenAI-style citation tokens from assistant text.
 // Models sometimes emit markers like citeturn1view1 wrapped in private-use-area
 // unicode chars (U+E200–U+E2FF range). Strip both the PUA-delimited form and
@@ -617,10 +631,15 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   // may have overwritten the cache on a previous pass). Otherwise the DB version is
   // at least as complete, so it wins — preserving DB-as-source-of-truth for the
   // normal case and for runs that completed server-side while backgrounded.
-  const fetchAndApplyTranscript = useCallback(async (date: string, baseline?: UIMessage[]) => {
+  //
+  // Returns the message set now considered current for `date` (either the DB
+  // set, if it won the merge, or the preserved local set), or null if nothing
+  // was fetched / an error occurred. The poll loop uses this to decide whether
+  // the run is still dangling.
+  const fetchAndApplyTranscript = useCallback(async (date: string, baseline?: UIMessage[]): Promise<UIMessage[] | null> => {
     try {
       const stored = await fetchTranscript(date);
-      if (stored.length === 0) return;
+      if (stored.length === 0) return null;
       const uiMessages = storedToUIMessages(stored);
       // `baseline` is the known-correct current set for `date` (e.g. the freshly
       // loaded cache on a day switch, where messagesRef may still hold the old day).
@@ -629,37 +648,73 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
       if (uiMessages.length < current.length) {
         // DB is missing messages the cache/UI has — never lose them.
         saveMessagesForDate(date, current);
-        return;
+        return current;
       }
       setMessages(uiMessages);
       saveMessagesForDate(date, uiMessages);
+      return uiMessages;
     } catch {
       // Silently fall back to localStorage cache
+      return null;
     }
   }, [setMessages]);
 
-  // On mount: load transcript from DB
+  // ---- Poll for an in-progress server run (option 1: lightweight poll) ----
+  //
+  // Gap this closes: if the user leaves while the agent is generating and
+  // returns WHILE the server run is still in progress, a single transcript
+  // refetch finds only the user message (assistant row not persisted yet) and
+  // then never updates. We detect that "dangling user" transcript and poll
+  // fetchTranscript on an interval until the assistant reply lands.
+  //
+  // `pollingActive` drives both the interval effect and the "working" indicator.
+  const [pollingActive, setPollingActive] = useState(false);
+
+  // Latest useChat status, read inside stable callbacks without re-subscribing.
+  // We must NOT poll while this client is itself streaming — the live stream
+  // handles that case and would otherwise show a duplicate indicator.
+  const statusRef = useRef(status);
   useEffect(() => {
-    fetchAndApplyTranscript(selectedDate);
+    statusRef.current = status;
+  }, [status]);
+
+  // Decide whether a freshly-applied transcript for `date` warrants polling.
+  // Only poll when: it's still the current day, the transcript ends in a
+  // dangling user message, and this client is idle (not streaming/submitted).
+  const evaluateDangling = useCallback((date: string, applied: UIMessage[] | null) => {
+    if (date !== loadedDateRef.current) return; // stale day — ignore
+    const set = applied ?? messagesRef.current;
+    const isLiveStreaming = statusRef.current === 'streaming' || statusRef.current === 'submitted';
+    setPollingActive(endsInDanglingUser(set) && !isLiveStreaming);
+  }, []);
+
+  // On mount: load transcript from DB, then evaluate the dangling condition.
+  useEffect(() => {
+    fetchAndApplyTranscript(selectedDate).then(applied => evaluateDangling(selectedDate, applied));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // When selectedDate changes: switch to new day's messages (LS first, then DB)
+  // When selectedDate changes: switch to new day's messages (LS first, then DB).
+  // Re-evaluate the dangling condition for the NEW day.
   useEffect(() => {
     if (selectedDate !== loadedDateRef.current) {
       loadedDateRef.current = selectedDate;
+      setPollingActive(false); // day changed — abandon any prior poll
       const cached = loadMessagesForDate(selectedDate);
       setMessages(cached);
-      fetchAndApplyTranscript(selectedDate, cached);
+      fetchAndApplyTranscript(selectedDate, cached)
+        .then(applied => evaluateDangling(selectedDate, applied));
     }
-  }, [selectedDate, setMessages, fetchAndApplyTranscript]);
+  }, [selectedDate, setMessages, fetchAndApplyTranscript, evaluateDangling]);
 
   // #15: On window focus / visibilitychange — refetch transcript so runs that
-  // completed server-side while the tab was backgrounded show up.
+  // completed server-side while the tab was backgrounded show up. Also (re)start
+  // polling if we returned to a still-in-progress run.
   useEffect(() => {
     function handleVisibilityChange() {
       if (document.visibilityState === 'visible') {
-        fetchAndApplyTranscript(selectedDate);
+        fetchAndApplyTranscript(selectedDate)
+          .then(applied => evaluateDangling(selectedDate, applied));
       }
     }
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -668,7 +723,50 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleVisibilityChange);
     };
-  }, [selectedDate, fetchAndApplyTranscript]);
+  }, [selectedDate, fetchAndApplyTranscript, evaluateDangling]);
+
+  // The poll loop. Exactly one interval at a time; keyed on pollingActive +
+  // selectedDate. React tears down the previous interval (cleanup) before
+  // re-running, so intervals never leak or overlap. Hard stops: assistant
+  // arrives (transcript no longer dangling), 2-min timeout, user sends a new
+  // message (status becomes submitted/streaming), day change, or unmount.
+  const POLL_INTERVAL_MS = 3000;
+  const POLL_TIMEOUT_MS = 120000;
+  useEffect(() => {
+    if (!pollingActive) return;
+    const pollDate = selectedDate;
+    const startedAt = Date.now();
+
+    const interval = setInterval(async () => {
+      // Abandon if this client started streaming (user sent a new message) or
+      // the day changed underneath us.
+      if (statusRef.current === 'streaming' || statusRef.current === 'submitted') {
+        setPollingActive(false);
+        return;
+      }
+      if (pollDate !== loadedDateRef.current) {
+        setPollingActive(false);
+        return;
+      }
+      if (Date.now() - startedAt >= POLL_TIMEOUT_MS) {
+        setPollingActive(false);
+        return;
+      }
+      const applied = await fetchAndApplyTranscript(pollDate);
+      // Ignore results for a stale date (day changed mid-request).
+      if (pollDate !== loadedDateRef.current) {
+        setPollingActive(false);
+        return;
+      }
+      const set = applied ?? messagesRef.current;
+      if (!endsInDanglingUser(set)) {
+        // Assistant reply arrived — stop and clear the indicator.
+        setPollingActive(false);
+      }
+    }, POLL_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [pollingActive, selectedDate, fetchAndApplyTranscript]);
 
   // #105: detect mobile to suppress Enter-to-send
   const { isMobile } = useIsMobile();
@@ -754,7 +852,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   // Scroll to bottom when messages change, only if near bottom
   useEffect(() => {
     scrollToBottom('smooth');
-  }, [messages, scrollToBottom]);
+  }, [messages, pollingActive, scrollToBottom]);
 
   // On initial open: jump to bottom immediately
   useEffect(() => {
@@ -874,6 +972,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
 
     setExpanded(true);
     isNearBottomRef.current = true; // force scroll to bottom on send
+    setPollingActive(false); // this client will stream live — no poll/indicator
 
     const files: FileUIPart[] = pendingPhotos.map(p => ({
       type: 'file' as const,
@@ -945,6 +1044,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     }
     dropMessagesForDate(selectedDate);
     setMessages([]);
+    setPollingActive(false); // clearing empties everything — stop any poll
     clearError();
     setDeniedProposals(new Set());
     setConfirmedProposals(new Map());
@@ -1154,6 +1254,20 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
           {chatError && (
             <div className={styles.messageGroup}>
               <ErrorBubble error={chatError} />
+            </div>
+          )}
+
+          {/* Poll "working" indicator — shown while a dangling server-side run is
+              being polled and this client is NOT streaming live (no duplicate
+              indicator alongside the live stream). Reuses the streaming pulse
+              cue (same animation as .reasoningSpinner). Sits before the scroll
+              anchor so it participates in stick-to-bottom. */}
+          {pollingActive && !isStreaming && (
+            <div className={`${styles.messageGroup} ${styles.messageGroupAssistant}`}>
+              <div className={styles.workingBubble}>
+                <span className={styles.workingSpinner} aria-hidden="true" />
+                <span>Assistant is still working…</span>
+              </div>
             </div>
           )}
 
