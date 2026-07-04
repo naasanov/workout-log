@@ -18,8 +18,10 @@ import apiV1 from './routes/apiV1';
 dotenv.config();
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// Chat messages can carry base64-encoded image attachments (downscaled to a
+// max-1024px JPEG client-side), which exceed express.json's default 100kb limit.
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 app.use(cookieParser());
 app.use(cors({
     credentials: true,
