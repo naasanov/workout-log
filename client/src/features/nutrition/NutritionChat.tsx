@@ -718,9 +718,23 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   const [deniedCustomFoodProposals, setDeniedCustomFoodProposals] = useState<Set<string>>(new Set(initialResolutions.deniedFood));
   const [confirmedCustomFoodProposals, setConfirmedCustomFoodProposals] = useState<Map<string, string>>(new Map(initialResolutions.confirmedFood));
 
+  // Which date the four collections above currently hold resolutions for. The
+  // collections are hydrated synchronously for the initial selectedDate, so the
+  // ref starts there. It's updated by the day-change effect AFTER it rehydrates.
+  const resolutionsDateRef = useRef(selectedDate);
+
   // Persist proposal resolutions on every change (keyed by toolCallId — see
   // ProposalResolutions above), mirroring the message-persistence effect below.
+  //
+  // GUARD: on a selectedDate change, this effect runs (its deps include
+  // selectedDate) BEFORE the day-change effect below has rehydrated the
+  // collections — so at that moment the collections still hold the PREVIOUS
+  // day's resolutions while selectedDate is already the new day. Writing then
+  // would clobber the new day's stored resolutions with the old day's (and the
+  // day-change effect would then load that clobbered data). Skip persisting
+  // until the collections have actually been rehydrated for selectedDate.
   useEffect(() => {
+    if (resolutionsDateRef.current !== selectedDate) return;
     saveResolutionsForDate(selectedDate, {
       deniedEntry: [...deniedProposals],
       confirmedEntry: [...confirmedProposals],
@@ -836,6 +850,10 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
       setConfirmedProposals(new Map(resolutions.confirmedEntry));
       setDeniedCustomFoodProposals(new Set(resolutions.deniedFood));
       setConfirmedCustomFoodProposals(new Map(resolutions.confirmedFood));
+      // Collections now hold THIS day's resolutions — let the persist effect
+      // write again (it skips while this ref lags selectedDate). Set after the
+      // setState calls above; the persist effect re-runs on the next render.
+      resolutionsDateRef.current = selectedDate;
       fetchAndApplyTranscript(selectedDate, cached)
         .then(applied => evaluateDangling(selectedDate, applied));
     }
