@@ -2,6 +2,7 @@
 // Runs a tool-calling loop via the Vercel AI SDK's streamText, returning
 // the StreamTextResult for the route to pipe to the HTTP response.
 import { streamText, tool, stepCountIs, convertToModelMessages } from 'ai';
+import type { ModelMessage } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { proposeEntryArgsSchema, proposeCustomFoodArgsSchema } from '../../schemas/nutrition';
@@ -20,6 +21,83 @@ export interface NutritionChatOptions {
   effort?: 'none' | 'minimal' | 'low' | 'medium' | 'high';
   /** When true, instructs the agent to log the entry immediately without asking follow-up questions. */
   autoConfirm?: boolean;
+}
+
+/**
+ * Task C — barcode-attachment grounding.
+ *
+ * The client attaches a scanned barcode as a `data-barcodeAttachment` UI
+ * message part (see client/src/features/nutrition/NutritionChat.tsx). Data
+ * parts (`type` starting with `data-`) are UI-only: `convertToModelMessages`
+ * silently drops them from the converted user turn (there's no `convertDataPart`
+ * option passed below), so the model never sees the raw part — only the
+ * synthetic tool-call/tool-result pair we splice in ourselves, built here.
+ *
+ * This mirrors exactly what the removed `lookup_barcode` tool used to return
+ * (a FoodSearchResult-shaped product: name/source/source_ref/per100g/
+ * serving_grams), so the model treats it as already-retrieved grounding for a
+ * `lookup_barcode` call it never actually makes (that tool no longer exists).
+ */
+interface BarcodeAttachmentProduct {
+  name: string;
+  source: string;
+  source_ref: string;
+  per100g: Record<string, number | null | undefined>;
+  serving_grams?: number | null;
+  portions?: unknown;
+}
+
+/** Find a `data-barcodeAttachment` part on the LAST message, if it's a user turn. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function findBarcodeAttachment(messages: any[]): { code: string; product: BarcodeAttachmentProduct } | null {
+  const last = messages[messages.length - 1];
+  if (!last || last.role !== 'user' || !Array.isArray(last.parts)) return null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const part = last.parts.find((p: any) => p?.type === 'data-barcodeAttachment');
+  const data = part?.data;
+  if (!data?.code || !data?.product) return null;
+  return { code: data.code, product: data.product };
+}
+
+/**
+ * Build the synthetic assistant tool-call + tool message pair that replays the
+ * scanned product as a `lookup_barcode` tool-result. Appended to the END of
+ * `modelMessages` — safe because when the LAST raw client message is a 'user'
+ * message, `convertToModelMessages` always appends its converted form as the
+ * final entry in the returned array (one user message → exactly one pushed
+ * ModelMessage), so these synthetic messages land immediately after it.
+ */
+function buildBarcodeToolResultMessages(
+  attachment: { code: string; product: BarcodeAttachmentProduct },
+): ModelMessage[] {
+  const toolCallId = `barcode-scan-${attachment.code}-${Date.now()}`;
+  return [
+    {
+      role: 'assistant',
+      content: [
+        {
+          type: 'tool-call',
+          toolCallId,
+          toolName: 'lookup_barcode',
+          input: { code: attachment.code },
+        },
+      ],
+    },
+    {
+      role: 'tool',
+      content: [
+        {
+          type: 'tool-result',
+          toolCallId,
+          toolName: 'lookup_barcode',
+          // JSON round-trip: strips the object down to plain JSON so it satisfies
+          // ToolResultOutput's `value: JSONValue` (mirrors the pattern used by the
+          // search_food_history tools above for the same reason).
+          output: { type: 'json', value: JSON.parse(JSON.stringify(attachment.product)) },
+        },
+      ],
+    },
+  ];
 }
 
 /** Build a compact text summary of recent entries for the system prompt context block. */
@@ -68,7 +146,7 @@ TODAY'S DATE: ${selectedDate}
 
 ## Your job
 Help the user identify, quantify, and log what they ate. When the user describes food:
-1. Search for it with \`search_foods\` (or \`lookup_barcode\` for barcodes) to get accurate per-100g macros — NEVER invent or estimate calories without grounding them in a tool result.
+1. Search for it with \`search_foods\` to get accurate per-100g macros — NEVER invent or estimate calories without grounding them in a tool result. If the user scanned a barcode, its product data is already provided to you (see "Barcode scans" below) — you do not need to search for it.
    - For a **multi-item meal** (two or more distinct foods in one message), use ONE \`search_foods_batch\` call with all queries at once instead of multiple \`search_foods\` calls. Use \`search_foods\` only for single-item lookups.
    - Both \`search_foods\` and \`search_foods_batch\` automatically attach portion sizes to the top result, so you often do NOT need a separate \`get_portions\` call.
    - Results may include the user's own saved custom foods/meals (source: 'custom'). **Prefer custom results when they match what the user is describing** — they already carry the user's preferred portions and notes. Logging a saved custom meal is identical to logging any other food: use the normal \`propose_entry\` flow with the custom item's ingredients.
@@ -104,8 +182,11 @@ When to keep as one entry: a single composite dish with multiple ingredients ("c
 When building a multi-ingredient entry (recipe, dish, or meal), do NOT add ingredients that contribute negligible calories — typically zero or near-zero calorie items such as: salt, pepper, spices, dried herbs (basil, oregano, cumin, etc.), garlic powder, onion powder, cinnamon, water, vinegar, zero-calorie seasonings, or cooking spray. These items are too small to affect the log meaningfully.
 Only include such ingredients if the user **explicitly asks** to log them (e.g. "include the salt" or "log all spices too").
 
+## Barcode scans
+When the user scans a barcode in the app, the product's per-100g macros (name, macros, serving size, and its Open Food Facts id) are fetched by the client BEFORE your turn even starts, and appear earlier in this conversation as the result of a lookup already performed — you do NOT have a barcode-lookup tool to call yourself, and you never will for this turn. Treat that result as authoritative grounding: use its macros and id directly (\`source: 'off'\`, \`source_ref\` = the Open Food Facts product id) when calling \`propose_entry\` with \`source: 'barcode'\`. Do not re-search \`search_foods\` for an item that arrived this way, and do not question or re-derive its macros.
+
 ## Web-search fallback
-- Only use \`web_search\` when \`search_foods\`, \`search_foods_batch\`, and \`lookup_barcode\` all return nothing useful (e.g. a local restaurant item, branded boba, or a food not in the food database). **NEVER use \`web_search\` for arithmetic or calculation — use the \`calculator\` tool instead.**
+- Only use \`web_search\` when \`search_foods\` and \`search_foods_batch\` return nothing useful (e.g. a local restaurant item, branded boba, or a food not in the food database) and no scanned-barcode grounding is available for the item. **NEVER use \`web_search\` for arithmetic or calculation — use the \`calculator\` tool instead.**
 - Prefer official brand or restaurant nutrition pages. Extract per-serving or per-100g macros.
 - **Always cite the source URL** in your reply when using web-search data.
 - Use ingredient \`source: 'manual'\` for any web-derived items.
@@ -160,6 +241,13 @@ ${summariseEntries(recent)}
     : '');
 
   const modelMessages = await convertToModelMessages(messages);
+
+  // Task C: replay a scanned-barcode attachment on the current turn as a
+  // pre-fetched `lookup_barcode` tool-result (see buildBarcodeToolResultMessages).
+  const barcodeAttachment = findBarcodeAttachment(messages);
+  if (barcodeAttachment) {
+    modelMessages.push(...buildBarcodeToolResultMessages(barcodeAttachment));
+  }
 
   const result = streamText({
     model: openai('gpt-5.5'),
@@ -219,23 +307,13 @@ ${summariseEntries(recent)}
         },
       }),
 
-      /** Open Food Facts barcode lookup. */
-      lookup_barcode: tool({
-        description:
-          'Look up a food product by UPC/EAN barcode via Open Food Facts. Returns per-100g macros or null if not found.',
-        inputSchema: z.object({
-          code: z.string().describe('Numeric barcode string (UPC-12 or EAN-13)'),
-        }),
-        execute: async ({ code }) => providers.lookupBarcode(code),
-      }),
-
       /** Household serving sizes for a food (USDA FDC or OFF). */
       get_portions: tool({
         description:
           'Fetch household serving sizes (e.g. "1 medium", "1 cup") for a food from USDA FDC or OFF. Call this after search_foods to help convert a described portion to grams. Not needed if portions are already attached to the search result.',
         inputSchema: z.object({
           source: z.enum(['usda', 'off']).describe('Data source the food came from'),
-          ref: z.string().describe('source_ref from search_foods or lookup_barcode result'),
+          ref: z.string().describe('source_ref from a search_foods result'),
         }),
         execute: async ({ source, ref }) => providers.getPortions(source, ref),
       }),
@@ -447,9 +525,9 @@ ${summariseEntries(recent)}
 
       /**
        * Web search — fallback for foods not in the food database (e.g. local restaurant
-       * items, branded boba). Only use after search_foods / search_foods_batch /
-       * lookup_barcode all return nothing useful. Always cite the source URL in your reply.
-       * Use ingredient source: 'manual' for web-derived items.
+       * items, branded boba). Only use after search_foods / search_foods_batch return
+       * nothing useful (and no scanned-barcode grounding is available). Always cite
+       * the source URL in your reply. Use ingredient source: 'manual' for web-derived items.
        */
       web_search: openai.tools.webSearch(),
 

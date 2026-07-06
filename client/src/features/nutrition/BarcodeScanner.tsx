@@ -7,8 +7,43 @@ import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 import styles from './BarcodeScanner.module.scss';
 
 interface BarcodeScannerProps {
-  onDetected: (code: string) => void;
+  /** `imageDataUrl` is a best-effort still-frame capture at detect time (JPEG data URL,
+   *  downscaled). It's optional — if frame capture fails, the code is still returned. */
+  onDetected: (code: string, imageDataUrl?: string) => void;
   onClose: () => void;
+}
+
+// Downscale target for the captured still frame — this is only ever used as a
+// small UI thumbnail (chip + tap preview), never sent to the model, so a modest
+// resolution keeps localStorage/DB payloads small.
+const FRAME_MAX_EDGE = 480;
+const FRAME_JPEG_QUALITY = 0.7;
+
+/** Best-effort capture of the current video frame as a downscaled JPEG data URL. */
+function captureVideoFrame(video: HTMLVideoElement): string | undefined {
+  try {
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    if (!vw || !vh) return undefined;
+
+    let width = vw;
+    let height = vh;
+    if (width > FRAME_MAX_EDGE || height > FRAME_MAX_EDGE) {
+      const ratio = Math.min(FRAME_MAX_EDGE / width, FRAME_MAX_EDGE / height);
+      width = Math.round(width * ratio);
+      height = Math.round(height * ratio);
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return undefined;
+    ctx.drawImage(video, 0, 0, width, height);
+    return canvas.toDataURL('image/jpeg', FRAME_JPEG_QUALITY);
+  } catch {
+    return undefined;
+  }
 }
 
 // Restrict decoding to retail product barcode formats. Scanning fewer
@@ -74,10 +109,13 @@ export default function BarcodeScanner({ onDetected, onClose }: BarcodeScannerPr
           (result, _err, ctrl) => {
             if (result && !detectedRef.current) {
               detectedRef.current = true;
+              // Capture a still frame BEFORE stopping the stream — the video
+              // element's current frame becomes unavailable once the tracks stop.
+              const imageDataUrl = videoRef.current ? captureVideoFrame(videoRef.current) : undefined;
               // Stop scanning; let the parent handle the detected code.
               ctrl.stop();
               stream.getTracks().forEach(t => t.stop());
-              onDetected(result.getText());
+              onDetected(result.getText(), imageDataUrl);
             }
           },
         );
