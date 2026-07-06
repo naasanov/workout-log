@@ -3,12 +3,28 @@
 
 import { useEffect, useRef } from 'react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
+import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 import styles from './BarcodeScanner.module.scss';
 
 interface BarcodeScannerProps {
   onDetected: (code: string) => void;
   onClose: () => void;
 }
+
+// Restrict decoding to retail product barcode formats. Scanning fewer
+// formats per frame is faster and meaningfully more reliable than the
+// default (which tries every supported format, including 2D formats
+// we never expect from a "scan barcode" product lookup flow).
+const PRODUCT_BARCODE_FORMATS = [
+  BarcodeFormat.EAN_13,
+  BarcodeFormat.EAN_8,
+  BarcodeFormat.UPC_A,
+  BarcodeFormat.UPC_E,
+  BarcodeFormat.CODE_128,
+];
+
+const hints = new Map<DecodeHintType, unknown>();
+hints.set(DecodeHintType.POSSIBLE_FORMATS, PRODUCT_BARCODE_FORMATS);
 
 export default function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -19,16 +35,24 @@ export default function BarcodeScanner({ onDetected, onClose }: BarcodeScannerPr
   const detectedRef = useRef(false);
 
   useEffect(() => {
-    const reader = new BrowserMultiFormatReader();
+    const reader = new BrowserMultiFormatReader(hints);
     readerRef.current = reader;
 
     let cancelled = false;
 
     async function start() {
       try {
-        // Request environment-facing (rear) camera explicitly.
+        // Request environment-facing (rear) camera explicitly, at as high
+        // a resolution as the device supports. `ideal` (not `exact`) lets
+        // this degrade gracefully on devices that can't hit 1080p — but on
+        // capable phones a higher-res frame is the single biggest win for
+        // 1D barcode decode reliability on iOS Safari.
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
+          video: {
+            facingMode: 'environment',
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
         });
 
         if (cancelled) {
@@ -41,8 +65,11 @@ export default function BarcodeScanner({ onDetected, onClose }: BarcodeScannerPr
         if (!videoRef.current) return;
         videoRef.current.srcObject = stream;
 
-        const controls = await reader.decodeFromVideoDevice(
-          undefined,
+        // Decode from the single stream we already acquired above, rather
+        // than calling decodeFromVideoDevice (which would open a *second*
+        // getUserMedia stream on top of this one).
+        const controls = await reader.decodeFromStream(
+          stream,
           videoRef.current,
           (result, _err, ctrl) => {
             if (result && !detectedRef.current) {
