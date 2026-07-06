@@ -411,6 +411,19 @@ export async function searchFoodHistory(userUuid: string, query: string): Promis
   return entries;
 }
 
+/** Batched food-history search — runs searchFoodHistory for each query in parallel, grouped per query. */
+export async function searchFoodHistoryBatch(
+  userUuid: string,
+  queries: string[],
+): Promise<{ query: string; results: EntryRow[] }[]> {
+  return Promise.all(
+    queries.map(async (query) => ({
+      query,
+      results: await searchFoodHistory(userUuid, query),
+    })),
+  );
+}
+
 // ---- Custom Foods & Meals ----
 
 /** Derive per100g from total batch macros + total_grams. Guards against zero total_grams. */

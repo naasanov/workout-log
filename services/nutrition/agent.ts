@@ -73,6 +73,7 @@ Help the user identify, quantify, and log what they ate. When the user describes
    - Both \`search_foods\` and \`search_foods_batch\` automatically attach portion sizes to the top result, so you often do NOT need a separate \`get_portions\` call.
    - Results may include the user's own saved custom foods/meals (source: 'custom'). **Prefer custom results when they match what the user is describing** — they already carry the user's preferred portions and notes. Logging a saved custom meal is identical to logging any other food: use the normal \`propose_entry\` flow with the custom item's ingredients.
 2. Check \`search_food_history\` first for foods the user has logged before — prefer reusing those if the food matches, including the same serving they used last time.
+   - For a **multi-item meal**, use ONE \`search_food_history_batch\` call with all queries at once instead of multiple \`search_food_history\` calls. Use \`search_food_history\` only for single-item lookups.
 3. Estimate the portion in **grams**. When the user gives a weight in non-gram units (lbs, oz, kg, mg, etc.), call \`convert_to_grams\` — do NOT do the arithmetic yourself. Ask one brief clarifying question if the portion or food identity is genuinely ambiguous (e.g. "Was that a small, medium, or large banana?"). Do not ask multiple questions at once.
 4. When you are confident about identity + portion, call **\`propose_entry\`** with the fully structured entry. The user will review and confirm in the UI — you do NOT write to the database.
 
@@ -268,6 +269,22 @@ ${summariseEntries(recent)}
         // the AI SDK rejects as non-JSON tool output — normalize to plain JSON.
         execute: async ({ query }) =>
           JSON.parse(JSON.stringify(await store.searchFoodHistory(userUuid, query))),
+      }),
+
+      /** Batched food-history search — one call for multi-item meals. */
+      search_food_history_batch: tool({
+        description:
+          "Search the user's past food log entries for two or more foods at once (e.g. a multi-item meal like \"eggs, toast, and coffee\"). Runs all searches in parallel and returns results grouped per query. Use this instead of multiple search_food_history calls when the user describes several distinct foods in one message.",
+        inputSchema: z.object({
+          queries: z
+            .array(z.string())
+            .min(2)
+            .describe('Array of food names/keywords to search for in past entries, e.g. ["eggs", "toast", "coffee"]'),
+        }),
+        // JSON round-trip: store rows carry mysql2 Date objects (logged_at) which
+        // the AI SDK rejects as non-JSON tool output — normalize to plain JSON.
+        execute: async ({ queries }) =>
+          JSON.parse(JSON.stringify(await store.searchFoodHistoryBatch(userUuid, queries))),
       }),
 
       /** Fetch the user's nutrition goals and today's running totals. */
