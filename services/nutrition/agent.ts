@@ -21,6 +21,12 @@ export interface NutritionChatOptions {
   effort?: 'none' | 'minimal' | 'low' | 'medium' | 'high';
   /** When true, instructs the agent to log the entry immediately without asking follow-up questions. */
   autoConfirm?: boolean;
+  /**
+   * How many proposals the user denied since their previous message. Transient
+   * per-turn signal (the client passes it in the request body) folded into the
+   * system prompt so the agent reconsiders — kept out of the visible user message.
+   */
+  deniedProposalCount?: number;
 }
 
 /**
@@ -120,6 +126,7 @@ export async function streamNutritionChat({
   messages,
   effort,
   autoConfirm,
+  deniedProposalCount,
 }: NutritionChatOptions) {
   // Fetch context in parallel — degrade gracefully if DB not available
   const [recent, goals, todayDay] = await Promise.all([
@@ -238,6 +245,9 @@ Do NOT call \`propose_custom_food\` just because the user logged something once 
 ${summariseEntries(recent)}
 ` + (autoConfirm
     ? '\n\nIMPORTANT: This is an automated API call. Do NOT ask any follow-up questions. Do NOT ask for confirmation. Log the food entry immediately based on the prompt provided. Use your best judgment on quantities and macros. Call propose_entry as soon as you have identified the food and estimated the portion.'
+    : '')
+  + ((deniedProposalCount ?? 0) > 0
+    ? `\n\nIMPORTANT: The user just DENIED your ${(deniedProposalCount ?? 0) > 1 ? 'previous proposals' : 'previous proposal'} (the propose_entry/propose_custom_food card${(deniedProposalCount ?? 0) > 1 ? 's' : ''} above). Do not simply re-send the same proposal — reconsider your approach based on their latest message, and adjust the food, portion, or macros accordingly before proposing again.`
     : '');
 
   const modelMessages = await convertToModelMessages(messages);

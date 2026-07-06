@@ -358,11 +358,15 @@ router.delete('/chat/transcript', async (req, res): Promise<any> => {
 // POST /chat — Nutrition AI agent chat endpoint (streams UI message stream)
 router.post('/chat', async (req, res): Promise<any> => {
   const { uuid }: User = res.locals.user;
-  const { messages, selectedDate, effort } = req.body as {
+  const { messages, selectedDate, effort, deniedProposalCount } = req.body as {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     messages: any[];
     selectedDate?: string;
     effort?: 'none' | 'minimal' | 'low' | 'medium' | 'high';
+    // Transient: how many proposals the user denied since their last send (the
+    // UI clears its counter after sending). Folded into the system prompt for
+    // this turn only — never persisted, never shown in the visible message.
+    deniedProposalCount?: number;
   };
 
   if (!Array.isArray(messages)) {
@@ -388,6 +392,7 @@ router.post('/chat', async (req, res): Promise<any> => {
       selectedDate: date,
       messages: messages as Parameters<typeof streamNutritionChat>[0]['messages'],
       effort,
+      deniedProposalCount,
     });
 
     // Build the UI message stream ONCE. Its onEnd callback persists the assistant
