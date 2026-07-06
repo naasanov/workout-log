@@ -1144,10 +1144,12 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   // ---- Send ----
   const canSend = (text.trim().length > 0 || pendingPhotos.length > 0 || pendingBarcode !== null) && !isStreaming;
 
-  // Denial-note tracking: deny no longer auto-sends a message (see
+  // Denial tracking: deny no longer auto-sends a message (see
   // handleProposalDeny/handleCustomFoodDeny below). Instead the agent learns
-  // about the denial(s) via a short note prepended to the user's NEXT
-  // outgoing message. Count (rather than a boolean) lets a combined note say
+  // about the denial(s) on the user's NEXT send — but WITHOUT polluting the
+  // visible user message. We pass a transient `deniedProposalCount` in the
+  // request body (like selectedDate); the backend folds it into the system
+  // prompt for that one turn. Count (not a boolean) lets the note say
   // "proposals" when the user denies more than one before their next send.
   const [pendingDenialCount, setPendingDenialCount] = useState(0);
 
@@ -1166,15 +1168,11 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
 
     let msgText = text.trim();
 
-    // Prepend a concise denial note so the model sees it, then mark the
-    // denial(s) as communicated so the note isn't repeated on later sends.
-    if (pendingDenialCount > 0) {
-      const note = pendingDenialCount > 1
-        ? '(Note: I denied your previous proposals — please adjust.)'
-        : '(Note: I denied your previous proposal — please adjust.)';
-      msgText = msgText ? `${note}\n${msgText}` : note;
-      setPendingDenialCount(0);
-    }
+    // Communicate any pending denial(s) to the agent via the request body (see
+    // pendingDenialCount above) — NOT by editing the user's visible message —
+    // then clear the count so it isn't re-sent on later turns.
+    const deniedProposalCount = pendingDenialCount;
+    if (deniedProposalCount > 0) setPendingDenialCount(0);
 
     // A barcode-only send (no typed text) still needs SOME text content: the
     // structured product data travels as a `data-barcodeAttachment` part, which
@@ -1209,7 +1207,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
 
     await sendMessage(
       { parts } as Parameters<typeof sendMessage>[0],
-      { body: { selectedDate } },
+      { body: { selectedDate, deniedProposalCount } },
     );
   }, [canSend, text, pendingPhotos, pendingBarcode, pendingDenialCount, selectedDate, sendMessage]);
 
