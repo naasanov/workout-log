@@ -169,6 +169,71 @@ function pruneOldDays(currentDate: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Proposal confirm/deny persistence — keyed by date, separate prefix from the
+// message cache above (LS_RESOLUTIONS_PREFIX does NOT start with LS_PREFIX)
+// so pruneOldDays()'s scan for message-cache keys doesn't sweep these up.
+//
+// Resolutions are keyed by toolCallId (globally unique + stable across
+// reload), NOT by the message.id-based partKey used elsewhere — the stored
+// assistant message.id can differ from the live-stream message.id, which
+// would otherwise silently "forget" a resolution after a reload.
+// ---------------------------------------------------------------------------
+const LS_RESOLUTIONS_PREFIX = 'peak.nutritionChatResolutions.';
+
+interface ProposalResolutions {
+  deniedEntry: string[]; // toolCallIds
+  confirmedEntry: [string, string][]; // [toolCallId, entry name]
+  deniedFood: string[]; // toolCallIds
+  confirmedFood: [string, string][]; // [toolCallId, food name]
+}
+
+function emptyResolutions(): ProposalResolutions {
+  return { deniedEntry: [], confirmedEntry: [], deniedFood: [], confirmedFood: [] };
+}
+
+function resolutionsKey(date: string) {
+  return `${LS_RESOLUTIONS_PREFIX}${date}`;
+}
+
+function loadResolutionsForDate(date: string): ProposalResolutions {
+  try {
+    const raw = localStorage.getItem(resolutionsKey(date));
+    if (!raw) return emptyResolutions();
+    return { ...emptyResolutions(), ...(JSON.parse(raw) as Partial<ProposalResolutions>) };
+  } catch {
+    return emptyResolutions();
+  }
+}
+
+function saveResolutionsForDate(date: string, resolutions: ProposalResolutions) {
+  try {
+    localStorage.setItem(resolutionsKey(date), JSON.stringify(resolutions));
+    pruneOldResolutionDays(date);
+  } catch {
+    // storage full — ignore
+  }
+}
+
+function dropResolutionsForDate(date: string) {
+  localStorage.removeItem(resolutionsKey(date));
+}
+
+function pruneOldResolutionDays(currentDate: string) {
+  const keys: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(LS_RESOLUTIONS_PREFIX)) keys.push(k);
+  }
+  if (keys.length <= MAX_STORED_DAYS) return;
+  keys.sort();
+  const currentKey = resolutionsKey(currentDate);
+  const toRemove = keys
+    .filter(k => k !== currentKey)
+    .slice(0, keys.length - MAX_STORED_DAYS);
+  toRemove.forEach(k => localStorage.removeItem(k));
+}
+
+// ---------------------------------------------------------------------------
 // Cast StoredChatMessage[] to UIMessage[] for useChat (#15)
 // ---------------------------------------------------------------------------
 function storedToUIMessages(stored: StoredChatMessage[]): UIMessage[] {
@@ -436,7 +501,12 @@ function ChatMessage({
             <ReasoningBubble
               key={`reasoning-${renderIdx}`}
               text={merged.text}
-              streaming={merged.streaming}
+              // Fix (stale "Thinking…" pulse): a reasoning part can retain
+              // state:'streaming' even after the client stops streaming (e.g.
+              // user hits Stop, or the stream ends without transitioning the
+              // part). Gate the pulse by whether THIS message is actually
+              // live-streaming right now, not just the part's own state.
+              streaming={merged.streaming && isStreamingThis}
             />
           );
         }
@@ -481,7 +551,12 @@ function ChatMessage({
 
           // #9: propose_entry renders as an inline EntryEditor card
           if (toolName === 'propose_entry') {
-            const partKey = `${message.id}-${toolCallId}`;
+            // Keyed by toolCallId alone (not message.id-toolCallId): toolCallId
+            // is globally unique and stable across reload, whereas message.id
+            // can differ between the live stream and the reloaded transcript,
+            // which would otherwise break persisted confirm/deny state (see
+            // localStorage persistence below).
+            const partKey = toolCallId;
             const isDenied = deniedProposals.has(partKey);
             const confirmedName = confirmedProposals.get(partKey);
             const isConfirmed = confirmedName !== undefined;
@@ -534,7 +609,8 @@ function ChatMessage({
 
           // propose_custom_food: renders as an inline pre-filled MealBuilder card
           if (toolName === 'propose_custom_food') {
-            const partKey = `${message.id}-${toolCallId}`;
+            // Same toolCallId-only keying as propose_entry above (persistence-stable).
+            const partKey = toolCallId;
             const isDenied = deniedCustomFoodProposals.has(partKey);
             const confirmedName = confirmedCustomFoodProposals.get(partKey);
             const isConfirmed = confirmedName !== undefined;
@@ -629,6 +705,43 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     }),
     messages: initialMessages,
   });
+
+  // ---- Proposal confirm/deny state tracking ----
+  // Hydrated synchronously from localStorage (like initialMessages above) so a
+  // reload doesn't render already-resolved proposals as actionable again.
+  const initialResolutions = loadResolutionsForDate(selectedDate);
+  const [deniedProposals, setDeniedProposals] = useState<Set<string>>(new Set(initialResolutions.deniedEntry));
+  // #71: store name alongside confirmation so the message can display it
+  const [confirmedProposals, setConfirmedProposals] = useState<Map<string, string>>(new Map(initialResolutions.confirmedEntry));
+
+  // ---- Custom food proposal state tracking ----
+  const [deniedCustomFoodProposals, setDeniedCustomFoodProposals] = useState<Set<string>>(new Set(initialResolutions.deniedFood));
+  const [confirmedCustomFoodProposals, setConfirmedCustomFoodProposals] = useState<Map<string, string>>(new Map(initialResolutions.confirmedFood));
+
+  // Which date the four collections above currently hold resolutions for. The
+  // collections are hydrated synchronously for the initial selectedDate, so the
+  // ref starts there. It's updated by the day-change effect AFTER it rehydrates.
+  const resolutionsDateRef = useRef(selectedDate);
+
+  // Persist proposal resolutions on every change (keyed by toolCallId — see
+  // ProposalResolutions above), mirroring the message-persistence effect below.
+  //
+  // GUARD: on a selectedDate change, this effect runs (its deps include
+  // selectedDate) BEFORE the day-change effect below has rehydrated the
+  // collections — so at that moment the collections still hold the PREVIOUS
+  // day's resolutions while selectedDate is already the new day. Writing then
+  // would clobber the new day's stored resolutions with the old day's (and the
+  // day-change effect would then load that clobbered data). Skip persisting
+  // until the collections have actually been rehydrated for selectedDate.
+  useEffect(() => {
+    if (resolutionsDateRef.current !== selectedDate) return;
+    saveResolutionsForDate(selectedDate, {
+      deniedEntry: [...deniedProposals],
+      confirmedEntry: [...confirmedProposals],
+      deniedFood: [...deniedCustomFoodProposals],
+      confirmedFood: [...confirmedCustomFoodProposals],
+    });
+  }, [deniedProposals, confirmedProposals, deniedCustomFoodProposals, confirmedCustomFoodProposals, selectedDate]);
 
   // Keep a ref to the latest messages so the (stable) refetch callback can compare
   // the incoming DB transcript against what's currently loaded without re-creating
@@ -730,6 +843,17 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
       setPollingActive(false); // day changed — abandon any prior poll
       const cached = loadMessagesForDate(selectedDate);
       setMessages(cached);
+      // Rehydrate proposal confirm/deny state for the new day (same lifecycle
+      // as the transcript switch above).
+      const resolutions = loadResolutionsForDate(selectedDate);
+      setDeniedProposals(new Set(resolutions.deniedEntry));
+      setConfirmedProposals(new Map(resolutions.confirmedEntry));
+      setDeniedCustomFoodProposals(new Set(resolutions.deniedFood));
+      setConfirmedCustomFoodProposals(new Map(resolutions.confirmedFood));
+      // Collections now hold THIS day's resolutions — let the persist effect
+      // write again (it skips while this ref lags selectedDate). Set after the
+      // setState calls above; the persist effect re-runs on the next render.
+      resolutionsDateRef.current = selectedDate;
       fetchAndApplyTranscript(selectedDate, cached)
         .then(applied => evaluateDangling(selectedDate, applied));
     }
@@ -838,15 +962,6 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
 
   // ---- Custom food creation for confirmed propose_custom_food proposals ----
   const createCustomFood = useCreateCustomFood();
-
-  // ---- Proposal state tracking ----
-  const [deniedProposals, setDeniedProposals] = useState<Set<string>>(new Set());
-  // #71: store name alongside confirmation so the message can display it
-  const [confirmedProposals, setConfirmedProposals] = useState<Map<string, string>>(new Map());
-
-  // ---- Custom food proposal state tracking ----
-  const [deniedCustomFoodProposals, setDeniedCustomFoodProposals] = useState<Set<string>>(new Set());
-  const [confirmedCustomFoodProposals, setConfirmedCustomFoodProposals] = useState<Map<string, string>>(new Map());
 
   // ---- Composer state ----
   const [text, setText] = useState('');
@@ -1004,6 +1119,13 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   // ---- Send ----
   const canSend = (text.trim().length > 0 || pendingPhotos.length > 0) && !isStreaming;
 
+  // Denial-note tracking: deny no longer auto-sends a message (see
+  // handleProposalDeny/handleCustomFoodDeny below). Instead the agent learns
+  // about the denial(s) via a short note prepended to the user's NEXT
+  // outgoing message. Count (rather than a boolean) lets a combined note say
+  // "proposals" when the user denies more than one before their next send.
+  const [pendingDenialCount, setPendingDenialCount] = useState(0);
+
   const handleSend = useCallback(async () => {
     if (!canSend) return;
 
@@ -1017,7 +1139,17 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
       url: p.dataUrl ?? p.previewUrl,
     }));
 
-    const msgText = text.trim();
+    let msgText = text.trim();
+
+    // Prepend a concise denial note so the model sees it, then mark the
+    // denial(s) as communicated so the note isn't repeated on later sends.
+    if (pendingDenialCount > 0) {
+      const note = pendingDenialCount > 1
+        ? '(Note: I denied your previous proposals — please adjust.)'
+        : '(Note: I denied your previous proposal — please adjust.)';
+      msgText = msgText ? `${note}\n${msgText}` : note;
+      setPendingDenialCount(0);
+    }
 
     pendingPhotos.forEach(p => URL.revokeObjectURL(p.previewUrl));
     setText('');
@@ -1029,7 +1161,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
         : { text: msgText } as Parameters<typeof sendMessage>[0],
       { body: { selectedDate } },
     );
-  }, [canSend, text, pendingPhotos, selectedDate, sendMessage]);
+  }, [canSend, text, pendingPhotos, pendingDenialCount, selectedDate, sendMessage]);
 
   // #14: Stop button calls useChat stop()
   const handleStop = useCallback(() => {
@@ -1046,13 +1178,13 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   }, [handleSend, isMobile]);
 
   // ---- Proposal handlers ----
+  // Deny only marks the proposal denied locally — it does NOT auto-send a
+  // message. The agent instead learns about the denial on the user's next
+  // real send (see pendingDenialCount / handleSend above).
   const handleProposalDeny = useCallback((partKey: string) => {
     setDeniedProposals(prev => new Set([...prev, partKey]));
-    sendMessage(
-      { text: 'That proposal doesn\'t look right, please try again with a different approach.' },
-      { body: { selectedDate } },
-    );
-  }, [selectedDate, sendMessage]);
+    setPendingDenialCount(prev => prev + 1);
+  }, []);
 
   const handleProposalConfirmWithTracking = useCallback(async (input: EntryInput, partKey: string) => {
     await createEntry.mutateAsync(input);
@@ -1062,8 +1194,11 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   }, [createEntry]);
 
   // ---- Custom food proposal handlers ----
+  // Already mark-only (no auto-send) — also feeds the same denial-note queue
+  // as handleProposalDeny so the agent learns about it on the next send.
   const handleCustomFoodDeny = useCallback((partKey: string) => {
     setDeniedCustomFoodProposals(prev => new Set([...prev, partKey]));
+    setPendingDenialCount(prev => prev + 1);
   }, []);
 
   const handleCustomFoodConfirm = useCallback(async (payload: CustomFoodInput, partKey: string) => {
@@ -1080,9 +1215,11 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
       // ignore server error — we still clear client-side
     }
     dropMessagesForDate(selectedDate);
+    dropResolutionsForDate(selectedDate); // don't let a cleared chat rehydrate stale resolutions
     setMessages([]);
     setPollingActive(false); // clearing empties everything — stop any poll
     clearError();
+    setPendingDenialCount(0); // no stale note should ride along after a clear
     setDeniedProposals(new Set());
     setConfirmedProposals(new Map());
     setDeniedCustomFoodProposals(new Set());
