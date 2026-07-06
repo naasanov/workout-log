@@ -43,6 +43,18 @@ export interface FoodSearchResult {
   kind?: 'food' | 'meal';
 }
 
+// ---- Barcode chat attachment (a scanned barcode attached to a chat message) ----
+// The screenshot (`imageDataUrl`) is UI-ONLY — it renders as the chip thumbnail
+// and the tap-to-preview card, but is NEVER sent to the model as vision. Only
+// `product` (structured per-100g macros from Open Food Facts) is fed to the
+// agent, injected server-side as a pre-fetched tool-result (see
+// services/nutrition/agent.ts) since the `lookup_barcode` tool was removed.
+export interface BarcodeAttachmentData {
+  code: string;
+  imageDataUrl?: string | null;
+  product: FoodSearchResult;
+}
+
 export interface IngredientInput {
   name: string;
   grams: number;

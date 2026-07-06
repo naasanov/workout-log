@@ -36,14 +36,15 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, isToolUIPart, getToolName } from 'ai';
 import type { FileUIPart, UIMessage, ToolUIPart, DynamicToolUIPart } from 'ai';
 import ReactMarkdown from 'react-markdown';
-import { useCreateEntry, useCreateCustomFood, fetchTranscript, clearTranscript } from './api';
+import { useCreateEntry, useCreateCustomFood, fetchTranscript, clearTranscript, lookupBarcode } from './api';
 import type { StoredChatMessage } from './api';
 import EntryEditor from './EntryEditor';
 import MealBuilder from './MealBuilder';
 import BarcodeScanner from './BarcodeScanner';
+import BarcodeAttachmentCard from './BarcodeAttachmentCard';
 import ToolCallCard from './ToolCallCard';
 import ConfirmModal from '../../components/ConfirmModal';
-import type { EntryInput, EntryEditorMode, ProposeEntryArgs, ProposeCustomFoodArgs, CustomFoodInput } from './types';
+import type { EntryInput, EntryEditorMode, ProposeEntryArgs, ProposeCustomFoodArgs, CustomFoodInput, BarcodeAttachmentData } from './types';
 import styles from './NutritionChat.module.scss';
 import { ChevronDown, Trash2, Camera, ScanBarcode, Square, Send, Images, AlertCircle, ChevronRight, MessageSquare } from 'lucide-react';
 import useIsMobile from '../../hooks/useIsMobile';
@@ -118,6 +119,18 @@ interface PendingPhoto {
   file: File;
   previewUrl: string;
   dataUrl?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Pending barcode attachment state — mirrors PendingPhoto but for a scanned
+// barcode. `imageDataUrl` is the still-frame screenshot (UI-only thumbnail +
+// tap preview); `product` is the structured Open Food Facts data that gets
+// fed to the agent as a pre-fetched tool-result (see services/nutrition/agent.ts).
+// ---------------------------------------------------------------------------
+interface PendingBarcode {
+  code: string;
+  imageDataUrl?: string;
+  product: BarcodeAttachmentData['product'];
 }
 
 // ---------------------------------------------------------------------------
@@ -468,6 +481,7 @@ interface MessageProps {
   onCustomFoodDeny: (partKey: string) => void;
   deniedCustomFoodProposals: Set<string>;
   confirmedCustomFoodProposals: Map<string, string>; // partKey → food name
+  onOpenBarcodeAttachment: (data: BarcodeAttachmentData) => void;
 }
 
 function ChatMessage({
@@ -483,6 +497,7 @@ function ChatMessage({
   onCustomFoodDeny,
   deniedCustomFoodProposals,
   confirmedCustomFoodProposals,
+  onOpenBarcodeAttachment,
 }: MessageProps) {
   const isUser = message.role === 'user';
   // #15/#17: interrupted flag from StoredChatMessage cast
@@ -541,6 +556,31 @@ function ChatMessage({
               alt="Attached image"
               className={styles.attachedImage}
             />
+          );
+        }
+
+        // ---- Barcode attachment part (a scanned barcode attached to this message) ----
+        // Renders as a tappable chip; tap opens the read-only BarcodeAttachmentCard.
+        if (part.type === 'data-barcodeAttachment') {
+          const data = (part as unknown as { data: BarcodeAttachmentData }).data;
+          return (
+            <button
+              key={idx}
+              type="button"
+              className={styles.barcodeAttachmentChip}
+              onClick={() => onOpenBarcodeAttachment(data)}
+              aria-label={`View scanned product: ${data.product.name}`}
+            >
+              {data.imageDataUrl ? (
+                <img src={data.imageDataUrl} alt="" aria-hidden="true" className={styles.barcodeAttachmentThumb} />
+              ) : (
+                <span className={styles.barcodeAttachmentThumbFallback} aria-hidden="true">
+                  <ScanBarcode size={16} aria-hidden="true" style={{ display: 'block' }} />
+                </span>
+              )}
+              <ScanBarcode className={styles.barcodeAttachmentBadge} size={16} aria-hidden="true" style={{ display: 'block' }} />
+              <span className={styles.barcodeAttachmentName}>{data.product.name}</span>
+            </button>
           );
         }
 
@@ -968,6 +1008,11 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [barcodeOpen, setBarcodeOpen] = useState(false);
+  const [pendingBarcode, setPendingBarcode] = useState<PendingBarcode | null>(null);
+  const [barcodeNotice, setBarcodeNotice] = useState<string | null>(null);
+  // Tap-to-preview: holds whichever barcode attachment (pending in composer, or
+  // already sent in the transcript) the user tapped. null = no card open.
+  const [barcodePreview, setBarcodePreview] = useState<BarcodeAttachmentData | null>(null);
 
   // #70: confirm-clear-chat dialog state
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -1065,59 +1110,39 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   }, []);
 
   // ---- Barcode handling ----
+  // The scanned barcode becomes a chat ATTACHMENT (like a photo), not textarea
+  // text. Not-found scans are REJECTED — nothing is attached, and the user is
+  // told to describe the item manually or photograph the nutrition label.
   const [barcodeLoading, setBarcodeLoading] = useState(false);
 
-  const handleBarcodeDetected = useCallback(async (code: string) => {
+  const handleBarcodeDetected = useCallback(async (code: string, imageDataUrl?: string) => {
     setBarcodeOpen(false);
     setBarcodeLoading(true);
+    setBarcodeNotice(null);
     try {
-      const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
-      const data = await res.json() as {
-        status: number;
-        product?: {
-          product_name?: string;
-          nutriments?: {
-            'energy-kcal_100g'?: number;
-            'proteins_100g'?: number;
-            'carbohydrates_100g'?: number;
-            'fat_100g'?: number;
-          };
-          serving_quantity?: number;
-          serving_quantity_unit?: string;
-        };
-      };
-
-      if (data.status === 1 && data.product) {
-        const p = data.product;
-        const name = p.product_name ?? 'Unknown product';
-        const n = p.nutriments ?? {};
-        const kcal = n['energy-kcal_100g'] != null ? Math.round(n['energy-kcal_100g']) : '?';
-        const protein = n['proteins_100g'] != null ? Math.round(n['proteins_100g']) : '?';
-        const carbs = n['carbohydrates_100g'] != null ? Math.round(n['carbohydrates_100g']) : '?';
-        const fat = n['fat_100g'] != null ? Math.round(n['fat_100g']) : '?';
-
-        let formatted = `[Scanned: ${code}]\nProduct: ${name}\nPer 100g: ${kcal} kcal | ${protein}g protein | ${carbs}g carbs | ${fat}g fat`;
-        if (p.serving_quantity != null) {
-          const unit = p.serving_quantity_unit ?? 'g';
-          formatted += `\nServing size: ${p.serving_quantity}${unit}`;
-        }
-
-        setText(prev => prev ? `${formatted}\n${prev}` : formatted);
-      } else {
-        console.warn('Open Food Facts: product not found for barcode', code);
-        setText(prev => prev ? `${prev} barcode:${code}` : `barcode:${code}`);
+      const product = await lookupBarcode(code);
+      if (!product) {
+        setBarcodeNotice(
+          `Couldn't find a product for barcode ${code}. Describe it in the chat, or take a photo of the nutrition label instead.`,
+        );
+        return;
       }
-    } catch (err) {
-      console.warn('Open Food Facts lookup failed:', err);
-      setText(prev => prev ? `${prev} barcode:${code}` : `barcode:${code}`);
+      setPendingBarcode({ code, imageDataUrl, product });
+    } catch {
+      setBarcodeNotice(
+        `Barcode lookup failed. Describe the item in the chat, or take a photo of the nutrition label instead.`,
+      );
     } finally {
       setBarcodeLoading(false);
-      textareaRef.current?.focus();
     }
   }, []);
 
+  const removePendingBarcode = useCallback(() => {
+    setPendingBarcode(null);
+  }, []);
+
   // ---- Send ----
-  const canSend = (text.trim().length > 0 || pendingPhotos.length > 0) && !isStreaming;
+  const canSend = (text.trim().length > 0 || pendingPhotos.length > 0 || pendingBarcode !== null) && !isStreaming;
 
   // Denial-note tracking: deny no longer auto-sends a message (see
   // handleProposalDeny/handleCustomFoodDeny below). Instead the agent learns
@@ -1151,17 +1176,42 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
       setPendingDenialCount(0);
     }
 
+    // A barcode-only send (no typed text) still needs SOME text content: the
+    // structured product data travels as a `data-barcodeAttachment` part, which
+    // convertToModelMessages drops from the user turn by design (it's UI-only —
+    // the model instead receives it as a pre-fetched tool-result, see agent.ts).
+    // Without this fallback the user turn could end up with empty content.
+    if (pendingBarcode && !msgText) {
+      msgText = `Log this scanned product: ${pendingBarcode.product.name}`;
+    }
+
+    const barcodePart = pendingBarcode
+      ? [{
+          type: 'data-barcodeAttachment' as const,
+          data: {
+            code: pendingBarcode.code,
+            imageDataUrl: pendingBarcode.imageDataUrl ?? null,
+            product: pendingBarcode.product,
+          } satisfies BarcodeAttachmentData,
+        }]
+      : [];
+
     pendingPhotos.forEach(p => URL.revokeObjectURL(p.previewUrl));
     setText('');
     setPendingPhotos([]);
+    setPendingBarcode(null);
+
+    const parts = [
+      ...files,
+      ...barcodePart,
+      ...(msgText ? [{ type: 'text' as const, text: msgText }] : []),
+    ];
 
     await sendMessage(
-      files.length > 0
-        ? { text: msgText || undefined, files } as Parameters<typeof sendMessage>[0]
-        : { text: msgText } as Parameters<typeof sendMessage>[0],
+      { parts } as Parameters<typeof sendMessage>[0],
       { body: { selectedDate } },
     );
-  }, [canSend, text, pendingPhotos, pendingDenialCount, selectedDate, sendMessage]);
+  }, [canSend, text, pendingPhotos, pendingBarcode, pendingDenialCount, selectedDate, sendMessage]);
 
   // #14: Stop button calls useChat stop()
   const handleStop = useCallback(() => {
@@ -1421,6 +1471,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
               onCustomFoodDeny={handleCustomFoodDeny}
               deniedCustomFoodProposals={deniedCustomFoodProposals}
               confirmedCustomFoodProposals={confirmedCustomFoodProposals}
+              onOpenBarcodeAttachment={setBarcodePreview}
             />
           ))}
 
@@ -1452,8 +1503,8 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Photo thumbnails */}
-        {pendingPhotos.length > 0 && (
+        {/* Photo thumbnails + pending barcode attachment chip */}
+        {(pendingPhotos.length > 0 || pendingBarcode) && (
           <div className={styles.thumbnails}>
             {pendingPhotos.map(p => (
               <div key={p.previewUrl} className={styles.thumbnailWrap}>
@@ -1469,11 +1520,48 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
                 {!p.dataUrl && <span className={styles.thumbnailProcessing} />}
               </div>
             ))}
+
+            {/* #barcode-attachment: scanned-product chip — tap to preview, X to remove */}
+            {pendingBarcode && (
+              <div className={styles.thumbnailWrap}>
+                <button
+                  type="button"
+                  className={styles.barcodeThumbBtn}
+                  onClick={() => setBarcodePreview({
+                    code: pendingBarcode.code,
+                    imageDataUrl: pendingBarcode.imageDataUrl ?? null,
+                    product: pendingBarcode.product,
+                  })}
+                  aria-label={`View scanned product: ${pendingBarcode.product.name}`}
+                >
+                  {pendingBarcode.imageDataUrl ? (
+                    <img src={pendingBarcode.imageDataUrl} alt="Scanned product" className={styles.thumbnail} />
+                  ) : (
+                    <span className={styles.thumbnail} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <ScanBarcode size={16} aria-hidden="true" style={{ display: 'block' }} />
+                    </span>
+                  )}
+                  <ScanBarcode className={styles.barcodeThumbBadge} size={16} aria-hidden="true" style={{ display: 'block' }} />
+                </button>
+                <button
+                  type="button"
+                  className={styles.thumbnailRemove}
+                  onClick={removePendingBarcode}
+                  aria-label="Remove scanned product"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
           </div>
         )}
 
         {photoError && (
           <p className={styles.photoError}>{photoError}</p>
+        )}
+
+        {barcodeNotice && (
+          <p className={styles.photoError}>{barcodeNotice}</p>
         )}
 
         {/* Composer — #3/#61: safe-area padding, #4: 16px font-size on mobile
@@ -1654,6 +1742,15 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
         <BarcodeScanner
           onDetected={handleBarcodeDetected}
           onClose={() => setBarcodeOpen(false)}
+        />
+      )}
+
+      {/* Read-only tap preview for a scanned-barcode attachment (pending or sent) */}
+      {barcodePreview && (
+        <BarcodeAttachmentCard
+          open={true}
+          data={barcodePreview}
+          onClose={() => setBarcodePreview(null)}
         />
       )}
 
