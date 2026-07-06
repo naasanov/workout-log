@@ -277,6 +277,32 @@ function ReasoningBubble({ text, streaming }: ReasoningBubbleProps) {
 }
 
 // ---------------------------------------------------------------------------
+// #154: Disconnect/abort-error detection.
+//
+// When the user navigates away (or the tab/network drops) mid-stream, the
+// streaming fetch behind useChat is aborted. Different browsers surface this
+// differently — Safari: Error("Load failed"); Chrome/others: AbortError,
+// "network error", "Failed to fetch", "The user aborted a request". The
+// server-side run keeps completing normally and the transcript poll/refetch
+// (fetchAndApplyTranscript / dangling-run poll above) recovers the full
+// assistant reply — so this specific class of error is spurious noise, not a
+// real failure, and must not be shown as an ErrorBubble.
+// ---------------------------------------------------------------------------
+const DISCONNECT_ERROR_PATTERNS = [
+  'load failed',
+  'network error',
+  'failed to fetch',
+  'aborted',
+];
+
+function isDisconnectError(err: Error | undefined | null): boolean {
+  if (!err) return false;
+  if (err.name === 'AbortError') return true;
+  const message = (err.message || '').toLowerCase();
+  return DISCONNECT_ERROR_PATTERNS.some(pattern => message.includes(pattern));
+}
+
+// ---------------------------------------------------------------------------
 // #107: Error bubble — shown in the chat thread when useChat surfaces an error
 // ---------------------------------------------------------------------------
 interface ErrorBubbleProps {
@@ -549,8 +575,10 @@ function ChatMessage({
             );
           }
 
-          // #104: hide the calculator tool card — it's an implementation detail
-          if (toolName === 'calculator') return null;
+          // #104: hide the calculator and convert_to_grams tool cards — both are
+          // deterministic background helpers (implementation details), not
+          // something the user needs to see a tool card for.
+          if (toolName === 'calculator' || toolName === 'convert_to_grams') return null;
 
           return <ToolCallCard key={idx} part={part as ToolUIPart | DynamicToolUIPart} />;
         }
@@ -767,6 +795,15 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
 
     return () => clearInterval(interval);
   }, [pollingActive, selectedDate, fetchAndApplyTranscript]);
+
+  // #154: Clear disconnect-style errors so they don't linger in useChat state
+  // once the ErrorBubble is suppressed above (the transcript poll/refetch is
+  // what actually recovers the assistant reply, not this error).
+  useEffect(() => {
+    if (isDisconnectError(chatError)) {
+      clearError();
+    }
+  }, [chatError, clearError]);
 
   // #105: detect mobile to suppress Enter-to-send
   const { isMobile } = useIsMobile();
@@ -1250,8 +1287,11 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
             />
           ))}
 
-          {/* #107: Error bubble — shown when the chat stream/API call fails */}
-          {chatError && (
+          {/* #107/#154: Error bubble — shown when the chat stream/API call fails.
+              Disconnect-style errors (navigation away mid-stream, aborted fetch) are
+              spurious — the run completes server-side and the transcript poll above
+              recovers it — so they're suppressed rather than rendered here. */}
+          {chatError && !isDisconnectError(chatError) && (
             <div className={styles.messageGroup}>
               <ErrorBubble error={chatError} />
             </div>
