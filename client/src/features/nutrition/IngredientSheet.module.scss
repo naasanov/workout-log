@@ -460,6 +460,11 @@
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
+  // #153: push the P/C/F chips to the right edge of the card, keeping kcal
+  // (and the title above it) left-aligned. Still wraps onto its own line on
+  // very narrow widths without overflowing, since it stays within .cardMacros.
+  margin-left: auto;
+  justify-content: flex-end;
 }
 
 .chip {
