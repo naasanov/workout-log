@@ -282,7 +282,11 @@ function stripCitationTokens(text: string): string {
     .replace(/[-][^-]*[-]/g, '')
     // Also strip bare cite-token patterns that may appear without PUA delimiters,
     // e.g. citeturn1view1 or citeturn0search5.
-    .replace(/cite\w*turn\d+\w*/gi, '');
+    .replace(/cite\w*turn\d+\w*/gi, '')
+    // Also strip bare "turn0search1"-style tokens with no leading "cite" that
+    // sometimes leak straight into the rendered text, e.g. "turn0search1",
+    // "turn1view1", "turn0news2" (optionally preceded by a stray space).
+    .replace(/ ?\bturn\d+[a-z]+\d+\b/gi, '');
 }
 
 // ---------------------------------------------------------------------------
