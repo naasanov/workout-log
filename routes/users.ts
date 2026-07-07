@@ -7,9 +7,37 @@ import bcrypt from 'bcrypt';
 const { NULL_ERROR, PARSE_ERROR, DUPLICATE_ERROR } = SqlError;
 import { authenticateToken } from "./auth";
 import { User } from "../types";
+import { tabPreferencesSchema } from "../schemas/tabPreferences";
+import { getTabPreferences, putTabPreferences } from "../services/tabPreferences";
 
 const router = Router();
 router.use(authenticateToken);
+
+// #110: customizable tabs — ordered list of enabled top-level tabs (element[0] is
+// the user's homepage). Missing row → [] → client shows the new-account empty state.
+router.get('/tab-preferences', async (req, res): Promise<any> => {
+    const { uuid }: User = res.locals.user;
+    try {
+        const data = await getTabPreferences(uuid);
+        return res.status(200).json({ data, message: "Successfully retrieved tab preferences" });
+    } catch (error) {
+        return handleSqlError(error, res);
+    }
+});
+
+router.put('/tab-preferences', async (req, res): Promise<any> => {
+    const { uuid }: User = res.locals.user;
+    const parsed = tabPreferencesSchema.safeParse(req.body);
+    if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Invalid request body' });
+    }
+    try {
+        const data = await putTabPreferences(uuid, parsed.data.enabledTabs);
+        return res.status(200).json({ data, message: "Tab preferences saved" });
+    } catch (error) {
+        return handleSqlError(error, res);
+    }
+});
 
 // Create
 router.post('/', async (req, res): Promise<any> => {

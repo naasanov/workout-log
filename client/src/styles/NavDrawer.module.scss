@@ -59,6 +59,43 @@
   text-transform: uppercase;
 }
 
+.drawerHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+// #110: Edit / Done toggle for the tab manager
+.editBtn {
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  min-height: 44px;
+  cursor: pointer;
+  color: rgba($text, 0.7);
+  font-family: $sarabun;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+
+  &:active {
+    background: $primary-translucent;
+    color: $primary;
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      background: rgba($primary, 0.08);
+      color: $text;
+    }
+  }
+}
+
+.editBtnActive {
+  color: $primary;
+}
+
 .closeBtn {
   display: flex;
   align-items: center;
@@ -131,4 +168,129 @@
   color: $primary;
   background: $primary-translucent;
   font-weight: 600;
+}
+
+// ── Edit mode (#110) ─────────────────────────────────────────────────────────
+.editPanel {
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+.editList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.editRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 6px 4px 12px;
+  border-radius: 10px;
+  min-height: 48px;
+  background: rgba($text, 0.03);
+}
+
+.editTabLabel {
+  color: rgba($text, 0.9);
+  font-family: $sarabun;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: $sarabun-spacing;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.editControls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.iconBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: rgba($text, 0.7);
+
+  &:active {
+    background: rgba($primary, 0.12);
+    color: $primary;
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+
+  @media (hover: hover) {
+    &:hover:not(:disabled) {
+      background: rgba($primary, 0.08);
+      color: $text;
+    }
+  }
+}
+
+.removeBtn {
+  color: rgba($error, 0.85);
+
+  &:active {
+    background: rgba($error, 0.14);
+    color: $error;
+  }
+
+  @media (hover: hover) {
+    &:hover:not(:disabled) {
+      background: rgba($error, 0.1);
+      color: $error;
+    }
+  }
+}
+
+.addBtn {
+  color: $primary;
+
+  &:active {
+    background: $primary-translucent;
+  }
+
+  @media (hover: hover) {
+    &:hover:not(:disabled) {
+      background: rgba($primary, 0.1);
+      color: $primary;
+    }
+  }
+}
+
+.addSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.addHeading {
+  padding: 0 12px;
+  color: rgba($text, 0.45);
+  font-family: $sarabun;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: $sarabun-spacing;
+  text-transform: uppercase;
 }

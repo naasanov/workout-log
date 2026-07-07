@@ -3,6 +3,7 @@ import AddSection from '../components/AddSection.jsx';
 import BodyWeightTracker from '../components/BodyWeightTracker.jsx';
 import HabitTracker from '../components/HabitTracker.jsx';
 import NutritionTracker from '../features/nutrition/NutritionTracker';
+import TabsEmptyState from '../components/TabsEmptyState.jsx';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import styles from "../styles/Workouts.module.scss";
@@ -10,32 +11,49 @@ import Header from '../components/Header.jsx';
 import clientApi from '../api/clientApi.js';
 import useAuth from '../hooks/useAuth.js';
 import { useQuery } from '@tanstack/react-query';
-
-const TABS = {
-  WORKOUTS: 'workouts',
-  BODY_WEIGHT: 'body-weight',
-  HABITS: 'habits',
-  NUTRITION: 'nutrition',
-};
-
-const VALID_TABS = new Set(Object.values(TABS));
+import { TABS } from '../config/tabs';
+import { useTabPreferences } from '../api/tabPreferences';
 
 function Workouts() {
   const [sections, setSections] = useState([]);
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Derive active tab from URL; fall back to WORKOUTS for unknown values
-  const tabParam = searchParams.get('tab');
-  const activeTab = VALID_TABS.has(tabParam) ? tabParam : TABS.WORKOUTS;
+  // Nav drawer state lives here (not in Header) so the empty-state CTA can open
+  // the tab manager in edit mode. #110
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
 
-  // If a confirmed-logged-out user lands on an auth-only tab, redirect to Workouts.
-  // user === null means definitively logged out; undefined means still loading — don't redirect yet.
+  const loggedIn = !!user;
+  const { data: prefs, isLoading: prefsLoading } = useTabPreferences(loggedIn);
+  const enabledTabs = loggedIn ? (prefs ?? []) : [TABS.WORKOUTS];
+  const enabledKey = enabledTabs.join('|');
+
+  const tabParam = searchParams.get('tab');
+
+  // Resolve the tab to render. Logged-out → Workouts only. Logged-in → the
+  // requested tab if it's enabled, else the first enabled tab (the homepage).
+  // null = show the empty state (logged-in with no enabled tabs). #110
+  let activeTab;
+  if (!loggedIn) {
+    activeTab = TABS.WORKOUTS;
+  } else if (enabledTabs.length > 0) {
+    activeTab = enabledTabs.includes(tabParam) ? tabParam : enabledTabs[0];
+  } else {
+    activeTab = null;
+  }
+
+  // Auto-open onto the homepage: if the URL's tab isn't enabled, redirect to the
+  // first enabled tab. Waits for prefs to load so we don't flash Workouts. #110
   useEffect(() => {
-    if (user === null && activeTab !== TABS.WORKOUTS) {
-      setSearchParams({ tab: TABS.WORKOUTS }, { replace: true });
+    if (!loggedIn || prefsLoading) return;
+    if (enabledTabs.length === 0) return; // empty state — nowhere to redirect
+    if (!tabParam || !enabledTabs.includes(tabParam)) {
+      setSearchParams({ tab: enabledTabs[0] }, { replace: true });
     }
-  }, [user, activeTab, setSearchParams]);
+    // enabledKey captures the enabled-tabs identity without an unstable array dep
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loggedIn, prefsLoading, enabledKey, tabParam, setSearchParams]);
 
   const sectionsQuery = useQuery({
     queryKey: ['sections'],
@@ -55,10 +73,23 @@ function Workouts() {
     }
   }, [sectionsQuery.data]);
 
+  const showEmptyState = loggedIn && !prefsLoading && enabledTabs.length === 0;
+
   return (
     <>
-      <Header />
+      <Header
+        drawerOpen={drawerOpen}
+        onDrawerOpenChange={setDrawerOpen}
+        editMode={editMode}
+        onEditModeChange={setEditMode}
+      />
       <main className={styles.container}>
+        {showEmptyState && (
+          <TabsEmptyState
+            onAddTools={() => { setDrawerOpen(true); setEditMode(true); }}
+          />
+        )}
+
         {/* All panels stay mounted to preserve in-memory state; hidden via CSS */}
         <div style={{ display: activeTab === TABS.WORKOUTS ? undefined : 'none' }}>
           {sections.map((s) => (
