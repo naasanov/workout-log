@@ -8,7 +8,10 @@
  * the inline chat proposal card (not inside any dialog).
  *
  * Usage pattern (two sub-components exported):
- *   <IngredientCardList>   — renders the static summary cards + "Add ingredient" button.
+ *   <IngredientCardList>   — renders the static summary cards. The "Add ingredient"
+ *                            action lives in the caller's heading row (see EntryEditor /
+ *                            MealBuilder), not here — callers wire it to the same
+ *                            handler they pass in as `onAddRow` when opening the sheet.
  *   <IngredientSheet>      — the actual sheet (controls its own open state via onClose).
  *
  * Callers (EntryEditor, MealBuilder) lift the state: they own the `rows` array
@@ -28,7 +31,7 @@ import type {
   IngredientSource,
 } from './types';
 import styles from './IngredientSheet.module.scss';
-import { X, Plus, Trash2, ChevronRight, ScanBarcode } from 'lucide-react';
+import { X, Trash2, ChevronRight, ScanBarcode } from 'lucide-react';
 import {
   portionsCache,
   GRAMS_UNIT,
@@ -551,11 +554,9 @@ export interface IngredientCardListProps {
   rows: EditorRow[];
   /** Called with the row that was tapped — caller opens the sheet in edit mode. */
   onEditRow: (row: EditorRow) => void;
-  /** Called when "Add ingredient" is tapped — caller opens the sheet in add mode. */
-  onAddRow: () => void;
 }
 
-export function IngredientCardList({ rows, onEditRow, onAddRow }: IngredientCardListProps) {
+export function IngredientCardList({ rows, onEditRow }: IngredientCardListProps) {
   return (
     <div className={styles.cardList}>
       {rows.map(row => (
@@ -588,15 +589,6 @@ export function IngredientCardList({ rows, onEditRow, onAddRow }: IngredientCard
           />
         </button>
       ))}
-
-      <button
-        type="button"
-        className={styles.addBtn}
-        onClick={onAddRow}
-      >
-        <Plus size={16} aria-hidden="true" style={{ display: 'block' }} />
-        Add ingredient
-      </button>
     </div>
   );
 }

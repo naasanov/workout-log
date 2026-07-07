@@ -546,11 +546,20 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
 
               {/* Ingredient cards */}
               <div className={styles.section}>
-                <span className={styles.sectionLabel}>Ingredients</span>
+                <div className={styles.sectionHeaderRow}>
+                  <span className={styles.sectionLabel}>Ingredients</span>
+                  <button
+                    type="button"
+                    className={styles.addIngredientBtn}
+                    onClick={openSheetForAdd}
+                    aria-label="Add ingredient"
+                  >
+                    <Plus size={16} aria-hidden="true" style={{ display: 'block' }} />
+                  </button>
+                </div>
                 <IngredientCardList
                   rows={rows}
                   onEditRow={openSheetForEdit}
-                  onAddRow={openSheetForAdd}
                 />
               </div>
 

@@ -150,6 +150,13 @@
   gap: 12px;
 }
 
+.ingredientsHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .ingredientsLabel {
   font-family: $sarabun;
   font-size: 13px;
@@ -157,6 +164,26 @@
   letter-spacing: $sarabun-spacing;
   color: rgba($text, 0.6);
   text-transform: uppercase;
+}
+
+// Compact plus button, right-aligned in the "Ingredients" heading row
+.addIngredientBtn {
+  flex-shrink: 0;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  background-color: transparent;
+  color: $primary;
+  border: 2px solid $primary-border;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    background-color: $primary-translucent;
+  }
 }
 
 .ingredientsList {

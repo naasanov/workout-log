@@ -24,6 +24,7 @@ import type {
 } from './types';
 import { MEALS, MEAL_LABELS } from './types';
 import styles from './EntryEditor.module.scss';
+import { Plus } from 'lucide-react';
 import IngredientSheet, { IngredientCardList } from './IngredientSheet';
 import {
   GRAMS_UNIT,
@@ -424,11 +425,20 @@ export default function EntryEditor({
 
       {/* Ingredient cards + Add button */}
       <div className={styles.ingredientsSection}>
-        <span className={styles.ingredientsLabel}>Ingredients</span>
+        <div className={styles.ingredientsHeaderRow}>
+          <span className={styles.ingredientsLabel}>Ingredients</span>
+          <button
+            type="button"
+            className={styles.addIngredientBtn}
+            onClick={openSheetForAdd}
+            aria-label="Add ingredient"
+          >
+            <Plus size={16} aria-hidden="true" style={{ display: 'block' }} />
+          </button>
+        </div>
         <IngredientCardList
           rows={rows}
           onEditRow={openSheetForEdit}
-          onAddRow={openSheetForAdd}
         />
       </div>
 

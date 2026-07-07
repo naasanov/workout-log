@@ -194,6 +194,33 @@
   gap: 12px;
 }
 
+.sectionHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+// Compact plus button, right-aligned in the "Ingredients" heading row
+.addIngredientBtn {
+  flex-shrink: 0;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  background-color: transparent;
+  color: $primary;
+  border: 2px solid $primary-border;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    background-color: $primary-translucent;
+  }
+}
+
 .sectionLabel {
   font-family: $sarabun;
   font-size: 13px;
