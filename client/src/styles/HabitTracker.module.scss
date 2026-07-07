@@ -308,8 +308,22 @@
   background-color: $surface;
   border: 2px solid $surface-border;
   border-radius: $border-radius;
-  overflow: hidden;
+  // #162: was `overflow: hidden`, which clipped the per-habit three-dots
+  // menu (positioned absolute inside a child). The dropdown itself never
+  // scrolls, so `visible` is safe; corner rounding is restored below on
+  // the first/last child instead of relying on clipping.
+  overflow: visible;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  > *:first-child {
+    border-top-left-radius: $border-radius;
+    border-top-right-radius: $border-radius;
+  }
+
+  > *:last-child {
+    border-bottom-left-radius: $border-radius;
+    border-bottom-right-radius: $border-radius;
+  }
 }
 
 // ── Habit list item ────────────────────────────────────────────────────────────
@@ -382,6 +396,8 @@
 
 .habitMenu {
   position: absolute;
+  // Anchored by `right` (not `left`) so it naturally grows leftward as its
+  // content needs more room, keeping it clear of the right screen edge.
   right: 4px;
   top: calc(100% + 2px);
   z-index: 30;
@@ -389,13 +405,18 @@
   border: 1.5px solid $surface-border;
   border-radius: 10px;
   overflow: hidden;
-  min-width: 110px;
+  // #162: wide enough for the longest item ("Skip days with no tallys")
+  // on one line; width still grows with content via max-content.
+  min-width: 200px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
 }
 
 .habitMenuItem {
   display: block;
   width: 100%;
+  min-height: 40px;
   padding: 11px 14px;
   background: none;
   border: none;
@@ -404,8 +425,10 @@
   font-size: 15px;
   letter-spacing: $sarabun-spacing;
   text-align: left;
+  white-space: nowrap;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
 
   & + & {
     border-top: 1px solid rgba($surface-border, 0.5);
