@@ -7,10 +7,37 @@ import FeedbackModal from "../features/nutrition/FeedbackModal";
 import NavDrawer from "./NavDrawer";
 import { MessageSquare, Menu } from 'lucide-react';
 
-function Header() {
+/**
+ * Header.
+ *
+ * The nav drawer's open/edit state is *optionally controlled*: pass
+ * `drawerOpen` + `onDrawerOpenChange` (and optionally `editMode`) to drive it
+ * from a parent (Workouts does this so the empty-state CTA can open the drawer
+ * in edit mode). When those props are omitted (SignIn/SignUp), Header manages
+ * the state internally.
+ */
+function Header({
+  drawerOpen: controlledOpen,
+  onDrawerOpenChange,
+  editMode: controlledEditMode,
+  onEditModeChange,
+}) {
   const { user } = useUser();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const [internalEditMode, setInternalEditMode] = useState(false);
+
+  const isControlled = controlledOpen !== undefined;
+  const drawerOpen = isControlled ? controlledOpen : internalOpen;
+  const setDrawerOpen = isControlled ? onDrawerOpenChange : setInternalOpen;
+
+  const editMode = controlledEditMode !== undefined ? controlledEditMode : internalEditMode;
+  const setEditMode = onEditModeChange ?? setInternalEditMode;
+
+  const closeDrawer = () => {
+    setDrawerOpen(false);
+    setEditMode(false);
+  };
 
   return (
     <>
@@ -64,8 +91,10 @@ function Header() {
       {/* #143: Left slide-out navigation drawer */}
       <NavDrawer
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        onClose={closeDrawer}
         user={user}
+        editMode={editMode}
+        onEditModeChange={setEditMode}
       />
     </>
   );
