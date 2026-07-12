@@ -50,7 +50,7 @@ export default function BarcodeAttachmentCard({ open, data, onClose }: BarcodeAt
           </div>
 
           <div className={styles.body}>
-            {data.imageDataUrl && (
+            {data.imageDataUrl ? (
               <img
                 src={data.imageDataUrl}
                 alt=""
@@ -64,7 +64,11 @@ export default function BarcodeAttachmentCard({ open, data, onClose }: BarcodeAt
                   display: 'block',
                 }}
               />
-            )}
+            ) : data.imageRedacted ? (
+              <p style={{ fontSize: 12, fontStyle: 'italic', opacity: 0.6, margin: '0 0 12px' }}>
+                Photo no longer available
+              </p>
+            ) : null}
 
             <div className={styles.nameRow}>
               <div className={styles.nameInputWrap}>

@@ -674,6 +674,31 @@
   color: $background;
 }
 
+// ---- Redacted image marker chip ----
+// Replaces a `file` image part once the nightly retention job strips its
+// base64 data out (2+ days old). Styled like .interruptedMarker — a small,
+// visually distinct note rather than the image just silently vanishing.
+.imageRedactedChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background-color: rgba($surface-border, 0.15);
+  border: 1px solid rgba($surface-border, 0.4);
+  border-radius: 8px;
+  font-family: $sarabun;
+  font-size: 12px;
+  color: rgba($text, 0.55);
+  letter-spacing: $sarabun-spacing;
+}
+
+// Inline note appended to a barcode attachment chip's name when its photo
+// has been redacted by the same retention job.
+.imageRedactedNote {
+  color: rgba($text, 0.45);
+  font-style: italic;
+}
+
 // ---- Sent barcode-attachment chip (rendered inline in the message thread) ----
 .barcodeAttachmentChip {
   position: relative;

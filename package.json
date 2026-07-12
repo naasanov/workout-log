@@ -8,6 +8,8 @@
     "start": "node dist/index.js",
     "dev": "nodemon index.ts",
     "migrate": "node scripts/migrate.js",
+    "redact-chat-images": "node scripts/redactOldChatImages.js",
+    "test": "node --test scripts/*.test.js",
     "heroku-postbuild": "npm run build && cd client && npm install && npm run build"
   },
   "keywords": [],

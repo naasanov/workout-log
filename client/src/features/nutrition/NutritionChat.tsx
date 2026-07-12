@@ -44,9 +44,9 @@ import BarcodeScanner from './BarcodeScanner';
 import BarcodeAttachmentCard from './BarcodeAttachmentCard';
 import ToolCallCard from './ToolCallCard';
 import ConfirmModal from '../../components/ConfirmModal';
-import type { EntryInput, EntryEditorMode, ProposeEntryArgs, ProposeCustomFoodArgs, CustomFoodInput, BarcodeAttachmentData } from './types';
+import type { EntryInput, EntryEditorMode, ProposeEntryArgs, ProposeCustomFoodArgs, CustomFoodInput, BarcodeAttachmentData, ImageRedactedData } from './types';
 import styles from './NutritionChat.module.scss';
-import { ChevronDown, Trash2, Camera, ScanBarcode, Square, Send, Images, AlertCircle, ChevronRight, MessageSquare } from 'lucide-react';
+import { ChevronDown, Trash2, Camera, ScanBarcode, Square, Send, Images, AlertCircle, ChevronRight, MessageSquare, ImageOff } from 'lucide-react';
 import useIsMobile from '../../hooks/useIsMobile';
 
 // ---------------------------------------------------------------------------
@@ -563,6 +563,21 @@ function ChatMessage({
           );
         }
 
+        // ---- Redacted image marker (photo stripped by the nightly retention job) ----
+        // Replaces a `file` image part once the message is 2+ days old (see
+        // scripts/redactOldChatImages.js). Rendered as a small, visually distinct
+        // chip so the redaction leaves a visible trace instead of the image just
+        // silently disappearing.
+        if (part.type === 'data-imageRedacted') {
+          const data = (part as unknown as { data: ImageRedactedData }).data;
+          return (
+            <div key={idx} className={styles.imageRedactedChip} title={data?.mediaType}>
+              <ImageOff size={16} aria-hidden="true" style={{ display: 'block' }} />
+              <span>Photo no longer available</span>
+            </div>
+          );
+        }
+
         // ---- Barcode attachment part (a scanned barcode attached to this message) ----
         // Renders as a tappable chip; tap opens the read-only BarcodeAttachmentCard.
         if (part.type === 'data-barcodeAttachment') {
@@ -579,11 +594,18 @@ function ChatMessage({
                 <img src={data.imageDataUrl} alt="" aria-hidden="true" className={styles.barcodeAttachmentThumb} />
               ) : (
                 <span className={styles.barcodeAttachmentThumbFallback} aria-hidden="true">
-                  <ScanBarcode size={16} aria-hidden="true" style={{ display: 'block' }} />
+                  {data.imageRedacted ? (
+                    <ImageOff size={16} aria-hidden="true" style={{ display: 'block' }} />
+                  ) : (
+                    <ScanBarcode size={16} aria-hidden="true" style={{ display: 'block' }} />
+                  )}
                 </span>
               )}
               <ScanBarcode className={styles.barcodeAttachmentBadge} size={16} aria-hidden="true" style={{ display: 'block' }} />
-              <span className={styles.barcodeAttachmentName}>{data.product.name}</span>
+              <span className={styles.barcodeAttachmentName}>
+                {data.product.name}
+                {data.imageRedacted && <span className={styles.imageRedactedNote}> · photo no longer available</span>}
+              </span>
             </button>
           );
         }
