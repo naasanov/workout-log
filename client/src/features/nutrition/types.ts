@@ -53,6 +53,20 @@ export interface BarcodeAttachmentData {
   code: string;
   imageDataUrl?: string | null;
   product: FoodSearchResult;
+  // Set by the nightly chat-image retention job (scripts/redactOldChatImages.js)
+  // when it strips `imageDataUrl` out of an old (2+ days) transcript row.
+  // `imageDataUrl` will be null when this is true; the flag lets the UI show
+  // a "photo no longer available" note instead of silently having no image.
+  imageRedacted?: boolean;
+}
+
+// ---- Redacted image marker part ----
+// Replaces a chat `file` part (image/*) whose base64 data URI was stripped by
+// the nightly retention job (scripts/redactOldChatImages.js) once the message
+// is 2+ days old. `mediaType` is preserved from the original part purely for
+// display purposes (e.g. so the UI could say "photo" vs "image" if desired).
+export interface ImageRedactedData {
+  mediaType: string;
 }
 
 export interface IngredientInput {
