@@ -445,6 +445,12 @@
 }
 
 .cardMacros {
+  // #180: without align-self:stretch this flex item (a child of the column
+  // .cardContent) only shrinks to fit its content width — same as .cardName
+  // needs it above — leaving .macroChips no spare row width for its own
+  // margin-left:auto to push into, so the chips never actually reach the
+  // right edge.
+  align-self: stretch;
   display: flex;
   align-items: center;
   gap: 6px;
