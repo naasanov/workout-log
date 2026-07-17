@@ -470,6 +470,208 @@ function mergeReasoningParts(parts: UIMessage['parts']): MergedPart[] {
 }
 
 // ---------------------------------------------------------------------------
+// #175: Collapse the tool-call/reasoning chain.
+//
+// Consecutive tool-call + reasoning steps within a message get grouped into a
+// single "cluster". While the message is still streaming, only the current
+// (last) step in a cluster renders inline — older steps in that cluster sit
+// behind a small "N earlier steps" expander. Once the response completes,
+// the whole cluster collapses into one compact summary line ("Used N tools")
+// that expands on tap to reveal every step. Text/attachment/proposal parts
+// are never part of a cluster — they always stay visible.
+// ---------------------------------------------------------------------------
+type RenderGroup =
+  | { kind: 'cluster'; items: MergedPart[]; groupKey: string }
+  | { kind: 'single'; merged: MergedPart; groupKey: string };
+
+// Determine whether a part renders as a plain step (tool-call card / reasoning
+// bubble, eligible to be folded into a cluster), an always-visible "inline"
+// part (text, attachments, resolved/actionable proposals), or is fully
+// hidden (deterministic background helper tools — #104).
+function classifyMergedPart(
+  merged: MergedPart,
+  deniedProposals: Set<string>,
+  confirmedProposals: Map<string, string>,
+  deniedCustomFoodProposals: Set<string>,
+  confirmedCustomFoodProposals: Map<string, string>,
+): 'cluster' | 'inline' | 'hidden' {
+  if (merged.type === 'merged-reasoning') return 'cluster';
+
+  const { part } = merged;
+  if (!isToolUIPart(part)) return 'inline';
+
+  const toolName = getToolName(part as ToolUIPart | DynamicToolUIPart);
+  const toolCallId = (part as { toolCallId: string }).toolCallId;
+
+  // #104: deterministic background helpers — never shown at all.
+  if (toolName === 'calculator' || toolName === 'convert_to_grams') return 'hidden';
+
+  if (toolName === 'propose_entry') {
+    if (deniedProposals.has(toolCallId) || confirmedProposals.has(toolCallId)) return 'inline';
+    // Not yet resolved into args — renders as a plain ToolCallCard, so it's
+    // just another step in the chain until the proposal is actually ready.
+    if (part.state !== 'input-available' && part.state !== 'output-available') return 'cluster';
+    return 'inline'; // renders the actionable inline EntryEditor card
+  }
+
+  if (toolName === 'propose_custom_food') {
+    if (deniedCustomFoodProposals.has(toolCallId) || confirmedCustomFoodProposals.has(toolCallId)) return 'inline';
+    if (part.state !== 'input-available' && part.state !== 'output-available') return 'cluster';
+    return 'inline'; // renders the actionable inline MealBuilder card
+  }
+
+  return 'cluster';
+}
+
+function groupPartsForRender(
+  mergedParts: MergedPart[],
+  deniedProposals: Set<string>,
+  confirmedProposals: Map<string, string>,
+  deniedCustomFoodProposals: Set<string>,
+  confirmedCustomFoodProposals: Map<string, string>,
+): RenderGroup[] {
+  const groups: RenderGroup[] = [];
+
+  for (const merged of mergedParts) {
+    const cls = classifyMergedPart(
+      merged,
+      deniedProposals,
+      confirmedProposals,
+      deniedCustomFoodProposals,
+      confirmedCustomFoodProposals,
+    );
+    if (cls === 'hidden') continue;
+
+    if (cls === 'cluster') {
+      const last = groups[groups.length - 1];
+      if (last && last.kind === 'cluster') {
+        last.items.push(merged);
+      } else {
+        const key = merged.type === 'merged-reasoning' ? `r${merged.originalIndices[0]}` : `t${merged.originalIndex}`;
+        groups.push({ kind: 'cluster', items: [merged], groupKey: `cluster-${key}` });
+      }
+    } else {
+      const key = merged.type === 'merged-reasoning' ? `r${merged.originalIndices[0]}` : `s${merged.originalIndex}`;
+      groups.push({ kind: 'single', merged, groupKey: `single-${key}` });
+    }
+  }
+
+  return groups;
+}
+
+function clusterItemKey(merged: MergedPart): string {
+  return merged.type === 'merged-reasoning' ? `r${merged.originalIndices[0]}` : `t${merged.originalIndex}`;
+}
+
+function renderClusterItem(merged: MergedPart, isStreamingThis: boolean): React.ReactNode {
+  if (merged.type === 'merged-reasoning') {
+    return (
+      <ReasoningBubble
+        key={clusterItemKey(merged)}
+        text={merged.text}
+        streaming={merged.streaming && isStreamingThis}
+      />
+    );
+  }
+  return (
+    <ToolCallCard
+      key={clusterItemKey(merged)}
+      part={merged.part as ToolUIPart | DynamicToolUIPart}
+    />
+  );
+}
+
+function clusterSummaryLabel(toolCount: number, reasoningCount: number): string {
+  const bits: string[] = [];
+  if (toolCount > 0) bits.push(`Used ${toolCount} tool${toolCount !== 1 ? 's' : ''}`);
+  if (reasoningCount > 0) bits.push(toolCount > 0 ? 'reasoned' : 'Reasoned');
+  return bits.length > 0 ? bits.join(' · ') : 'Steps';
+}
+
+interface ToolReasoningClusterProps {
+  items: MergedPart[];
+  isStreamingThis: boolean;
+}
+
+function ToolReasoningCluster({ items, isStreamingThis }: ToolReasoningClusterProps) {
+  const [open, setOpen] = useState(false);
+  const innerRef = useRef<HTMLDivElement>(null);
+
+  const toolCount = items.filter(m => m.type === 'other').length;
+  const reasoningCount = items.filter(m => m.type === 'merged-reasoning').length;
+
+  // While streaming: keep only the current (last) step inline; everything
+  // else in this cluster collapses behind a small expander.
+  if (isStreamingThis) {
+    const current = items[items.length - 1];
+    const earlier = items.slice(0, -1);
+
+    return (
+      <div className={styles.toolCluster}>
+        {earlier.length > 0 && (
+          <>
+            <button
+              type="button"
+              className={styles.reasoningToggle}
+              onClick={() => setOpen(p => !p)}
+              aria-expanded={open}
+            >
+              <ChevronDown
+                className={`${styles.reasoningChevron} ${open ? styles.reasoningChevronOpen : ''}`}
+                size={16}
+                aria-hidden="true"
+                style={{ display: 'block' }}
+              />
+              {open ? 'Hide earlier steps' : `${earlier.length} earlier step${earlier.length !== 1 ? 's' : ''}`}
+            </button>
+            <div
+              className={`${styles.reasoningBody} ${open ? styles.reasoningBodyOpen : ''}`}
+              style={open ? { maxHeight: innerRef.current ? innerRef.current.scrollHeight + 'px' : '2000px' } : { maxHeight: '0px' }}
+              aria-hidden={!open}
+            >
+              <div ref={innerRef}>
+                {earlier.map(m => renderClusterItem(m, isStreamingThis))}
+              </div>
+            </div>
+          </>
+        )}
+        {renderClusterItem(current, isStreamingThis)}
+      </div>
+    );
+  }
+
+  // Completed: collapse the whole chain into a single compact summary line.
+  const label = clusterSummaryLabel(toolCount, reasoningCount);
+  return (
+    <div className={styles.toolCluster}>
+      <button
+        type="button"
+        className={styles.reasoningToggle}
+        onClick={() => setOpen(p => !p)}
+        aria-expanded={open}
+      >
+        <ChevronDown
+          className={`${styles.reasoningChevron} ${open ? styles.reasoningChevronOpen : ''}`}
+          size={16}
+          aria-hidden="true"
+          style={{ display: 'block' }}
+        />
+        {label}
+      </button>
+      <div
+        className={`${styles.reasoningBody} ${open ? styles.reasoningBodyOpen : ''}`}
+        style={open ? { maxHeight: innerRef.current ? innerRef.current.scrollHeight + 'px' : '2000px' } : { maxHeight: '0px' }}
+        aria-hidden={!open}
+      >
+        <div ref={innerRef}>
+          {items.map(m => renderClusterItem(m, isStreamingThis))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Message bubble
 // ---------------------------------------------------------------------------
 interface MessageProps {
@@ -511,28 +713,37 @@ function ChatMessage({
   // #76: merge adjacent reasoning parts before rendering
   const mergedParts = mergeReasoningParts(message.parts);
 
-  return (
-    <div className={`${styles.messageGroup} ${isUser ? styles.messageGroupUser : styles.messageGroupAssistant}`}>
-      {mergedParts.map((merged, renderIdx) => {
-        // ---- Merged reasoning block (#76) ----
-        if (merged.type === 'merged-reasoning') {
-          return (
-            <ReasoningBubble
-              key={`reasoning-${renderIdx}`}
-              text={merged.text}
-              // Fix (stale "Thinking…" pulse): a reasoning part can retain
-              // state:'streaming' even after the client stops streaming (e.g.
-              // user hits Stop, or the stream ends without transitioning the
-              // part). Gate the pulse by whether THIS message is actually
-              // live-streaming right now, not just the part's own state.
-              streaming={merged.streaming && isStreamingThis}
-            />
-          );
-        }
+  // #175: group consecutive tool-call/reasoning steps into collapsible
+  // clusters; everything else (text, attachments, actionable proposals)
+  // renders inline as before via renderSinglePart below.
+  const groups = groupPartsForRender(
+    mergedParts,
+    deniedProposals,
+    confirmedProposals,
+    deniedCustomFoodProposals,
+    confirmedCustomFoodProposals,
+  );
 
-        const { part, originalIndex: idx } = merged;
+  // Renders a single non-cluster part (text / attachment / resolved or
+  // actionable proposal). Mirrors the pre-#175 per-part switch — cluster-
+  // eligible parts (plain tool-call cards, reasoning) never reach here; they
+  // render via ToolReasoningCluster/renderClusterItem instead.
+  function renderSinglePart(merged: MergedPart): React.ReactNode {
+    if (merged.type === 'merged-reasoning') {
+      // Not reachable — merged-reasoning is always cluster-eligible — but
+      // keep a safe fallback rather than silently dropping content.
+      return (
+        <ReasoningBubble
+          key={clusterItemKey(merged)}
+          text={merged.text}
+          streaming={merged.streaming && isStreamingThis}
+        />
+      );
+    }
 
-        // ---- Text part ----
+    const { part, originalIndex: idx } = merged;
+
+    // ---- Text part ----
         if (part.type === 'text') {
           if (!part.text) return null;
           return (
@@ -717,16 +928,32 @@ function ChatMessage({
             );
           }
 
-          // #104: hide the calculator and convert_to_grams tool cards — both are
-          // deterministic background helpers (implementation details), not
-          // something the user needs to see a tool card for.
-          if (toolName === 'calculator' || toolName === 'convert_to_grams') return null;
-
-          return <ToolCallCard key={idx} part={part as ToolUIPart | DynamicToolUIPart} />;
+          // #104: hidden background helpers, and any other plain tool call —
+          // both are handled via classifyMergedPart/ToolReasoningCluster and
+          // should never reach renderSinglePart. Fallback to null just in
+          // case classification and this switch ever drift apart.
+          return null;
         }
 
         return null;
-      })}
+      }
+
+  return (
+    <div className={`${styles.messageGroup} ${isUser ? styles.messageGroupUser : styles.messageGroupAssistant}`}>
+      {groups.map(group => (
+        group.kind === 'cluster'
+          ? (
+            <ToolReasoningCluster
+              key={group.groupKey}
+              items={group.items}
+              isStreamingThis={isStreamingThis}
+            />
+          )
+          // renderSinglePart's returned elements already carry their own
+          // `key` prop (key={idx}), which satisfies React's list-key
+          // requirement here — no extra wrapper needed.
+          : renderSinglePart(group.merged)
+      ))}
 
       {/* #8/#17: interrupted marker for assistant messages that ended mid-stream */}
       {!isUser && interrupted && !isStreamingThis && (
@@ -1125,6 +1352,20 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
       await handlePhotoFiles(e.target.files);
     }
     if (libraryInputRef.current) libraryInputRef.current.value = '';
+  }, [handlePhotoFiles]);
+
+  // #179: Paste an image directly into the composer — mirrors
+  // handleFileInputChange/handleLibraryInputChange, feeding pasted image
+  // files through the same handlePhotoFiles pipeline. Only intercepts the
+  // paste when the clipboard actually contains image data; plain text paste
+  // proceeds untouched.
+  const handleComposerPaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const files = e.clipboardData?.files;
+    if (!files || files.length === 0) return;
+    const hasImage = Array.from(files).some(f => f.type.startsWith('image/'));
+    if (!hasImage) return;
+    e.preventDefault();
+    await handlePhotoFiles(files);
   }, [handlePhotoFiles]);
 
   const removePhoto = useCallback((previewUrl: string) => {
@@ -1664,6 +1905,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
               value={text}
               onChange={e => setText(e.target.value)}
               onKeyDown={handleKeyDown}
+              onPaste={handleComposerPaste}
               onFocus={() => {
                 setExpanded(true);
               }}
