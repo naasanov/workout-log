@@ -398,6 +398,17 @@
   object-fit: cover;
 }
 
+// #175: Collapsible cluster wrapping a run of tool-call/reasoning steps —
+// reuses the same toggle/body styling as .reasoning below (single muted
+// line that expands into its contained steps).
+.toolCluster {
+  max-width: min(80%, 500px);
+  min-width: 0;
+  box-sizing: border-box;
+  border-radius: 8px;
+  width: 100%;
+}
+
 // ---- Reasoning bubble (#66/#77) ----
 // #77: Collapsed state now matches ToolCallCard's compact .header styling —
 //      single muted line, chevron rotates, no visible border when collapsed.
