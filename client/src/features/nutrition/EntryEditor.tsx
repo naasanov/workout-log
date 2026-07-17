@@ -252,10 +252,13 @@ export default function EntryEditor({
   }, [editingRow]);
 
   // ----- Sheet open/close helpers -----
+  // #178: reuse an existing empty/untitled row instead of stacking a new blank
+  // one each time "add ingredient" is tapped.
   const openSheetForAdd = useCallback(() => {
-    setEditingRow(null);
+    const existingEmpty = rows.find(r => !r.name.trim());
+    setEditingRow(existingEmpty ?? null);
     setSheetOpen(true);
-  }, []);
+  }, [rows]);
 
   const openSheetForEdit = useCallback((row: EditorRow) => {
     setEditingRow(row);
@@ -299,6 +302,13 @@ export default function EntryEditor({
   async function handleSave() {
     if (!canSave) return;
     setSaveError(null);
+
+    // #174: pre-validate client-side so a blank ingredient name surfaces as a
+    // clear message instead of a raw "Request failed with status code 400".
+    if (rows.some(r => !r.name.trim())) {
+      setSaveError('Every ingredient needs a name');
+      return;
+    }
 
     const ingredients: IngredientInput[] = rows.map(r => ({
       name: r.name,
