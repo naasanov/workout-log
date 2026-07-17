@@ -42,7 +42,7 @@ import EntryEditor from './EntryEditor';
 import MealBuilder from './MealBuilder';
 import BarcodeScanner from './BarcodeScanner';
 import BarcodeAttachmentCard from './BarcodeAttachmentCard';
-import ToolCallCard from './ToolCallCard';
+import ToolCallCard, { friendlyToolName } from './ToolCallCard';
 import ConfirmModal from '../../components/ConfirmModal';
 import type { EntryInput, EntryEditorMode, ProposeEntryArgs, ProposeCustomFoodArgs, CustomFoodInput, BarcodeAttachmentData, ImageRedactedData } from './types';
 import styles from './NutritionChat.module.scss';
@@ -498,7 +498,22 @@ function classifyMergedPart(
   if (merged.type === 'merged-reasoning') return 'cluster';
 
   const { part } = merged;
-  if (!isToolUIPart(part)) return 'inline';
+  if (!isToolUIPart(part)) {
+    // Only genuinely visible, always-shown parts are 'inline'. Everything else
+    // (e.g. AI SDK 'step-start' boundary markers, empty text) is 'hidden' so it
+    // neither renders nor fragments the single process timeline. Keeping these
+    // out of the timeline is what prevents the "reasoning / tool call keeps
+    // breaking apart into separate clusters" problem.
+    if (part.type === 'text') return part.text ? 'inline' : 'hidden';
+    if (
+      part.type === 'file' ||
+      part.type === 'data-imageRedacted' ||
+      part.type === 'data-barcodeAttachment'
+    ) {
+      return 'inline';
+    }
+    return 'hidden';
+  }
 
   const toolName = getToolName(part as ToolUIPart | DynamicToolUIPart);
   const toolCallId = (part as { toolCallId: string }).toolCallId;
@@ -531,6 +546,13 @@ function groupPartsForRender(
   confirmedCustomFoodProposals: Map<string, string>,
 ): RenderGroup[] {
   const groups: RenderGroup[] = [];
+  // All process steps (reasoning + tool calls) across the whole message collapse
+  // into ONE timeline, not one-per-contiguous-run. The first cluster-eligible
+  // part creates the single cluster (placed at that position); every later
+  // cluster part is appended to that same cluster even if inline parts (the
+  // proposal card, final text) appear between them. In practice the process runs
+  // first and the proposal/answer follow, so this reads top-to-bottom naturally.
+  let cluster: { kind: 'cluster'; items: MergedPart[]; groupKey: string } | null = null;
 
   for (const merged of mergedParts) {
     const cls = classifyMergedPart(
@@ -543,13 +565,11 @@ function groupPartsForRender(
     if (cls === 'hidden') continue;
 
     if (cls === 'cluster') {
-      const last = groups[groups.length - 1];
-      if (last && last.kind === 'cluster') {
-        last.items.push(merged);
-      } else {
-        const key = merged.type === 'merged-reasoning' ? `r${merged.originalIndices[0]}` : `t${merged.originalIndex}`;
-        groups.push({ kind: 'cluster', items: [merged], groupKey: `cluster-${key}` });
+      if (!cluster) {
+        cluster = { kind: 'cluster', items: [], groupKey: `cluster-${clusterItemKey(merged)}` };
+        groups.push(cluster);
       }
+      cluster.items.push(merged);
     } else {
       const key = merged.type === 'merged-reasoning' ? `r${merged.originalIndices[0]}` : `s${merged.originalIndex}`;
       groups.push({ kind: 'single', merged, groupKey: `single-${key}` });
@@ -581,67 +601,42 @@ function renderClusterItem(merged: MergedPart, isStreamingThis: boolean): React.
   );
 }
 
-function clusterSummaryLabel(toolCount: number, reasoningCount: number): string {
-  const bits: string[] = [];
-  if (toolCount > 0) bits.push(`Used ${toolCount} tool${toolCount !== 1 ? 's' : ''}`);
-  if (reasoningCount > 0) bits.push(toolCount > 0 ? 'reasoned' : 'Reasoned');
-  return bits.length > 0 ? bits.join(' · ') : 'Steps';
+// Title shown for a single step in the timeline — reasoning reads "Thinking…"
+// while it streams, "Reasoning" once settled; tool calls use their friendly name.
+function stepTitle(merged: MergedPart, streaming: boolean): string {
+  if (merged.type === 'merged-reasoning') {
+    return streaming && merged.streaming ? 'Thinking…' : 'Reasoning';
+  }
+  return friendlyToolName(getToolName(merged.part as ToolUIPart | DynamicToolUIPart));
 }
 
-interface ToolReasoningClusterProps {
+interface ProcessTimelineProps {
   items: MergedPart[];
   isStreamingThis: boolean;
 }
 
-function ToolReasoningCluster({ items, isStreamingThis }: ToolReasoningClusterProps) {
+// #175 (redesign): one unified, collapsible timeline for a message's whole
+// reasoning/tool-call process.
+//
+// - During execution: the collapsed line shows ONLY the current (last) step's
+//   title; each new step replaces it with a slide-up "conveyor" animation.
+// - After execution: the collapsed line reads "N steps".
+// - Expanding (either state) reveals the full ordered list; new steps append
+//   below while streaming. Each list item is itself a single-level collapsible
+//   (reasoning → text, or tool → input/output) — no redundant nested wrapper.
+// - The body uses the grid 0fr→1fr auto-height technique (not a clamped
+//   max-height), so nested item expansions are never clipped; the thread scrolls.
+function ProcessTimeline({ items, isStreamingThis }: ProcessTimelineProps) {
   const [open, setOpen] = useState(false);
-  const innerRef = useRef<HTMLDivElement>(null);
 
-  const toolCount = items.filter(m => m.type === 'other').length;
-  const reasoningCount = items.filter(m => m.type === 'merged-reasoning').length;
+  if (items.length === 0) return null;
 
-  // While streaming: keep only the current (last) step inline; everything
-  // else in this cluster collapses behind a small expander.
-  if (isStreamingThis) {
-    const current = items[items.length - 1];
-    const earlier = items.slice(0, -1);
+  const currentIndex = items.length - 1;
+  const current = items[currentIndex];
+  const collapsedLabel = isStreamingThis
+    ? stepTitle(current, true)
+    : `${items.length} step${items.length !== 1 ? 's' : ''}`;
 
-    return (
-      <div className={styles.toolCluster}>
-        {earlier.length > 0 && (
-          <>
-            <button
-              type="button"
-              className={styles.reasoningToggle}
-              onClick={() => setOpen(p => !p)}
-              aria-expanded={open}
-            >
-              <ChevronDown
-                className={`${styles.reasoningChevron} ${open ? styles.reasoningChevronOpen : ''}`}
-                size={16}
-                aria-hidden="true"
-                style={{ display: 'block' }}
-              />
-              {open ? 'Hide earlier steps' : `${earlier.length} earlier step${earlier.length !== 1 ? 's' : ''}`}
-            </button>
-            <div
-              className={`${styles.reasoningBody} ${open ? styles.reasoningBodyOpen : ''}`}
-              style={open ? { maxHeight: innerRef.current ? innerRef.current.scrollHeight + 'px' : '2000px' } : { maxHeight: '0px' }}
-              aria-hidden={!open}
-            >
-              <div ref={innerRef}>
-                {earlier.map(m => renderClusterItem(m, isStreamingThis))}
-              </div>
-            </div>
-          </>
-        )}
-        {renderClusterItem(current, isStreamingThis)}
-      </div>
-    );
-  }
-
-  // Completed: collapse the whole chain into a single compact summary line.
-  const label = clusterSummaryLabel(toolCount, reasoningCount);
   return (
     <div className={styles.toolCluster}>
       <button
@@ -656,14 +651,24 @@ function ToolReasoningCluster({ items, isStreamingThis }: ToolReasoningClusterPr
           aria-hidden="true"
           style={{ display: 'block' }}
         />
-        {label}
+        <span className={styles.timelineLabelViewport}>
+          {/* Keyed by the current step while streaming so React remounts the
+              label and re-plays the slide-up "conveyor" animation on each step. */}
+          <span
+            key={isStreamingThis ? `step-${currentIndex}` : 'done'}
+            className={isStreamingThis ? styles.timelineLabelLive : styles.timelineLabel}
+          >
+            {collapsedLabel}
+          </span>
+        </span>
+        {isStreamingThis && <span className={styles.reasoningSpinner} aria-hidden="true" />}
       </button>
+
       <div
-        className={`${styles.reasoningBody} ${open ? styles.reasoningBodyOpen : ''}`}
-        style={open ? { maxHeight: innerRef.current ? innerRef.current.scrollHeight + 'px' : '2000px' } : { maxHeight: '0px' }}
+        className={`${styles.timelineBody} ${open ? styles.timelineBodyOpen : ''}`}
         aria-hidden={!open}
       >
-        <div ref={innerRef}>
+        <div className={styles.timelineBodyInner}>
           {items.map(m => renderClusterItem(m, isStreamingThis))}
         </div>
       </div>
@@ -727,7 +732,7 @@ function ChatMessage({
   // Renders a single non-cluster part (text / attachment / resolved or
   // actionable proposal). Mirrors the pre-#175 per-part switch — cluster-
   // eligible parts (plain tool-call cards, reasoning) never reach here; they
-  // render via ToolReasoningCluster/renderClusterItem instead.
+  // render via ProcessTimeline/renderClusterItem instead.
   function renderSinglePart(merged: MergedPart): React.ReactNode {
     if (merged.type === 'merged-reasoning') {
       // Not reachable — merged-reasoning is always cluster-eligible — but
@@ -929,7 +934,7 @@ function ChatMessage({
           }
 
           // #104: hidden background helpers, and any other plain tool call —
-          // both are handled via classifyMergedPart/ToolReasoningCluster and
+          // both are handled via classifyMergedPart/ProcessTimeline and
           // should never reach renderSinglePart. Fallback to null just in
           // case classification and this switch ever drift apart.
           return null;
@@ -943,7 +948,7 @@ function ChatMessage({
       {groups.map(group => (
         group.kind === 'cluster'
           ? (
-            <ToolReasoningCluster
+            <ProcessTimeline
               key={group.groupKey}
               items={group.items}
               isStreamingThis={isStreamingThis}

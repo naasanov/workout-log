@@ -409,6 +409,68 @@
   width: 100%;
 }
 
+// #175 (redesign): single process-timeline control.
+// Collapsed label sits in a clipped viewport so the streaming step title can
+// slide up into place ("conveyor") as the current step changes.
+.timelineLabelViewport {
+  display: inline-flex;
+  overflow: hidden;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.timelineLabel {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+// Live (streaming) label re-mounts per step and slides up into place.
+.timelineLabelLive {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  animation: stepSlideUp 0.28s ease;
+}
+
+@keyframes stepSlideUp {
+  from {
+    transform: translateY(80%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+// Auto-height expand/collapse via grid-template-rows 0fr→1fr. Unlike a clamped
+// max-height, the open row is sized to its natural content, so nested
+// ToolCallCard/ReasoningBubble expansions are never clipped (the thread scrolls).
+.timelineBody {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.22s ease;
+}
+
+.timelineBodyOpen {
+  grid-template-rows: 1fr;
+}
+
+.timelineBodyInner {
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  // Slight inset so the nested step list reads as "inside" the timeline.
+  padding-left: 4px;
+}
+
 // ---- Reasoning bubble (#66/#77) ----
 // #77: Collapsed state now matches ToolCallCard's compact .header styling —
 //      single muted line, chevron rotates, no visible border when collapsed.

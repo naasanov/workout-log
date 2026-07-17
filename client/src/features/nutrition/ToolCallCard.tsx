@@ -47,7 +47,7 @@ function toTitleCase(name: string): string {
     .replace(/\b\w/g, c => c.toUpperCase());
 }
 
-function friendlyToolName(rawName: string): string {
+export function friendlyToolName(rawName: string): string {
   return TOOL_LABEL_MAP[rawName] ?? toTitleCase(rawName);
 }
 
