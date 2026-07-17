@@ -340,6 +340,12 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
       setSaveError('Please enter a name.');
       return;
     }
+    // #174: pre-validate client-side so a blank ingredient name surfaces as a
+    // clear message instead of a raw "Request failed with status code 400".
+    if (kind === 'meal' && rows.some(r => !r.name.trim())) {
+      setSaveError('Every ingredient needs a name');
+      return;
+    }
     setSaveError(null);
 
     // Proposal mode: hand payload back to caller; no DB write here.
@@ -425,10 +431,13 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<BuilderRow | null>(null);
 
+  // #178: reuse an existing empty/untitled row instead of stacking a new blank
+  // one each time "add ingredient" is tapped.
   const openSheetForAdd = useCallback(() => {
-    setEditingRow(null);
+    const existingEmpty = rows.find(r => !r.name.trim());
+    setEditingRow(existingEmpty ?? null);
     setSheetOpen(true);
-  }, []);
+  }, [rows]);
 
   const openSheetForEdit = useCallback((row: BuilderRow) => {
     setEditingRow(row);
