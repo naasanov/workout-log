@@ -1,10 +1,12 @@
 @import "../../styles/variables";
 
-// Full-screen overlay rendered on top of everything (z-index above modals).
+// Full-screen overlay rendered on top of everything, including the
+// IngredientSheet it's mounted inside of (#177: scanner must cover the
+// sheet, so this must beat IngredientSheet's .sheet at z-index 1101).
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 1100;
+  z-index: 1102;
   background-color: rgba(0, 0, 0, 0.92);
   display: flex;
   align-items: center;
