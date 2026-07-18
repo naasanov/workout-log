@@ -495,7 +495,12 @@ function classifyMergedPart(
   deniedCustomFoodProposals: Set<string>,
   confirmedCustomFoodProposals: Map<string, string>,
 ): 'cluster' | 'inline' | 'hidden' {
-  if (merged.type === 'merged-reasoning') return 'cluster';
+  if (merged.type === 'merged-reasoning') {
+    // An empty reasoning block that's finished streaming renders nothing
+    // (ReasoningBubble returns null) — hide it so it doesn't inflate the
+    // "N steps" count or leave a phantom step. Still show it while streaming.
+    return merged.text.trim() || merged.streaming ? 'cluster' : 'hidden';
+  }
 
   const { part } = merged;
   if (!isToolUIPart(part)) {
