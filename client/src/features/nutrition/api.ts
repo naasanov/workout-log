@@ -242,6 +242,36 @@ export async function clearTranscript(date: string): Promise<void> {
   await clientApi.delete('/nutrition/chat/transcript', { params: { date } });
 }
 
+// ---- Proposal resolutions (#186) ----
+// Server-side persistence for propose_entry / propose_custom_food accept/deny
+// state, so a re-fetched transcript doesn't render an already-resolved
+// proposal as pending again. localStorage remains the fast optimistic path in
+// NutritionChat.tsx; these calls are the source-of-truth writes/reads.
+export type ProposalResolution = {
+  toolCallId: string;
+  kind: 'entry' | 'custom_food';
+  status: 'confirmed' | 'denied';
+  displayName: string | null;
+};
+
+/** Load all resolved proposals for a local day. */
+export async function fetchResolutions(date: string): Promise<ProposalResolution[]> {
+  const res = await clientApi.get('/nutrition/chat/resolutions', { params: { date } });
+  const rows = (res.data.data ?? []) as { tool_call_id: string; kind: 'entry' | 'custom_food'; status: 'confirmed' | 'denied'; display_name: string | null }[];
+  return rows.map(r => ({ toolCallId: r.tool_call_id, kind: r.kind, status: r.status, displayName: r.display_name }));
+}
+
+/** Record a single proposal's resolution. */
+export async function saveResolution(
+  date: string,
+  toolCallId: string,
+  kind: 'entry' | 'custom_food',
+  status: 'confirmed' | 'denied',
+  displayName: string | null = null,
+): Promise<void> {
+  await clientApi.post('/nutrition/chat/resolutions', { date, toolCallId, kind, status, displayName });
+}
+
 // ---- App feedback (#1) — POST creates a GitHub issue server-side when a
 // GITHUB_TOKEN is configured, else stores in a feedback table. App-level, not
 // nutrition-scoped, but lives here since the feedback UI ships with this batch.

@@ -4,7 +4,7 @@ import { authenticateToken } from './auth';
 import { validateId } from '../utils/validation';
 import handleSqlError from '../utils/handleSqlError';
 import { User } from '../types';
-import { entryInputSchema, goalsSchema, customFoodInputSchema } from '../schemas/nutrition';
+import { entryInputSchema, goalsSchema, customFoodInputSchema, proposalResolutionInputSchema } from '../schemas/nutrition';
 import * as store from '../services/nutrition/store';
 import { searchAllFoodsWithPortions, lookupBarcode, getPortions } from '../services/nutrition/providers';
 import { streamNutritionChat } from '../services/nutrition/agent';
@@ -14,6 +14,9 @@ import {
   appendMessage,
   markInterrupted,
   clearTranscript,
+  getResolutions,
+  saveResolution,
+  clearResolutions,
 } from '../services/nutrition/transcripts';
 
 const router = Router();
@@ -349,6 +352,44 @@ router.delete('/chat/transcript', async (req, res): Promise<any> => {
 
   try {
     await clearTranscript(uuid, date);
+    // #186: clearing the chat must also drop that day's resolutions, mirroring
+    // executeClearChat's dropResolutionsForDate on the client — otherwise a
+    // stale resolution row could reattach to a toolCallId that gets reused.
+    await clearResolutions(uuid, date);
+    return res.status(204).send();
+  } catch (error) {
+    return handleSqlError(error, res);
+  }
+});
+
+// GET /chat/resolutions?date=YYYY-MM-DD — proposal accept/deny state for a day (#186)
+router.get('/chat/resolutions', async (req, res): Promise<any> => {
+  const { uuid }: User = res.locals.user;
+  const date = (req.query.date ?? '') as string;
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ message: 'date query param must be in YYYY-MM-DD format' });
+  }
+
+  try {
+    const data = await getResolutions(uuid, date);
+    return res.status(200).json({ data, message: `Found ${data.length} resolution(s)` });
+  } catch (error) {
+    return handleSqlError(error, res);
+  }
+});
+
+// POST /chat/resolutions — record a proposal's accept/deny state (#186)
+router.post('/chat/resolutions', async (req, res): Promise<any> => {
+  const { uuid }: User = res.locals.user;
+  const parsed = proposalResolutionInputSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Invalid request body' });
+  }
+
+  try {
+    const { date, toolCallId, kind, status, displayName } = parsed.data;
+    await saveResolution(uuid, date, toolCallId, kind, status, displayName ?? null);
     return res.status(204).send();
   } catch (error) {
     return handleSqlError(error, res);

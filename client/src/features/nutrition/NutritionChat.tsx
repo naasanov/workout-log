@@ -36,8 +36,8 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, isToolUIPart, getToolName } from 'ai';
 import type { FileUIPart, UIMessage, ToolUIPart, DynamicToolUIPart } from 'ai';
 import ReactMarkdown from 'react-markdown';
-import { useCreateEntry, useCreateCustomFood, fetchTranscript, clearTranscript, lookupBarcode } from './api';
-import type { StoredChatMessage } from './api';
+import { useCreateEntry, useCreateCustomFood, fetchTranscript, clearTranscript, lookupBarcode, fetchResolutions, saveResolution } from './api';
+import type { StoredChatMessage, ProposalResolution } from './api';
 import EntryEditor from './EntryEditor';
 import MealBuilder from './MealBuilder';
 import BarcodeScanner from './BarcodeScanner';
@@ -1046,6 +1046,43 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     });
   }, [deniedProposals, confirmedProposals, deniedCustomFoodProposals, confirmedCustomFoodProposals, selectedDate]);
 
+  // #186: merge server-persisted resolutions into the local collections.
+  // localStorage above is an OPTIMISTIC fast path (so an accepted proposal
+  // never flashes back to "pending" before a server round-trip lands) — but
+  // it's per-device and can go stale/missing, which is exactly what let a
+  // resolved proposal come back as actionable. The server is the durable
+  // source of truth, so on conflict its rows win: they're merged in AFTER the
+  // existing Set/Map contents (Map spread order means a later same-key entry
+  // overwrites; Set membership is a no-op either way).
+  const applyServerResolutions = useCallback((rows: ProposalResolution[]) => {
+    if (rows.length === 0) return;
+    const deniedEntry = rows.filter(r => r.kind === 'entry' && r.status === 'denied').map(r => r.toolCallId);
+    const confirmedEntry: [string, string][] = rows
+      .filter(r => r.kind === 'entry' && r.status === 'confirmed')
+      .map(r => [r.toolCallId, r.displayName ?? '']);
+    const deniedFood = rows.filter(r => r.kind === 'custom_food' && r.status === 'denied').map(r => r.toolCallId);
+    const confirmedFood: [string, string][] = rows
+      .filter(r => r.kind === 'custom_food' && r.status === 'confirmed')
+      .map(r => [r.toolCallId, r.displayName ?? '']);
+
+    if (deniedEntry.length) setDeniedProposals(prev => new Set([...prev, ...deniedEntry]));
+    if (confirmedEntry.length) setConfirmedProposals(prev => new Map([...prev, ...confirmedEntry]));
+    if (deniedFood.length) setDeniedCustomFoodProposals(prev => new Set([...prev, ...deniedFood]));
+    if (confirmedFood.length) setConfirmedCustomFoodProposals(prev => new Map([...prev, ...confirmedFood]));
+  }, []);
+
+  // Fetch resolutions for `date` from the server and merge them in — a no-op
+  // (via applyServerResolutions' early return) when the server has nothing.
+  // Best-effort: a failed read must never break the chat.
+  const refreshResolutionsFromServer = useCallback((date: string) => {
+    fetchResolutions(date)
+      .then(rows => {
+        if (date !== loadedDateRef.current) return; // day changed while in flight — stale
+        applyServerResolutions(rows);
+      })
+      .catch(() => {});
+  }, [applyServerResolutions]);
+
   // Keep a ref to the latest messages so the (stable) refetch callback can compare
   // the incoming DB transcript against what's currently loaded without re-creating
   // itself on every message change.
@@ -1133,8 +1170,11 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   }, []);
 
   // On mount: load transcript from DB, then evaluate the dangling condition.
+  // #186: also pull server-side resolutions so an accepted/denied proposal
+  // from another device (or a cleared local cache) renders resolved on load.
   useEffect(() => {
     fetchAndApplyTranscript(selectedDate).then(applied => evaluateDangling(selectedDate, applied));
+    refreshResolutionsFromServer(selectedDate);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1159,8 +1199,10 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
       resolutionsDateRef.current = selectedDate;
       fetchAndApplyTranscript(selectedDate, cached)
         .then(applied => evaluateDangling(selectedDate, applied));
+      // #186: server resolutions win over whatever the local cache had for this day.
+      refreshResolutionsFromServer(selectedDate);
     }
-  }, [selectedDate, setMessages, fetchAndApplyTranscript, evaluateDangling]);
+  }, [selectedDate, setMessages, fetchAndApplyTranscript, evaluateDangling, refreshResolutionsFromServer]);
 
   // #15: On window focus / visibilitychange — refetch transcript so runs that
   // completed server-side while the tab was backgrounded show up. Also (re)start
@@ -1170,6 +1212,8 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
       if (document.visibilityState === 'visible') {
         fetchAndApplyTranscript(selectedDate)
           .then(applied => evaluateDangling(selectedDate, applied));
+        // #186: pick up resolutions written from another device/tab while backgrounded.
+        refreshResolutionsFromServer(selectedDate);
       }
     }
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -1178,7 +1222,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleVisibilityChange);
     };
-  }, [selectedDate, fetchAndApplyTranscript, evaluateDangling]);
+  }, [selectedDate, fetchAndApplyTranscript, evaluateDangling, refreshResolutionsFromServer]);
 
   // The poll loop. Exactly one interval at a time; keyed on pollingActive +
   // selectedDate. React tears down the previous interval (cleanup) before
@@ -1509,14 +1553,20 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   const handleProposalDeny = useCallback((partKey: string) => {
     setDeniedProposals(prev => new Set([...prev, partKey]));
     setPendingDenialCount(prev => prev + 1);
-  }, []);
+    // #186: write through to the server so this resolution survives a reload/
+    // device switch. localStorage (via the persist effect above) is the
+    // optimistic fast path; this call is best-effort and never blocks the UI.
+    saveResolution(selectedDate, partKey, 'entry', 'denied', null).catch(() => {});
+  }, [selectedDate]);
 
   const handleProposalConfirmWithTracking = useCallback(async (input: EntryInput, partKey: string) => {
     await createEntry.mutateAsync(input);
     // #71: store the entry name so the confirmed message can display it
     const entryName = (input as unknown as { name?: string }).name ?? '';
     setConfirmedProposals(prev => new Map([...prev, [partKey, entryName]]));
-  }, [createEntry]);
+    // #186: server write-through (best-effort, see handleProposalDeny above)
+    saveResolution(selectedDate, partKey, 'entry', 'confirmed', entryName).catch(() => {});
+  }, [createEntry, selectedDate]);
 
   // ---- Custom food proposal handlers ----
   // Already mark-only (no auto-send) — also feeds the same denial-note queue
@@ -1524,12 +1574,16 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   const handleCustomFoodDeny = useCallback((partKey: string) => {
     setDeniedCustomFoodProposals(prev => new Set([...prev, partKey]));
     setPendingDenialCount(prev => prev + 1);
-  }, []);
+    // #186: server write-through (best-effort, see handleProposalDeny above)
+    saveResolution(selectedDate, partKey, 'custom_food', 'denied', null).catch(() => {});
+  }, [selectedDate]);
 
   const handleCustomFoodConfirm = useCallback(async (payload: CustomFoodInput, partKey: string) => {
     const saved = await createCustomFood.mutateAsync(payload);
     setConfirmedCustomFoodProposals(prev => new Map([...prev, [partKey, saved.name]]));
-  }, [createCustomFood]);
+    // #186: server write-through (best-effort, see handleProposalDeny above)
+    saveResolution(selectedDate, partKey, 'custom_food', 'confirmed', saved.name).catch(() => {});
+  }, [createCustomFood, selectedDate]);
 
   // ---- #7/#70: Clear chat — guarded by ConfirmModal ----
   const executeClearChat = useCallback(async () => {
