@@ -198,6 +198,19 @@ export const customFoodRowSchema = z.object({
 });
 export type CustomFoodRow = z.infer<typeof customFoodRowSchema>;
 
+// ---- Proposal resolutions (#186) ----
+// Server-side record of accept/deny state for propose_entry / propose_custom_food
+// cards, so a refetched transcript doesn't re-render an already-resolved proposal
+// as actionable. Keyed by toolCallId (see NutritionChat.tsx's ProposalResolutions).
+export const proposalResolutionInputSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  toolCallId: z.string().min(1).max(64),
+  kind: z.enum(['entry', 'custom_food']),
+  status: z.enum(['confirmed', 'denied']),
+  displayName: z.string().max(255).nullable().optional(),
+});
+export type ProposalResolutionInput = z.infer<typeof proposalResolutionInputSchema>;
+
 // ---- DB row / response shapes returned to the client ----
 export interface IngredientRow extends IngredientInput {
   id: number;

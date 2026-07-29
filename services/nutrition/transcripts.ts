@@ -103,3 +103,93 @@ export async function clearTranscript(
     return 0;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Proposal resolutions (#186) — server-side record of accept/deny state for
+// propose_entry / propose_custom_food cards, keyed by (user_uuid, date,
+// tool_call_id). This is what makes an accepted proposal stay "Logged: <name>"
+// after the transcript is refetched from the DB (previously only localStorage
+// remembered this, so it was lost across devices / cleared storage / reload
+// races).
+// ---------------------------------------------------------------------------
+
+/** A stored proposal resolution row as returned to the client. */
+export interface ProposalResolutionRow {
+  tool_call_id: string;
+  kind: 'entry' | 'custom_food';
+  status: 'confirmed' | 'denied';
+  display_name: string | null;
+}
+
+/**
+ * Fetch all proposal resolutions for a user+date.
+ * Returns an empty array on any error — callers must not let this break the chat.
+ */
+export async function getResolutions(
+  userUuid: string,
+  date: string,
+): Promise<ProposalResolutionRow[]> {
+  try {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT tool_call_id, kind, status, display_name
+       FROM proposal_resolutions
+       WHERE user_uuid = UUID_TO_BIN(?) AND date = ?`,
+      [userUuid, date],
+    );
+    return rows.map((row) => ({
+      tool_call_id: row.tool_call_id as string,
+      kind: row.kind as 'entry' | 'custom_food',
+      status: row.status as 'confirmed' | 'denied',
+      display_name: (row.display_name as string | null) ?? null,
+    }));
+  } catch (err) {
+    console.error('[transcripts] getResolutions failed:', err);
+    return [];
+  }
+}
+
+/**
+ * Record (or overwrite) a proposal's resolution. Upsert on the
+ * (user_uuid, date, tool_call_id) unique key so a duplicate write for the
+ * same toolCallId is idempotent. Best-effort — swallows errors so a failed
+ * write never breaks the chat UI.
+ */
+export async function saveResolution(
+  userUuid: string,
+  date: string,
+  toolCallId: string,
+  kind: 'entry' | 'custom_food',
+  status: 'confirmed' | 'denied',
+  displayName: string | null,
+): Promise<void> {
+  try {
+    await pool.query(
+      `INSERT INTO proposal_resolutions (user_uuid, date, tool_call_id, kind, status, display_name)
+       VALUES (UUID_TO_BIN(?), ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE kind = VALUES(kind), status = VALUES(status), display_name = VALUES(display_name)`,
+      [userUuid, date, toolCallId, kind, status, displayName],
+    );
+  } catch (err) {
+    console.error('[transcripts] saveResolution failed:', err);
+  }
+}
+
+/**
+ * Delete all proposal resolutions for a user+date. Mirrors clearTranscript —
+ * called from the same DELETE /chat/transcript route so a cleared chat doesn't
+ * leave orphaned resolution rows that could reattach to a future toolCallId
+ * collision (astronomically unlikely, but keeps the table tidy).
+ */
+export async function clearResolutions(
+  userUuid: string,
+  date: string,
+): Promise<void> {
+  try {
+    await pool.query(
+      `DELETE FROM proposal_resolutions WHERE user_uuid = UUID_TO_BIN(?) AND date = ?`,
+      [userUuid, date],
+    );
+  } catch (err) {
+    console.error('[transcripts] clearResolutions failed:', err);
+  }
+}
