@@ -39,7 +39,7 @@ import {
   nextKey,
   emptyRow,
   round2,
-  recomputeMacros,
+  scaleRowMacros,
   immediatePortions,
   rowFromFood,
   buildPortionListFromFetched,
@@ -212,33 +212,34 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
     onChange(rowFromFood(food, portions));
   }
 
+  // #185 — quantity/unit changes must scale macros even when the row has no
+  // per100g snapshot (hand-typed macros, or a snapshot lost via
+  // handleNameChange). scaleRowMacros derives a baseline from the row's
+  // current macros ÷ current grams in that case, so this always scales.
   function handleQuantityChange(e: React.ChangeEvent<HTMLInputElement>) {
     const quantity = parseFloat(e.target.value) || 0;
     const effectiveGrams = quantity * row.unitGrams;
-    if (row.per100g) {
-      onChange({ ...row, quantity, grams: effectiveGrams, ...recomputeMacros(row.per100g, effectiveGrams) });
-    } else {
-      onChange({ ...row, quantity, grams: effectiveGrams });
-    }
+    onChange({ ...row, quantity, grams: effectiveGrams, ...scaleRowMacros(row, effectiveGrams) });
   }
 
   function handleUnitChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const label = e.target.value;
     const selected = row.portions.find(p => p.label === label) ?? GRAMS_UNIT;
     const effectiveGrams = row.quantity * selected.grams;
-    if (row.per100g) {
-      onChange({
-        ...row,
-        unitLabel: selected.label,
-        unitGrams: selected.grams,
-        grams: effectiveGrams,
-        ...recomputeMacros(row.per100g, effectiveGrams),
-      });
-    } else {
-      onChange({ ...row, unitLabel: selected.label, unitGrams: selected.grams, grams: effectiveGrams });
-    }
+    onChange({
+      ...row,
+      unitLabel: selected.label,
+      unitGrams: selected.grams,
+      grams: effectiveGrams,
+      ...scaleRowMacros(row, effectiveGrams),
+    });
   }
 
+  // Only reachable when macrosReadOnly is false (row.per100g === null): the
+  // user is hand-entering a macro value. No separate "re-baseline" step is
+  // needed — scaleRowMacros (#185) always derives its baseline from the row's
+  // CURRENT macros/grams, so this edit automatically becomes the reference
+  // for the next quantity/unit change.
   function handleMacroChange(
     field: 'calories' | 'protein_g' | 'carbs_g' | 'fat_g',
     value: string,
