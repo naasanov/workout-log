@@ -16,6 +16,15 @@ html {
  * #62: Prevent iOS Safari from auto-zooming on input/textarea/select focus.
  * iOS zooms whenever the focused element has font-size < 16px.
  * A single global rule on mobile is the safest fix — no per-component changes needed.
+ *
+ * #187: A flat `16px !important` also clamped inputs *down* when a component
+ * intentionally sizes its surrounding text larger than 16px (e.g. the 22px
+ * Workouts reps/weight fields), making the input visibly smaller than the
+ * adjacent text/units. `max(16px, 1em)` makes this a floor instead of a fixed
+ * value: `1em` here resolves against the input's parent's computed font-size
+ * (elements inherit their font-size via the `* { font: inherit }` rule
+ * above), so a 22px context still renders a 22px input, while anything at or
+ * below 16px is still floored up to 16px.
  * The !important is intentional: component-level font-size rules that are < 16px
  * must be overridden to guarantee no zoom on any form control.
  */
@@ -23,6 +32,6 @@ html {
   input,
   textarea,
   select {
-    font-size: 16px !important;
+    font-size: max(16px, 1em) !important;
   }
 }
