@@ -83,6 +83,54 @@ export function recomputeMacros(
   };
 }
 
+// ---------------------------------------------------------------------------
+// #185 — Changing serving amount should scale macros correctly even if they
+// were manually entered.
+//
+// Previously, quantity/unit changes only recomputed macros `if (row.per100g)`.
+// Rows with no per100g snapshot (hand-typed macros, or a per100g snapshot lost
+// via handleNameChange after editing an auto-filled name) silently froze their
+// macros on any qty/unit change.
+//
+// `scaleRowMacros` unifies both cases: when a per100g snapshot exists, scale
+// from it (unchanged behaviour). When it doesn't, derive an implicit "per100g"
+// baseline from the row's CURRENT macros ÷ CURRENT grams and scale from that.
+// Because the baseline is derived fresh from current state every time (never
+// cached), a manual macro edit (handleMacroChange) automatically becomes the
+// new baseline for the next scale — no separate re-baseline step needed.
+// ---------------------------------------------------------------------------
+export function scaleRowMacros(
+  row: EditorRow,
+  newGrams: number,
+): Pick<EditorRow, 'calories' | 'protein_g' | 'carbs_g' | 'fat_g' | 'fiber_g' | 'sugar_g' | 'sodium_mg'> {
+  if (row.per100g) {
+    return recomputeMacros(row.per100g, newGrams);
+  }
+  // Guard divide-by-zero: with no prior grams to derive a rate from, there's
+  // no valid baseline — leave macros as-is rather than producing NaN/Infinity.
+  if (!row.grams) {
+    return {
+      calories: row.calories,
+      protein_g: row.protein_g,
+      carbs_g: row.carbs_g,
+      fat_g: row.fat_g,
+      fiber_g: row.fiber_g,
+      sugar_g: row.sugar_g,
+      sodium_mg: row.sodium_mg,
+    };
+  }
+  const factor = newGrams / row.grams;
+  return {
+    calories: round2(row.calories * factor),
+    protein_g: round2(row.protein_g * factor),
+    carbs_g: round2(row.carbs_g * factor),
+    fat_g: round2(row.fat_g * factor),
+    fiber_g: row.fiber_g != null ? round2(row.fiber_g * factor) : null,
+    sugar_g: row.sugar_g != null ? round2(row.sugar_g * factor) : null,
+    sodium_mg: row.sodium_mg != null ? round2(row.sodium_mg * factor) : null,
+  };
+}
+
 /**
  * Build the initial portions list visible immediately when a food is selected.
  * For custom foods the portions are already provided on the result.
@@ -164,7 +212,8 @@ export function applyNewPortions(row: EditorRow, newPortions: FoodPortion[]): Ed
   const preferred = newPortions.length > 1 ? newPortions[1] : GRAMS_UNIT;
   const quantity = row.unitLabel === 'g' ? 1 : row.quantity;
   const effectiveGrams = quantity * preferred.grams;
-  const macros = row.per100g ? recomputeMacros(row.per100g, effectiveGrams) : {};
+  // #185 — scale even without a per100g snapshot (see scaleRowMacros).
+  const macros = scaleRowMacros(row, effectiveGrams);
   return {
     ...row,
     portions: newPortions,
