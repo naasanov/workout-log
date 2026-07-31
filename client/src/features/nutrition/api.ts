@@ -19,7 +19,6 @@ export const nutritionKeys = {
   goals: ['nutrition', 'goals'] as const,
   customFoods: (status?: 'draft' | 'saved') =>
     status ? ['nutrition', 'customFoods', status] as const : ['nutrition', 'customFoods'] as const,
-  recentCustomFoods: ['nutrition', 'recentCustomFoods'] as const,
 };
 
 export function useDay(date: string) {
@@ -147,18 +146,6 @@ export function useCustomFoods(status?: 'draft' | 'saved') {
   });
 }
 
-export function useRecentCustomFoods(limit = 5) {
-  return useQuery<FoodSearchResult[]>({
-    queryKey: nutritionKeys.recentCustomFoods,
-    queryFn: async () => {
-      const res = await clientApi.get('/nutrition/custom-foods/recent', {
-        params: { limit },
-      });
-      return res.data.data;
-    },
-  });
-}
-
 export async function getCustomFood(id: number): Promise<CustomFoodRow> {
   const res = await clientApi.get(`/nutrition/custom-foods/${id}`);
   return res.data.data;
@@ -173,7 +160,6 @@ export function useCreateCustomFood() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['nutrition', 'customFoods'] });
-      qc.invalidateQueries({ queryKey: nutritionKeys.recentCustomFoods });
     },
   });
 }
@@ -187,7 +173,6 @@ export function useUpdateCustomFood() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['nutrition', 'customFoods'] });
-      qc.invalidateQueries({ queryKey: nutritionKeys.recentCustomFoods });
     },
   });
 }
@@ -200,7 +185,6 @@ export function useDeleteCustomFood() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['nutrition', 'customFoods'] });
-      qc.invalidateQueries({ queryKey: nutritionKeys.recentCustomFoods });
     },
   });
 }
