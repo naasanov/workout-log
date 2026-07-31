@@ -33,6 +33,22 @@
     align-items: flex-end;
     // Let logo shrink if header is tight; headerRight gets its space
     flex: 1;
+    // #192: allow the logo to shrink below its content width so the
+    // auth buttons never get squeezed into wrapping; truncate instead.
+    min-width: 0;
+    overflow: hidden;
+
+    .title {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  // #192: tighten header padding on mobile — the 2.5rem side padding is a
+  // big part of what squeezes the auth pills into wrapping on narrow screens.
+  @media (max-width: $mobile-width) {
+    padding: 1.25rem 1rem;
   }
 }
 
@@ -70,6 +86,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  // #192: never let this cluster get flex-shrunk below its content width —
+  // the logo (flex: 1, min-width: 0) should yield space instead.
+  flex-shrink: 0;
 }
 
 // #60: Feedback icon button in the header
@@ -110,6 +129,9 @@
   display: flex;
   align-items: baseline;
   gap: 10px;
+  // #192: keep the pill cluster at its natural width — never shrink it,
+  // the buttons wrapping their text is worse than the logo truncating.
+  flex-shrink: 0;
   font: {
     family: $sarabun;
     size: 18px;
@@ -121,6 +143,9 @@
     text-decoration: none;
     padding: 8px 15px;
     border-radius: 20px;
+    // #192: "Sign Up" / "Sign In" / "Logout" must stay on one line
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .transparentButton {
@@ -138,6 +163,18 @@
     transition: ease 0.2s;
     &:hover {
       background-color: $button-hover;
+    }
+  }
+
+  // #192: on mobile, shrink the pills' font/padding/gap so both buttons
+  // fit without squeezing — keeps ~40px effective tap height, matching
+  // the hamburger/feedback icon buttons.
+  @media (max-width: $mobile-width) {
+    gap: 6px;
+    font-size: 15px;
+
+    span, a, a:visited {
+      padding: 9px 12px;
     }
   }
 }
