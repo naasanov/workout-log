@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import { useDay, useGoals, useDeleteEntry, useCreateEntry, useRecentCustomFoods, getCustomFood } from './api';
+import { useDay, useGoals, useDeleteEntry } from './api';
 import EntryEditor from './EntryEditor';
 import NutritionGoalsModal from './NutritionGoalsModal';
 import NutritionChat from './NutritionChat';
 import MyFoodsSheet from './MyFoodsSheet';
 import MealBuilder from './MealBuilder';
 import ConfirmModal from '../../components/ConfirmModal.jsx';
-import type { EntryEditorMode, EntryRow, Meal, IngredientInput } from './types';
+import type { EntryEditorMode, EntryRow, Meal } from './types';
 import { MEALS, MEAL_LABELS } from './types';
 import styles from './NutritionTracker.module.scss';
 import { MoreVertical, ChevronLeft, ChevronRight, Target, BookMarked } from 'lucide-react';
@@ -142,80 +142,6 @@ function EntryMenu({ entry, onEdit, onDelete, onSaveAsMeal }: EntryMenuProps) {
           </button>
         </div>
       )}
-    </div>
-  );
-}
-
-// ---- Recently used custom foods row ----
-
-interface RecentlyUsedRowProps {
-  selectedDate: string;
-  defaultMeal?: Meal;
-}
-
-function RecentlyUsedRow({ selectedDate, defaultMeal }: RecentlyUsedRowProps) {
-  const { data: recent = [] } = useRecentCustomFoods(4);
-  const createEntry = useCreateEntry(selectedDate);
-
-  async function handleQuickReLog(food: { name: string; source: string; source_ref: string; per100g: any; portions?: any[] | null }) {
-    try {
-      const id = parseInt(food.source_ref, 10);
-      if (isNaN(id)) return;
-      const customFood = await getCustomFood(id);
-
-      let grams = customFood.total_grams;
-      if (customFood.servings.length > 0) {
-        grams = customFood.servings[0].grams;
-      }
-
-      const scaleFactor = grams / (customFood.total_grams || 1);
-      const ingredients: IngredientInput[] = customFood.ingredients.map(ing => ({
-        name: ing.name,
-        grams: Math.round(ing.grams * scaleFactor * 10) / 10,
-        source: 'custom' as const,
-        source_ref: ing.source_ref ?? null,
-        calories: Math.round(ing.calories * scaleFactor * 100) / 100,
-        protein_g: Math.round(ing.protein_g * scaleFactor * 100) / 100,
-        carbs_g: Math.round(ing.carbs_g * scaleFactor * 100) / 100,
-        fat_g: Math.round(ing.fat_g * scaleFactor * 100) / 100,
-        fiber_g: ing.fiber_g != null ? Math.round(ing.fiber_g * scaleFactor * 100) / 100 : null,
-        sugar_g: ing.sugar_g != null ? Math.round(ing.sugar_g * scaleFactor * 100) / 100 : null,
-        sodium_mg: ing.sodium_mg != null ? Math.round(ing.sodium_mg * scaleFactor * 100) / 100 : null,
-      }));
-
-      await createEntry.mutateAsync({
-        localDate: selectedDate,
-        meal: defaultMeal ?? 'breakfast',
-        name: food.name,
-        source: 'custom',
-        ingredients,
-        from_custom_food_id: id,
-      });
-    } catch {
-      // Silently ignore
-    }
-  }
-
-  if (recent.length === 0) return null;
-
-  return (
-    <div className={styles.recentRow}>
-      <span className={styles.recentLabel}>Recently used</span>
-      <div className={styles.recentItems}>
-        {recent.map(food => (
-          <button
-            key={food.source_ref}
-            type="button"
-            className={styles.recentItem}
-            onClick={() => handleQuickReLog(food)}
-            aria-label={`Quick re-log ${food.name}`}
-            title={`Quick re-log: ${food.name}`}
-          >
-            <span className={styles.recentName}>{food.name}</span>
-            <span className={styles.recentMeta}>{Math.round(food.per100g.calories)} kcal/100g</span>
-          </button>
-        ))}
-      </div>
     </div>
   );
 }
@@ -359,15 +285,6 @@ export default function NutritionTracker() {
           + Add food
         </button>
 
-        <button
-          className={styles.aiBtn}
-          onClick={() => setChatOpen(true)}
-          aria-label="Ask AI"
-          title="AI-powered food logging"
-        >
-          Ask AI
-        </button>
-
         {/* Goals button — #73: bullseye/target icon instead of sun-like glyph */}
         <button
           className={styles.settingsBtn}
@@ -493,9 +410,6 @@ export default function NutritionTracker() {
           ))}
         </div>
       ))}
-
-      {/* Recently used custom foods row */}
-      <RecentlyUsedRow selectedDate={selectedDate} defaultMeal={editorMode.kind === 'manual-add' ? (editorMode as any).defaultMeal : undefined} />
 
       {/* EntryEditor (always mounted, controlled by open) */}
       <EntryEditor
