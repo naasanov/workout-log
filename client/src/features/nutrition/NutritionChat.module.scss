@@ -416,7 +416,12 @@
   display: inline-flex;
   overflow: hidden;
   min-width: 0;
-  flex: 1 1 auto;
+  // #193: was `flex: 1 1 auto`, which let this viewport grow to fill the
+  // whole header row, pushing .reasoningSpinner (the next flex sibling) far
+  // right of the label with a big empty gap. Sizing to content (0 1 auto)
+  // keeps the dot right after the text — it still shrinks under min-width: 0
+  // so long labels ellipsize instead of overflowing or squeezing the dot out.
+  flex: 0 1 auto;
 }
 
 .timelineLabel {
