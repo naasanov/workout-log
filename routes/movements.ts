@@ -7,9 +7,30 @@ import { validateId, validateLabel } from '../utils/validation';
 import SqlError from '../utils/sqlErrors';
 const { NO_REFERENCE_ERROR, WRONG_VALUE_ERROR } = SqlError;
 import { authenticateToken } from "./auth";
+import { User } from '../types';
 
 const router = Router();
 router.use(authenticateToken);
+
+// Movements are owned transitively: movement -> section -> user. Without confirming that
+// chain a valid token can reach another user's data by guessing sequential ids. Callers
+// report a 404 rather than a 403 so ids stay unenumerable.
+async function ownsSection(uuid: string, sectionId: string): Promise<boolean> {
+    const [rows] = await pool.query<RowDataPacket[]>(`
+        SELECT 1 FROM sections
+        WHERE section_id = ? AND user_uuid = UUID_TO_BIN(?)
+    `, [sectionId, uuid]);
+    return rows.length > 0;
+}
+
+async function ownsMovement(uuid: string, movementId: string): Promise<boolean> {
+    const [rows] = await pool.query<RowDataPacket[]>(`
+        SELECT 1 FROM movements m
+        JOIN sections s ON s.section_id = m.section_id
+        WHERE m.movement_id = ? AND s.user_uuid = UUID_TO_BIN(?)
+    `, [movementId, uuid]);
+    return rows.length > 0;
+}
 
 // POST
 router.post('/:sectionId', async (req, res): Promise<any> => {
@@ -17,6 +38,15 @@ router.post('/:sectionId', async (req, res): Promise<any> => {
     const sectionId = req.params.sectionId;
 
     if (!validateId(sectionId, res) || !validateLabel(label, res)) return;
+
+    const { uuid }: User = res.locals.user;
+    try {
+        if (!await ownsSection(uuid, sectionId)) {
+            return res.status(404).json({ message: `Section with id ${sectionId} not found` });
+        }
+    } catch (error) {
+        return handleSqlError(error, res);
+    }
 
     let movementId: number;
     try {
@@ -49,13 +79,10 @@ router.get('/section/:sectionId', async (req, res): Promise<any> => {
     const sectionId = req.params.sectionId;
     if (!validateId(sectionId, res)) return;
     
+    const { uuid }: User = res.locals.user;
     let data: RowDataPacket[];
     try {
-        const [sectionExists] = await pool.query<RowDataPacket[]>(`
-            SELECT 1 FROM sections
-            WHERE section_id = ?
-        `, [sectionId])
-        if (sectionExists.length === 0) {
+        if (!await ownsSection(uuid, sectionId)) {
             return res.status(404).json({ message: `Section with id ${sectionId} does not exist` });
         }
     } catch (error) {
@@ -84,13 +111,15 @@ router.get('/movement/:movementId', async (req, res): Promise<any> => {
     const movementId = req.params.movementId;
     if (!validateId(movementId, res)) return;
     
+    const { uuid }: User = res.locals.user;
     let data: RowDataPacket;
     try {
         [[data]] = await pool.query<RowDataPacket[]>(`
-            SELECT movement_id as id, label
-            FROM movements
-            WHERE movement_id = ?
-        `, [movementId]);
+            SELECT m.movement_id as id, m.label
+            FROM movements m
+            JOIN sections s ON s.section_id = m.section_id
+            WHERE m.movement_id = ? AND s.user_uuid = UUID_TO_BIN(?)
+        `, [movementId, uuid]);
     }
     catch (error) {
         return handleSqlError(error, res);
@@ -112,8 +141,13 @@ router.patch('/:movementId', async (req, res): Promise<any> => {
     const label = req.body.label;
     if (!validateId(movementId, res) || !validateLabel(label, res)) return;
 
+    const { uuid }: User = res.locals.user;
     let data: ResultSetHeader;
     try {
+        if (!await ownsMovement(uuid, movementId)) {
+            return res.status(404).json({ message: `No movement with id ${movementId}` });
+        }
+
         [data] = await pool.query<ResultSetHeader>(`
             UPDATE movements
             SET label = ?
@@ -136,12 +170,14 @@ router.delete('/:movementId', async (req, res): Promise<any> => {
     const movementId = req.params.movementId;
     if (!validateId(movementId, res)) return;
 
+    const { uuid }: User = res.locals.user;
     let data: ResultSetHeader;
     try {
         [data] = await pool.query<ResultSetHeader>(`
-            DELETE FROM movements
-            WHERE movement_id = ?
-            `, [movementId]
+            DELETE m FROM movements m
+            JOIN sections s ON s.section_id = m.section_id
+            WHERE m.movement_id = ? AND s.user_uuid = UUID_TO_BIN(?)
+            `, [movementId, uuid]
         )
     } catch (error) {
         return handleSqlError(error, res, {

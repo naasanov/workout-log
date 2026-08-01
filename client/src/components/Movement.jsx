@@ -81,23 +81,22 @@ function MovementMenu({ onAddVariation, onDeleteExercise }) {
   );
 }
 
-function Movement({ movement, setMovements }) {
+function Movement({ movement, setMovements, variationsStatus, serverVariations }) {
   const [variations, setVariations] = useState([])
   const [showConfirm, setShowConfirm] = useState(false);
   const { withAuth } = useAuth();
 
+  // Variations are fetched in one batched request by the parent Section
   useEffect(() => {
-    const fetchMovements = async () => {
-      const res = await withAuth(() => clientApi.get(`/variations/movement/${movement.id}`));
-      setVariations(res?.data.data ?? [{
+    if (variationsStatus === 'loading') return;
+    setVariations(variationsStatus === 'error' || !serverVariations
+      ? [{
         id: uuid(),
         label: "Variation",
         date: new Date()
-      }])
-    }
-    fetchMovements();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [movement.id])
+      }]
+      : serverVariations)
+  }, [variationsStatus, serverVariations])
 
   async function handleRemove() {
     setMovements(prevMovements => (

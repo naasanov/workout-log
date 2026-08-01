@@ -9,11 +9,33 @@ function parseUrl(url) {
   return { user: m[1], password: m[2], host: m[3], port: parseInt(m[4]), database: m[5] };
 }
 
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// The old web dyno is still serving traffic during the release phase, so its pool may be
+// holding every connection JawsDB allows us. Those free up quickly; retry instead of
+// failing the whole deploy on a transient spike.
+async function connectWithRetry(config, attempts = 6, delayMs = 5000) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await mysql.createConnection(config);
+    } catch (err) {
+      const transient = err.code === 'ER_USER_LIMIT_REACHED'
+        || err.code === 'ER_CON_COUNT_ERROR'
+        || err.code === 'ETIMEDOUT'
+        || err.code === 'ECONNREFUSED'
+        || err.code === 'ECONNRESET';
+      if (!transient || attempt >= attempts) throw err;
+      console.log(`  retry connect (${attempt}/${attempts - 1}) after ${err.code}`);
+      await sleep(delayMs);
+    }
+  }
+}
+
 async function run() {
   const dbUrl = process.env.JAWSDB_URL;
   if (!dbUrl) throw new Error('JAWSDB_URL not set');
 
-  const conn = await mysql.createConnection(parseUrl(dbUrl));
+  const conn = await connectWithRetry(parseUrl(dbUrl));
   console.log('Connected to database');
 
   await conn.execute(`

@@ -84,6 +84,8 @@ function SectionMenu({ onAddExercise, onDeleteSection }) {
 
 function Section({ setSections, section }) {
   const [movements, setMovements] = useState([]);
+  // null while loading, 'error' if the request failed, otherwise a movement id -> variations map
+  const [variationsByMovement, setVariationsByMovement] = useState(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const { withAuth } = useAuth();
 
@@ -95,6 +97,30 @@ function Section({ setSections, section }) {
     fetchMovements();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section.id])
+
+  // Fetch every movement's variations in one request rather than letting each Movement
+  // fire its own — that fan-out was saturating the database connection pool on load.
+  const movementIdsKey = movements.map(m => m.id).join(',');
+  useEffect(() => {
+    const ids = movementIdsKey.split(',').filter(id => /^\d+$/.test(id));
+    if (ids.length === 0) {
+      setVariationsByMovement({});
+      return;
+    }
+
+    let cancelled = false;
+    const fetchVariations = async () => {
+      setVariationsByMovement(null);
+      const res = await withAuth(() => (
+        clientApi.get(`/variations/movements`, { params: { ids: ids.join(',') } })
+      ));
+      if (cancelled) return;
+      setVariationsByMovement(res?.data.data ?? 'error');
+    }
+    fetchVariations();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [movementIdsKey])
 
   async function handleRemove() {
     setSections(prevSections => (
@@ -197,6 +223,16 @@ function Section({ setSections, section }) {
                 movement={m}
                 setMovements={setMovements}
                 sectionId={section.id}
+                variationsStatus={
+                  variationsByMovement === null ? 'loading'
+                    : variationsByMovement === 'error' ? 'error'
+                      : 'ready'
+                }
+                serverVariations={
+                  variationsByMovement && variationsByMovement !== 'error'
+                    ? variationsByMovement[m.id]
+                    : undefined
+                }
               />
             ))}
           </ul>
