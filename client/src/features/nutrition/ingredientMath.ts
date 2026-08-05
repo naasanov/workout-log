@@ -151,8 +151,17 @@ export function immediatePortions(food: FoodSearchResult): FoodPortion[] {
 /** Convert a FoodSearchResult into an EditorRow.
  *  Picks quantity=1 + first available portion if the food has a serving_grams,
  *  otherwise defaults to quantity=100, unit=g (same behaviour as before).
+ *
+ *  #199: pass `existingRowKey` when this call is filling in an already-open
+ *  row (food-search selection or barcode scan on an editing row) so the
+ *  result replaces that row instead of minting a new one. Omit it only when
+ *  genuinely creating a brand-new row.
  */
-export function rowFromFood(food: FoodSearchResult, existingPortions?: FoodPortion[]): EditorRow {
+export function rowFromFood(
+  food: FoodSearchResult,
+  existingPortions?: FoodPortion[],
+  existingRowKey?: number,
+): EditorRow {
   const portions = existingPortions ?? immediatePortions(food);
 
   // Default: use first non-gram portion if available, else grams.
@@ -170,7 +179,7 @@ export function rowFromFood(food: FoodSearchResult, existingPortions?: FoodPorti
   const effectiveGrams = quantity * selectedUnit.grams;
 
   return {
-    rowKey: nextKey(),
+    rowKey: existingRowKey ?? nextKey(),
     name: food.name,
     grams: effectiveGrams,
     quantity,
