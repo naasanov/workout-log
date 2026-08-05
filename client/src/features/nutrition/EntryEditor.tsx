@@ -147,7 +147,8 @@ export default function EntryEditor({
   // ----- Meal selector -----
   const [meal, setMeal] = useState<Meal>(() => {
     if (mode.kind === 'manual-edit') return mode.entry.meal;
-    if (mode.kind === 'manual-add') return mode.defaultMeal ?? 'breakfast';
+    // #200: default new manually-created foods to Snack / Other instead of Breakfast.
+    if (mode.kind === 'manual-add') return mode.defaultMeal ?? 'snack';
     return mode.proposal.meal;
   });
 
@@ -218,7 +219,8 @@ export default function EntryEditor({
         })),
       );
     } else if (mode.kind === 'manual-add') {
-      setMeal(mode.defaultMeal ?? 'breakfast');
+      // #200: default new manually-created foods to Snack / Other instead of Breakfast.
+      setMeal(mode.defaultMeal ?? 'snack');
       setEntryName('');
       setRows([emptyRow()]);
     } else if (mode.kind === 'proposal') {
