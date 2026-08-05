@@ -146,6 +146,84 @@ function EntryMenu({ entry, onEdit, onDelete, onSaveAsMeal }: EntryMenuProps) {
   );
 }
 
+// ---- Actions row "more options" menu (#202) ----
+
+interface ActionsMenuProps {
+  onGoals: () => void;
+  onMyFoods: () => void;
+}
+
+function ActionsMenu({ onGoals, onMyFoods }: ActionsMenuProps) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  // Close on outside tap/click
+  useEffect(() => {
+    if (!open) return;
+    function handleOutside(e: MouseEvent | TouchEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
+  }, [open]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return;
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        btnRef.current?.focus();
+      }
+    }
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [open]);
+
+  return (
+    <div className={styles.actionsMenuWrapper} ref={wrapperRef}>
+      <button
+        ref={btnRef}
+        className={styles.actionsDotsBtn}
+        onClick={() => setOpen(v => !v)}
+        aria-label="More options"
+        aria-haspopup="true"
+        aria-expanded={open}
+      >
+        <MoreVertical className={styles.dotsIcon} size={18} aria-hidden="true" />
+      </button>
+
+      {open && (
+        <div className={`${styles.entryDropdown} ${styles.actionsDropdown}`} role="menu">
+          <button
+            className={styles.entryDropdownItem}
+            role="menuitem"
+            onClick={() => { setOpen(false); onGoals(); }}
+          >
+            <Target className={styles.entryDropdownItemIcon} size={16} aria-hidden="true" />
+            Goals
+          </button>
+          <button
+            className={styles.entryDropdownItem}
+            role="menuitem"
+            onClick={() => { setOpen(false); onMyFoods(); }}
+          >
+            <BookMarked className={styles.entryDropdownItemIcon} size={16} aria-hidden="true" />
+            My Foods
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---- Main component ----
 
 export default function NutritionTracker() {
@@ -285,25 +363,11 @@ export default function NutritionTracker() {
           + Add food
         </button>
 
-        {/* Goals button — #73: bullseye/target icon instead of sun-like glyph */}
-        <button
-          className={styles.settingsBtn}
-          onClick={() => setGoalsModalOpen(true)}
-          aria-label="Nutrition goals"
-          title="Set nutrition goals"
-        >
-          <Target className={styles.settingsIcon} size={16} aria-hidden="true" />
-        </button>
-
-        {/* My Foods button */}
-        <button
-          className={styles.settingsBtn}
-          onClick={() => setMyFoodsOpen(true)}
-          aria-label="My Foods"
-          title="My custom foods and meals"
-        >
-          <BookMarked className={styles.settingsIcon} size={16} aria-hidden="true" />
-        </button>
+        {/* #202: Goals + My Foods moved into a single "more options" dropdown for discoverability */}
+        <ActionsMenu
+          onGoals={() => setGoalsModalOpen(true)}
+          onMyFoods={() => setMyFoodsOpen(true)}
+        />
       </div>
 
       {/* Totals card */}

@@ -97,7 +97,13 @@
   }
 }
 
-.settingsBtn {
+// #202: "More options" (Goals / My Foods) dropdown trigger, in the actions row
+.actionsMenuWrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.actionsDotsBtn {
   min-width: 48px;
   min-height: 48px;
   background: transparent;
@@ -116,11 +122,11 @@
   }
 }
 
-.settingsIcon {
-  display: block;
-  // #75: standardize goals/settings icon to 16px
-  width: 16px;
-  height: 16px;
+// #202: dropdown anchors under the actions-row trigger instead of a per-entry
+// row. Compound selector so this reliably wins over .entryDropdown's own
+// `top` regardless of declaration order (both are single-class specificity).
+.entryDropdown.actionsDropdown {
+  top: calc(100% + 6px);
 }
 
 // ---- Totals card ----
@@ -243,13 +249,18 @@
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  // #201: 8px (not 4px) so .dotsBtn's 8px negative-margin overflow (below,
+  // see .dotsBtn) never reaches into .macroChips' tap area.
+  gap: 8px;
 }
 
 // #72: Entry top row — name on left (wraps up to 2 lines), three-dots on right
+// #201: align to the top (not centered) so the 36px dots button doesn't stretch
+// the row height and push extra space above a one-line title. The button keeps
+// its 36px tap target via negative margins on .dotsBtn instead.
 .entryTop {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
 }
 
@@ -262,6 +273,10 @@
   color: $text;
   letter-spacing: $sarabun-spacing;
   min-width: 0;
+  // #201: fixed line-height so a single line has a known, stable height (20px).
+  // .dotsBtn's negative margins below are computed against this value so the
+  // dots button never drives the row taller than the title itself.
+  line-height: 20px;
   // Allow up to 2 lines before clamping
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -271,15 +286,28 @@
 }
 
 // #72: Three-dots menu wrapper (positioned relative so dropdown anchors to it)
+// #201: display:flex so the child's negative margins (below) shrink this
+// wrapper's own box height deterministically instead of collapsing/leaking
+// into the surrounding .entryTop flex row.
 .entryMenuWrapper {
   position: relative;
   flex-shrink: 0;
+  display: flex;
 }
 
 // #72: The ⋮ trigger button
+// #201: keeps its 36x36 tap target, but negative vertical margins pull that
+// box up/down symmetrically by 8px each side so its effective height in the
+// flex layout matches .entryName's 20px single-line height (36 - 8 - 8 = 20).
+// This stops the button from stretching .entryTop taller than a one-line
+// title, which was the source of the extra space above short titles. For a
+// two-line title (40px) the button no longer matters since it's smaller than
+// the text either way. The 36px hit area itself is untouched — it just
+// overflows the row's box rather than expanding it.
 .dotsBtn {
   min-width: 36px;
   min-height: 36px;
+  margin: -8px 0;
   background: transparent;
   border: none;
   border-radius: 8px;
@@ -304,7 +332,12 @@
 // #72: Dropdown menu
 .entryDropdown {
   position: absolute;
-  top: calc(100% + 4px);
+  // #201: .dotsBtn's -8px vertical margins (above) shrink .entryMenuWrapper's
+  // own box to 20px while the button itself still visually extends 8px below
+  // it (36px box, only its top half "fits" inside the wrapper's 100%). Add
+  // that 8px back here so the dropdown still opens flush under the button's
+  // actual visible edge instead of overlapping it.
+  top: calc(100% + 4px + 8px);
   right: 0;
   background-color: $surface;
   border: 1px solid $surface-border;
@@ -340,6 +373,13 @@
     background-color: rgba($primary, 0.12);
     color: $primary;
   }
+}
+
+// #202: icon shown before the label in dropdown items that use icon+text (actions menu)
+.entryDropdownItemIcon {
+  display: block;
+  flex-shrink: 0;
+  margin-right: 10px;
 }
 
 .entryDropdownItemDanger {
