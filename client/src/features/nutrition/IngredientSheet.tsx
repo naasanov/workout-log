@@ -196,7 +196,9 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
             onExpandMeal(expandedRows);
           })
           .catch(() => {
-            onChange(rowFromFood(food, immediatePortions(food)));
+            // #199: preserve the row's identity so this replaces the row being
+            // edited instead of appending a duplicate untitled row.
+            onChange(rowFromFood(food, immediatePortions(food), row.rowKey));
           });
         return;
       }
@@ -209,7 +211,9 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
     const portions = cached
       ? buildPortionListFromFetched(food, cached)
       : immediatePortions(food);
-    onChange(rowFromFood(food, portions));
+    // #199: preserve the row's identity so this replaces the row being edited
+    // instead of appending a duplicate untitled row.
+    onChange(rowFromFood(food, portions, row.rowKey));
   }
 
   // #185 — quantity/unit changes must scale macros even when the row has no
@@ -443,7 +447,10 @@ export default function IngredientSheet({
         setBarcodeError(`Barcode ${code} not found in database.`);
         return;
       }
-      setRow(rowFromFood(food));
+      // #199: preserve the row's identity (functional update to avoid taking
+      // a `row` dependency) so this replaces the row being edited instead of
+      // appending a duplicate untitled row.
+      setRow(prev => rowFromFood(food, undefined, prev.rowKey));
     } catch {
       setBarcodeError('Failed to look up barcode. Try again.');
     }
