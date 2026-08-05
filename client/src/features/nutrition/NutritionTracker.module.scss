@@ -97,7 +97,13 @@
   }
 }
 
-.settingsBtn {
+// #202: "More options" (Goals / My Foods) dropdown trigger, in the actions row
+.actionsMenuWrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.actionsDotsBtn {
   min-width: 48px;
   min-height: 48px;
   background: transparent;
@@ -116,11 +122,11 @@
   }
 }
 
-.settingsIcon {
-  display: block;
-  // #75: standardize goals/settings icon to 16px
-  width: 16px;
-  height: 16px;
+// #202: dropdown anchors under the actions-row trigger instead of a per-entry
+// row. Compound selector so this reliably wins over .entryDropdown's own
+// `top` regardless of declaration order (both are single-class specificity).
+.entryDropdown.actionsDropdown {
+  top: calc(100% + 6px);
 }
 
 // ---- Totals card ----
@@ -340,6 +346,13 @@
     background-color: rgba($primary, 0.12);
     color: $primary;
   }
+}
+
+// #202: icon shown before the label in dropdown items that use icon+text (actions menu)
+.entryDropdownItemIcon {
+  display: block;
+  flex-shrink: 0;
+  margin-right: 10px;
 }
 
 .entryDropdownItemDanger {
