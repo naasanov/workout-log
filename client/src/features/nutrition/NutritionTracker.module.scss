@@ -47,6 +47,10 @@
 
 .dateInput {
   flex: 1;
+  // A date input carries an intrinsic minimum width, and a flex item's default
+  // `min-width: auto` refuses to shrink below it — which overflowed the page by
+  // a few px at 320px. Allow the field to shrink; the 44px arrows never do.
+  min-width: 0;
   min-height: 44px;
   background: transparent;
   color: $text;
@@ -68,6 +72,14 @@
   &::-webkit-calendar-picker-indicator {
     filter: invert(1) opacity(0.4);
     cursor: pointer;
+  }
+
+  // On the narrowest phones (320px) the 44px arrows + gaps leave the field too
+  // little room, and the full date clips against the picker icon. Trade some
+  // side padding — the text is centred, so this costs nothing visually.
+  @media (max-width: 360px) {
+    padding-left: 4px;
+    padding-right: 4px;
   }
 }
 
