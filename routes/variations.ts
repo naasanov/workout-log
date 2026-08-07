@@ -207,7 +207,7 @@ router.get('/history/:variationId', async (req, res): Promise<any> => {
         }
 
         [data] = await pool.query<RowDataPacket[]>(`
-            SELECT weight, date
+            SELECT weight, reps, date
             FROM variation_history
             WHERE variation_id = ?
             ORDER BY date ASC
@@ -265,22 +265,34 @@ router.patch('/:variationId', async (req, res): Promise<any> => {
         return res.status(404).json({ message: `No variation with id ${variationId}` });
     }
 
-    if ('weight' in req.body && req.body.weight != null) {
+    if ('weight' in req.body || 'reps' in req.body) {
         const historyDate = req.body.date ?? new Date();
         try {
             await withTransaction(async (conn) => {
+                const [[current]] = await conn.query<RowDataPacket[]>(`
+                    SELECT weight, reps FROM variations
+                    WHERE variation_id = ?
+                `, [variationId]);
+                if (!current || current.weight == null) {
+                    // A history point needs a weight to be plottable.
+                    return;
+                }
+
                 const [latestHistory] = await conn.query<RowDataPacket[]>(`
-                    SELECT weight FROM variation_history
+                    SELECT weight, reps FROM variation_history
                     WHERE variation_id = ?
                     ORDER BY date DESC, history_id DESC
                     LIMIT 1
                 `, [variationId]);
-                const latestWeight = latestHistory.length > 0 ? latestHistory[0].weight : null;
-                if (latestWeight === null || latestWeight !== req.body.weight) {
+                const latest = latestHistory.length > 0 ? latestHistory[0] : null;
+                const repsEqual = (latest?.reps ?? null) === (current.reps ?? null);
+                const weightEqual = latest !== null && latest.weight === current.weight;
+                const unchanged = latest !== null && weightEqual && repsEqual;
+                if (!unchanged) {
                     await conn.query<ResultSetHeader>(`
-                        INSERT INTO variation_history (variation_id, weight, date)
-                        VALUES (?, ?, ?)
-                    `, [variationId, req.body.weight, historyDate]);
+                        INSERT INTO variation_history (variation_id, weight, reps, date)
+                        VALUES (?, ?, ?, ?)
+                    `, [variationId, current.weight, current.reps ?? null, historyDate]);
                 }
             });
         } catch (_) {
