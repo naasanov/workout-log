@@ -108,7 +108,7 @@ router.get('/movements', async (req, res): Promise<any> => {
         }
 
         [rows] = await pool.query<RowDataPacket[]>(`
-            SELECT movement_id, variation_id as id, label, weight, reps, date
+            SELECT movement_id, variation_id as id, label, weight, reps, date, notes
             FROM variations
             WHERE movement_id IN (?)
         `, [ids])
@@ -149,7 +149,7 @@ router.get('/movement/:movementId', async (req, res): Promise<any> => {
 
     try {
         [data] = await pool.query<RowDataPacket[]>(`
-            SELECT variation_id as id, label, weight, reps, date
+            SELECT variation_id as id, label, weight, reps, date, notes
             FROM variations
             WHERE movement_id = ?
         `, [movementId])
@@ -173,7 +173,7 @@ router.get('/variation/:variationId', async (req, res): Promise<any> => {
     let data: RowDataPacket;
     try {
         [[data]] = await pool.query<RowDataPacket[]>(`
-            SELECT v.variation_id as id, v.label, v.weight, v.reps, v.date
+            SELECT v.variation_id as id, v.label, v.weight, v.reps, v.date, v.notes
             FROM variations v
             JOIN movements m ON m.movement_id = v.movement_id
             JOIN sections s ON s.section_id = m.section_id
@@ -228,7 +228,7 @@ router.patch('/:variationId', async (req, res): Promise<any> => {
     const variationId: string = req.params.variationId;
     if (!validateId(variationId, res)) return;
 
-    const allowedFields = ['label', 'weight', 'reps', 'date'];
+    const allowedFields = ['label', 'weight', 'reps', 'date', 'notes'];
     const invalidFields = Object.keys(req.body).filter(key => !allowedFields.includes(key));
     if (invalidFields.length > 0) {
         return res.status(400).json({

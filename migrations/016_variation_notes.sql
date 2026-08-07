@@ -1,0 +1,1 @@
+ALTER TABLE variations ADD COLUMN notes TEXT NULL;

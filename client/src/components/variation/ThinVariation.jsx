@@ -1,10 +1,10 @@
 import Editable from "../Editable";
 import styles from "../../styles/Variation.module.scss";
 import mobileStyles from "../../styles/ThinVariation.module.scss";
-import { Dumbbell, Number, Delete, Chart } from "../Icons";
+import { Dumbbell, Number, Delete, Chart, Notes } from "../Icons";
 import DateInput from "../DateInput";
 
-function ThinVariation({ variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove, removeAllowed, onGraphOpen }) {
+function ThinVariation({ variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove, removeAllowed, onGraphOpen, onNotesOpen, hasNotes }) {
   return (
     <div className={mobileStyles.variation}>
       <section>
@@ -23,6 +23,14 @@ function ThinVariation({ variation, details, handleLabelEdit, handleDetailEdit, 
 
         {/* graph + remove grouped for consistent right-alignment */}
         <div className={mobileStyles.rightGroup}>
+          <button
+            className={`${styles.notesBtn} ${hasNotes ? styles.notesBtnActive : ''}`}
+            onClick={onNotesOpen}
+            aria-label="Notes"
+          >
+            <Notes className={styles.icon} />
+          </button>
+
           <button className={styles.graphBtn} onClick={onGraphOpen}>
             <Chart className={styles.icon} />
           </button>

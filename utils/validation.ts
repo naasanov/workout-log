@@ -69,7 +69,7 @@ function validateVariation(body: any, res?: Response) {
         return false;
     }
     
-    const { label, weight, reps, date } = body;
+    const { label, weight, reps, date, notes } = body;
     if (label !== undefined && !validateLabel(label, res)) {
         return false;
     }
@@ -85,6 +85,14 @@ function validateVariation(body: any, res?: Response) {
     }
     if (date !== undefined && !isValidISO(date)) {
         message += "Date field must be a ISO 8601 formatted date string\n";
+        valid = false;
+    }
+    if (notes !== undefined && notes !== null && typeof notes !== 'string') {
+        message += "Notes must be a string\n";
+        valid = false;
+    }
+    if (typeof notes === 'string' && notes.length > 2000) {
+        message += "Notes must not exceed 2000 characters\n";
         valid = false;
     }
     if (!valid) res?.status(400).json({ message });
