@@ -6,6 +6,7 @@ import ThinVariation from './ThinVariation.jsx';
 import WideVariation from './WideVariation.jsx';
 import ConfirmModal from '../ConfirmModal.jsx';
 import WeightGraphModal from '../WeightGraphModal.jsx';
+import VariationNotesModal from '../VariationNotesModal.jsx';
 
 function Variation({ variation, setVariations, removeAllowed }) {
   const { isMobile } = useIsMobile();
@@ -13,6 +14,7 @@ function Variation({ variation, setVariations, removeAllowed }) {
   const [showRemove, setShowRemove] = useState(isMobile);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showGraph, setShowGraph] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
   const { withAuth } = useAuth();
 
   useEffect(() => {
@@ -92,7 +94,22 @@ function Variation({ variation, setVariations, removeAllowed }) {
     ))
   }
 
-  const props = { variation, details, handleLabelEdit, handleDetailEdit, handleRemove: handleRemoveClick, showRemove, setShowRemove, removeAllowed, onGraphOpen: () => setShowGraph(true) }
+  async function handleNotesEdit(change) {
+    // Note edits don't bump `date` — date reflects when the lift was last
+    // updated, and a note edit isn't a PR update.
+    setVariations(prevVariations => (
+      prevVariations.map(v => (
+        v.id === variation.id
+          ? { ...v, notes: change }
+          : v
+      ))
+    ));
+    await withAuth(() => (
+      clientApi.patch(`/variations/${variation.id}`, { notes: change })
+    ))
+  }
+
+  const props = { variation, details, handleLabelEdit, handleDetailEdit, handleRemove: handleRemoveClick, showRemove, setShowRemove, removeAllowed, onGraphOpen: () => setShowGraph(true), onNotesOpen: () => setShowNotes(true), hasNotes: !!(variation.notes && variation.notes.trim()) }
   return (
     <>
       {showConfirm && (
@@ -106,6 +123,14 @@ function Variation({ variation, setVariations, removeAllowed }) {
         <WeightGraphModal
           variation={variation}
           onClose={() => setShowGraph(false)}
+        />
+      )}
+      {showNotes && (
+        <VariationNotesModal
+          variation={variation}
+          notes={variation.notes}
+          onSave={handleNotesEdit}
+          onClose={() => setShowNotes(false)}
         />
       )}
       {isMobile

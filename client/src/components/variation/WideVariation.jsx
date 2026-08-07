@@ -1,9 +1,9 @@
 import Editable from "../Editable";
 import styles from "../../styles/Variation.module.scss";
-import { Dumbbell, Number, Delete, Chart } from "../Icons";
+import { Dumbbell, Number, Delete, Chart, Notes } from "../Icons";
 import DateInput from "../DateInput";
 
-function WideVariation({ variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove, setShowRemove, removeAllowed, onGraphOpen }) {
+function WideVariation({ variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove, setShowRemove, removeAllowed, onGraphOpen, onNotesOpen, hasNotes }) {
   const hoverProps = {
     onMouseEnter: () => setShowRemove(true),
     onMouseLeave: () => setShowRemove(false)
@@ -51,6 +51,14 @@ function WideVariation({ variation, details, handleLabelEdit, handleDetailEdit, 
 
       {/* graph + remove grouped for right-alignment */}
       <div className={styles.rightGroup} {...hoverProps}>
+        <button
+          className={`${styles.notesBtn} ${hasNotes ? styles.notesBtnActive : ''}`}
+          onClick={onNotesOpen}
+          aria-label="Notes"
+        >
+          <Notes className={styles.icon} />
+        </button>
+
         <button className={styles.graphBtn} onClick={onGraphOpen}>
           <Chart className={styles.icon} />
         </button>

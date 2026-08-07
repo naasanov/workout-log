@@ -1,0 +1,88 @@
+@import "variables";
+
+// Sizing override applied to Radix Dialog.Content for this panel.
+// Passed as contentClassName={styles.modalContent} from VariationNotesModal.jsx.
+.modalContent {
+  max-width: 480px;
+}
+
+// Panel inner wrapper
+.modal {
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  @media (max-width: $mobile-width) {
+    padding: 20px 16px;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  color: $text;
+  font-family: $sarabun;
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: $sarabun-spacing;
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.close {
+  background: transparent;
+  border: none;
+  color: $text;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  line-height: 1;
+  flex-shrink: 0;
+  // Tappable on mobile
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background-color: $primary-translucent;
+  }
+}
+
+.textarea {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  box-sizing: border-box;
+  background-color: $surface;
+  border: 1px solid $surface-border;
+  border-radius: $border-radius;
+  color: $text;
+  font-family: $sarabun;
+  letter-spacing: $sarabun-spacing;
+  padding: 12px 14px;
+  // font-size is intentionally left unset below 885px so the global
+  // `max(16px, 1em) !important` rule in index.css (anti-iOS-zoom) wins.
+  font-size: 15px;
+  line-height: 1.5;
+
+  &:focus {
+    outline: none;
+    border-color: $primary-border;
+  }
+
+  &::placeholder {
+    color: $text;
+    opacity: 0.45;
+  }
+}

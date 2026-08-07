@@ -13,6 +13,7 @@ import {
   Hash,
   BarChart3,
   Dumbbell as DumbbellIcon,
+  NotebookPen,
 } from 'lucide-react';
 
 export function Calender({ className }) {
@@ -49,4 +50,8 @@ export function Chart({ className }) {
 
 export function Dumbbell({ className, ...props }) {
   return <DumbbellIcon className={className} {...props} size={16} />;
+}
+
+export function Notes({ className }) {
+  return <NotebookPen className={className} size={16} />;
 }
