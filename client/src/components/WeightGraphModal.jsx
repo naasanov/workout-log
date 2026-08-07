@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
@@ -6,31 +7,107 @@ import { useUser } from '../context/UserProvider.jsx';
 import Modal from './Modal.jsx';
 import styles from '../styles/WeightGraphModal.module.scss';
 
+// Single global flag shared by every variation graph — not per-variation.
+// Switching one graph to "Weight" switches all of them.
+const METRIC_STORAGE_KEY = 'variationGraphMetric';
+const METRIC_EST_1RM = 'est1rm';
+const METRIC_WEIGHT = 'weight';
+
+function readStoredMetric() {
+  try {
+    const stored = localStorage.getItem(METRIC_STORAGE_KEY);
+    if (stored === METRIC_EST_1RM || stored === METRIC_WEIGHT) return stored;
+  } catch (_) {
+    // localStorage can throw (e.g. Safari private mode); fall back to default.
+  }
+  return METRIC_EST_1RM;
+}
+
+function writeStoredMetric(metric) {
+  try {
+    localStorage.setItem(METRIC_STORAGE_KEY, metric);
+  } catch (_) {
+    // Best-effort; nothing to do if storage is unavailable.
+  }
+}
+
+// Epley formula. When reps is null/undefined/0 we have no rep data for that
+// point (pre-existing history rows never recorded reps), so the est. 1RM is
+// just the weight itself rather than an extrapolation.
+function estimate1RM(weight, reps) {
+  if (weight == null) return null;
+  if (!reps) return Math.round(weight);
+  return Math.round(weight * (1 + reps / 30));
+}
+
+function GraphTooltip({ active, payload, isEst1RM }) {
+  if (!active || !payload || payload.length === 0) return null;
+  const point = payload[0].payload;
+  const contentStyle = {
+    backgroundColor: '#282B28',
+    border: '1px solid #575757',
+    borderRadius: '8px',
+    color: '#EBEDE9',
+    fontFamily: 'Sarabun, sans-serif',
+    padding: '8px 12px',
+    fontSize: '13px',
+  };
+
+  if (!isEst1RM) {
+    return (
+      <div style={contentStyle}>
+        <div>{`${point.value} lbs`}</div>
+        <div style={{ opacity: 0.7 }}>Weight</div>
+      </div>
+    );
+  }
+
+  const setLabel = point.reps ? `${point.weight} lbs × ${point.reps}` : `${point.weight} lbs`;
+  return (
+    <div style={contentStyle}>
+      <div>{`${point.value} lbs (est. 1RM)`}</div>
+      <div style={{ opacity: 0.7 }}>{setLabel}</div>
+    </div>
+  );
+}
+
 /**
- * WeightGraphModal — weight-over-time chart for a variation.
+ * WeightGraphModal — weight / estimated-1RM-over-time chart for a variation.
  *
  * Props (unchanged):
  *   variation {object} — must have .id and .label
  *   onClose   {fn}     — called to close the modal
- *
- * Data logic: unchanged (React Query useQuery).
  */
 function WeightGraphModal({ variation, onClose }) {
   const { user } = useUser();
+  const [metric, setMetric] = useState(readStoredMetric);
 
-  // ── React Query data logic (untouched) ──────────────────────────────────────
   const { data: history = [], isLoading: loading } = useQuery({
     queryKey: ['variationHistory', variation.id],
     queryFn: async () => {
       const res = await clientApi.get(`/variations/history/${variation.id}`);
       return res.data.data.map(entry => ({
         weight: entry.weight,
+        reps: entry.reps,
         date: format(new Date(entry.date), 'MMM d'),
         rawDate: new Date(entry.date).getTime()
       }));
     },
     enabled: !!user,
   });
+
+  function handleMetricChange(next) {
+    setMetric(next);
+    writeStoredMetric(next);
+  }
+
+  const isEst1RM = metric === METRIC_EST_1RM;
+  const chartData = isEst1RM
+    ? history.map(entry => ({
+        ...entry,
+        value: estimate1RM(entry.weight, entry.reps),
+      }))
+    : history.map(entry => ({ ...entry, value: entry.weight }));
 
   return (
     <Modal
@@ -46,6 +123,27 @@ function WeightGraphModal({ variation, onClose }) {
           <button className={styles.close} onClick={onClose} aria-label="Close">✕</button>
         </div>
 
+        <div className={styles.toggle} role="tablist" aria-label="Graph metric">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={isEst1RM}
+            className={`${styles.toggleOption} ${isEst1RM ? styles.toggleOptionActive : ''}`}
+            onClick={() => handleMetricChange(METRIC_EST_1RM)}
+          >
+            Est. 1RM
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={!isEst1RM}
+            className={`${styles.toggleOption} ${!isEst1RM ? styles.toggleOptionActive : ''}`}
+            onClick={() => handleMetricChange(METRIC_WEIGHT)}
+          >
+            Weight
+          </button>
+        </div>
+
         {loading ? (
           <p className={styles.empty}>Loading…</p>
         ) : history.length < 2 ? (
@@ -57,7 +155,7 @@ function WeightGraphModal({ variation, onClose }) {
         ) : (
           <div className={styles.chartWrap}>
             <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={history} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+              <LineChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                 <XAxis
                   dataKey="date"
@@ -72,19 +170,10 @@ function WeightGraphModal({ variation, onClose }) {
                   width={48}
                   tickFormatter={v => `${v}`}
                 />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#282B28',
-                    border: '1px solid #575757',
-                    borderRadius: '8px',
-                    color: '#EBEDE9',
-                    fontFamily: 'Sarabun, sans-serif',
-                  }}
-                  formatter={(value) => [`${value} lbs`, 'Weight']}
-                />
+                <Tooltip content={<GraphTooltip isEst1RM={isEst1RM} />} />
                 <Line
                   type="monotone"
-                  dataKey="weight"
+                  dataKey="value"
                   stroke="#70EB70"
                   strokeWidth={2}
                   dot={{ fill: '#70EB70', r: 4 }}

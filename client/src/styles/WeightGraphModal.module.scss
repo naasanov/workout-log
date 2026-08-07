@@ -59,8 +59,69 @@
   }
 }
 
+.toggle {
+  display: flex;
+  align-self: flex-start;
+  background-color: $surface;
+  border: 1px solid $surface-border;
+  border-radius: $border-radius;
+  padding: 3px;
+  gap: 3px;
+
+  @media (max-width: $mobile-width) {
+    align-self: stretch;
+  }
+}
+
+.toggleOption {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: $text;
+  font-family: $sarabun;
+  font-size: 13px;
+  letter-spacing: $sarabun-spacing;
+  border-radius: calc(#{$border-radius} - 4px);
+  padding: 8px 14px;
+  // Tappable on mobile
+  min-height: 36px;
+  opacity: 0.65;
+  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+
+  @media (max-width: $mobile-width) {
+    flex: 1;
+  }
+
+  &:hover {
+    opacity: 0.9;
+  }
+}
+
+.toggleOptionActive {
+  background-color: $primary-translucent;
+  color: $primary;
+  opacity: 1;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
 .chartWrap {
   position: relative;
+
+  // recharts writes fontFamily as an SVG presentation attribute on <text>
+  // nodes; the global `* { font: inherit }` rule in index.css beats that
+  // attribute, so it must be re-asserted here as a real stylesheet rule.
+  :global(text) {
+    font-family: $sarabun;
+  }
+}
+
+// Tooltip content is portaled outside .chartWrap by recharts, so it needs
+// its own global rule rather than relying on the wrapper above.
+:global(.recharts-tooltip-wrapper) {
+  font-family: $sarabun;
 }
 
 .yLabel {
