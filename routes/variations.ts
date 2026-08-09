@@ -285,7 +285,11 @@ router.patch('/:variationId', async (req, res): Promise<any> => {
                     LIMIT 1
                 `, [variationId]);
                 const latest = latestHistory.length > 0 ? latestHistory[0] : null;
-                const repsEqual = (latest?.reps ?? null) === (current.reps ?? null);
+                // Legacy history rows predate reps tracking and have reps IS NULL;
+                // variations.reps is NOT NULL DEFAULT 0, so treat null and 0 as
+                // the same "no reps recorded" value to avoid a spurious history
+                // row on the first edit after a variation with old history rows.
+                const repsEqual = (latest?.reps ?? 0) === (current.reps ?? 0);
                 const weightEqual = latest !== null && latest.weight === current.weight;
                 const unchanged = latest !== null && weightEqual && repsEqual;
                 if (!unchanged) {

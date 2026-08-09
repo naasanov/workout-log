@@ -109,6 +109,16 @@ function WeightGraphModal({ variation, onClose }) {
       }))
     : history.map(entry => ({ ...entry, value: entry.weight }));
 
+  // Anchoring the axis at 0 compresses a typical progress curve (e.g.
+  // 175 -> 247) into the top third of the chart. Pad around the actual
+  // range instead so the trend is visible, without ever going negative.
+  const chartValues = chartData.map(d => d.value).filter(v => v != null);
+  const dataMin = chartValues.length ? Math.min(...chartValues) : 0;
+  const dataMax = chartValues.length ? Math.max(...chartValues) : 0;
+  const range = dataMax - dataMin;
+  const padding = range > 0 ? range * 0.15 : Math.max(dataMax * 0.1, 5);
+  const yDomain = [Math.max(0, Math.floor(dataMin - padding)), Math.ceil(dataMax + padding)];
+
   return (
     <Modal
       open={true}
@@ -164,6 +174,7 @@ function WeightGraphModal({ variation, onClose }) {
                   tickLine={false}
                 />
                 <YAxis
+                  domain={yDomain}
                   tick={{ fill: '#EBEDE9', fontSize: 12, fontFamily: 'Sarabun, sans-serif' }}
                   axisLine={{ stroke: '#575757' }}
                   tickLine={false}
