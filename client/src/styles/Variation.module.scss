@@ -128,11 +128,9 @@
   border-radius: 100px;
   cursor: pointer;
   color: $primary;
-  opacity: 0.55;
 
   &:hover {
     background-color: $primary-translucent;
-    opacity: 0.85;
   }
 
   .icon {
@@ -140,9 +138,11 @@
   }
 }
 
-// Subtle visual hint that notes already exist for this variation.
+// #212: .notesBtn used to carry its own dimmed opacity, making the notes icon
+// look darker than the adjacent .graphBtn/.delete icons even though all three
+// are the same $primary color. Base opacity is gone now, so .notesBtnActive's
+// highlighted background is the only "this variation has notes" cue.
 .notesBtnActive {
-  opacity: 1;
   background-color: $primary-translucent;
 }
 
