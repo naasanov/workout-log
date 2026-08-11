@@ -120,6 +120,22 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
 
+  // #219 — while the user is mid-edit clearing the grams/quantity field, the
+  // input must visibly go empty WITHOUT ever committing quantity/grams: 0 (or
+  // NaN) into `row`. Committing a 0 there would make scaleRowMacros scale
+  // every macro to 0 and, once macros are 0, there's no baseline left to
+  // derive from on the next keystroke — the "1.5g protein stays 1.5g, then
+  // becomes 3g" scaling described in #219 would be gone for good. So instead:
+  // empty/zero/invalid input is tracked purely as local display text here,
+  // `row` (and therefore the macro fields, which read straight off `row`)
+  // stays frozen at its last real values, however long the field sits empty.
+  // Cleared automatically whenever `row` changes for a reason other than this
+  // field's own commits (new row loaded, food/barcode selected, unit changed).
+  const [frozenQuantityText, setFrozenQuantityText] = useState<string | null>(null);
+  useEffect(() => {
+    setFrozenQuantityText(null);
+  }, [row.rowKey, row.quantity, row.unitLabel]);
+
   // ---- Async portion fetching for USDA foods ----
   useEffect(() => {
     if (row.source !== 'usda' || !row.source_ref) return;
@@ -220,13 +236,28 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
   // per100g snapshot (hand-typed macros, or a snapshot lost via
   // handleNameChange). scaleRowMacros derives a baseline from the row's
   // current macros ÷ current grams in that case, so this always scales.
+  //
+  // #219 — an empty (or genuinely zero/invalid) grams field is deliberately
+  // NOT committed to `row` at all: `parseFloat('') || 0` used to coerce empty
+  // straight to 0 and write it through, which zeroed every macro and wiped
+  // out the baseline scaleRowMacros needs for the *next* edit (see the block
+  // comment on scaleRowMacros). Instead, freeze — track the raw text locally
+  // so the field still visibly reads empty, but leave quantity/grams/macros
+  // untouched until a real positive number is typed, however long that takes.
   function handleQuantityChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const quantity = parseFloat(e.target.value) || 0;
-    const effectiveGrams = quantity * row.unitGrams;
-    onChange({ ...row, quantity, grams: effectiveGrams, ...scaleRowMacros(row, effectiveGrams) });
+    const raw = e.target.value;
+    const parsed = parseFloat(raw);
+    if (raw.trim() === '' || Number.isNaN(parsed) || parsed <= 0) {
+      setFrozenQuantityText(raw);
+      return;
+    }
+    setFrozenQuantityText(null);
+    const effectiveGrams = parsed * row.unitGrams;
+    onChange({ ...row, quantity: parsed, grams: effectiveGrams, ...scaleRowMacros(row, effectiveGrams) });
   }
 
   function handleUnitChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    setFrozenQuantityText(null);
     const label = e.target.value;
     const selected = row.portions.find(p => p.label === label) ?? GRAMS_UNIT;
     const effectiveGrams = row.quantity * selected.grams;
@@ -293,7 +324,7 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
             type="number"
             min="0"
             step="0.1"
-            value={row.quantity === 0 ? '' : row.quantity}
+            value={frozenQuantityText !== null ? frozenQuantityText : (row.quantity === 0 ? '' : row.quantity)}
             onChange={handleQuantityChange}
             aria-label="Quantity"
           />
