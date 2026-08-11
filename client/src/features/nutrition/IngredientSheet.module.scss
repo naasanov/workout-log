@@ -171,6 +171,17 @@
   }
 }
 
+// Read-only product name text (BarcodeAttachmentCard) — same typography as
+// .input but for a static <p>, not an editable field.
+.readOnlyName {
+  margin: 0;
+  color: $text;
+  font-family: $sarabun;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: $sarabun-spacing;
+}
+
 // Smaller numeric inputs
 .inputSmall {
   background-color: transparent;

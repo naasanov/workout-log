@@ -65,14 +65,14 @@ export default function BarcodeAttachmentCard({ open, data, onClose }: BarcodeAt
                 }}
               />
             ) : data.imageRedacted ? (
-              <p style={{ fontSize: 12, fontStyle: 'italic', opacity: 0.6, margin: '0 0 12px' }}>
+              <p className={styles.rowHint} style={{ fontStyle: 'italic', marginBottom: 12 }}>
                 Photo no longer available
               </p>
             ) : null}
 
             <div className={styles.nameRow}>
               <div className={styles.nameInputWrap}>
-                <p style={{ fontWeight: 600, margin: 0 }}>{row.name}</p>
+                <p className={styles.readOnlyName}>{row.name}</p>
               </div>
             </div>
 
