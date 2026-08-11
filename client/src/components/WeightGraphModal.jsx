@@ -86,11 +86,16 @@ function WeightGraphModal({ variation, onClose }) {
     queryKey: ['variationHistory', variation.id],
     queryFn: async () => {
       const res = await clientApi.get(`/variations/history/${variation.id}`);
-      return res.data.data.map(entry => ({
+      return res.data.data.map((entry, index) => ({
         weight: entry.weight,
         reps: entry.reps,
         date: format(new Date(entry.date), 'MMM d'),
-        rawDate: new Date(entry.date).getTime()
+        rawDate: new Date(entry.date).getTime(),
+        // #220: row index in the (server-sorted, chronological) history array.
+        // Used as the X-axis key below since it's guaranteed unique per point,
+        // unlike the formatted `date` day-label which repeats when several
+        // history rows land on the same calendar day.
+        index,
       }));
     },
     enabled: !!user,
@@ -118,6 +123,22 @@ function WeightGraphModal({ variation, onClose }) {
   const range = dataMax - dataMin;
   const padding = range > 0 ? range * 0.15 : Math.max(dataMax * 0.1, 5);
   const yDomain = [Math.max(0, Math.floor(dataMin - padding)), Math.ceil(dataMax + padding)];
+
+  // #220: several history rows can land on the same calendar day (e.g. two
+  // weight edits in one session). Recharts treats XAxis dataKey values as a
+  // category axis by default, and every point sharing a category collapses
+  // onto one x position — hovering any of them then always resolves to the
+  // FIRST matching datum, so same-day points all reported that point's
+  // value/reps in the tooltip even though the plotted line moved correctly.
+  // Fix: key the axis on `index` (unique per row, guaranteed by construction
+  // above) instead of the formatted day string, and dedupe the *visible*
+  // ticks down to one per day (first point of the day) via tickFormatter +
+  // explicit `ticks` so the axis doesn't fill up with repeated day labels.
+  const dayTicks = chartData.reduce((ticks, point, i) => {
+    if (i === 0 || point.date !== chartData[i - 1].date) ticks.push(point.index);
+    return ticks;
+  }, []);
+  const formatDayTick = (index) => chartData[index]?.date ?? '';
 
   return (
     <Modal
@@ -168,7 +189,12 @@ function WeightGraphModal({ variation, onClose }) {
               <LineChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                 <XAxis
-                  dataKey="date"
+                  dataKey="index"
+                  type="number"
+                  domain={['dataMin', 'dataMax']}
+                  allowDecimals={false}
+                  ticks={dayTicks}
+                  tickFormatter={formatDayTick}
                   tick={{ fill: '#EBEDE9', fontSize: 12, fontFamily: 'Sarabun, sans-serif' }}
                   axisLine={{ stroke: '#575757' }}
                   tickLine={false}
