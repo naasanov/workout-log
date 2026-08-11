@@ -9,7 +9,10 @@ const router = Router();
 router.use(authenticateToken);
 
 const feedbackSchema = z.object({
-  category: z.enum(['bug', 'idea', 'other']).optional(),
+  category: z.enum(['bug', 'idea', 'ui', 'other']).optional(),
+  // #215: which tab/tool the feedback concerns. Free-form-ish but constrained
+  // to the client's known values (the four tabs, or 'other').
+  tool: z.string().min(1).max(32).optional(),
   message: z.string().min(1).max(4000),
 });
 
@@ -32,10 +35,12 @@ async function createGithubIssue(
     const repo = getGithubRepo();
     const excerpt = body.message.slice(0, 60).replace(/\n/g, ' ');
     const categoryLabel = body.category ?? 'other';
-    const title = `[${categoryLabel}] ${excerpt}${body.message.length > 60 ? '...' : ''}`;
+    const tool = body.tool ?? 'other';
+    const title = `[${categoryLabel}][${tool}] ${excerpt}${body.message.length > 60 ? '...' : ''}`;
 
     const issueBody =
       `**Category:** ${categoryLabel}\n` +
+      `**Tool:** ${tool}\n` +
       `**Submitted by:** ${submitterEmail}\n\n` +
       `---\n\n${body.message}`;
 
@@ -70,13 +75,13 @@ router.post('/', async (req, res): Promise<any> => {
       .json({ message: parsed.error.issues[0]?.message ?? 'Invalid request body' });
   }
 
-  const { category, message } = parsed.data;
+  const { category, tool, message } = parsed.data;
 
   // Always insert into the DB (record + fallback)
   try {
     await pool.query<ResultSetHeader>(
-      `INSERT INTO feedback (user_uuid, category, message) VALUES (UUID_TO_BIN(?), ?, ?)`,
-      [uuid, category ?? null, message],
+      `INSERT INTO feedback (user_uuid, category, tool, message) VALUES (UUID_TO_BIN(?), ?, ?, ?)`,
+      [uuid, category ?? null, tool ?? null, message],
     );
   } catch (err) {
     console.error('[feedback] DB insert failed:', err);

@@ -260,7 +260,8 @@ export async function saveResolution(
 // GITHUB_TOKEN is configured, else stores in a feedback table. App-level, not
 // nutrition-scoped, but lives here since the feedback UI ships with this batch.
 export async function submitFeedback(input: {
-  category?: 'bug' | 'idea' | 'other';
+  category?: 'bug' | 'idea' | 'ui' | 'other';
+  tool?: string;
   message: string;
 }): Promise<void> {
   await clientApi.post('/feedback', input);
