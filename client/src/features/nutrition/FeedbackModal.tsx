@@ -1,14 +1,24 @@
 /**
  * FeedbackModal — item #1.
  * A small Radix Dialog + react-hook-form that lets users send feedback.
- * Category: bug / idea / other. Message: textarea.
+ * Category: bug / idea / UI / other. Tool: which tab the feedback concerns
+ * (defaults to the tab the user is currently on). Message: textarea.
  * On submit: calls submitFeedback() from api.ts.
  * Shows a brief thank-you state, then auto-closes after 2s.
+ *
+ * #218: the modal is mounted globally (Header.jsx) and stays mounted across
+ * open/close, so a Cancel/backdrop/Esc close must NOT clear the in-progress
+ * draft — react-hook-form's `reset()` is only called after a *successful*
+ * submit. The draft is plain React state (via react-hook-form's internal
+ * state), so it survives close/reopen within the page session but starts
+ * clean on a full reload — no localStorage involved, per product decision.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useSearchParams } from 'react-router-dom';
 import Modal from '../../components/Modal.jsx';
 import { submitFeedback } from './api';
+import { TABS, TAB_LABELS, DEFAULT_ORDER, VALID_TABS } from '../../config/tabs';
 import styles from './FeedbackModal.module.scss';
 
 interface FeedbackModalProps {
@@ -16,10 +26,15 @@ interface FeedbackModalProps {
   onClose: () => void;
 }
 
-type FeedbackCategory = 'bug' | 'idea' | 'other';
+type FeedbackCategory = 'bug' | 'idea' | 'ui' | 'other';
+
+// #215: "which tab/tool" the feedback is about — the four app tabs plus a
+// catch-all for feedback that isn't tied to a specific tab.
+const OTHER_TOOL = 'other';
 
 interface FeedbackForm {
   category: FeedbackCategory;
+  tool: string;
   message: string;
 }
 
@@ -27,17 +42,42 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // #215: default the "tool" field to the tab the user is currently on —
+  // read the same way NavDrawer.jsx does (URL `tab` search param, falling
+  // back to Workouts). Imported from the shared config, not duplicated.
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const currentTab = VALID_TABS.has(tabParam) ? tabParam : TABS.WORKOUTS;
+
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<FeedbackForm>({
-    defaultValues: { category: 'idea', message: '' },
+    defaultValues: { category: 'idea', tool: currentTab, message: '' },
   });
 
+  // Since this modal stays mounted app-wide (see header comment), the user
+  // can navigate tabs while it's closed. Keep "tool" following the active
+  // tab in that case — but only while it still holds the last tab we
+  // defaulted it to. Once the user picks a tool themselves, their choice
+  // (part of the draft #218 preserves) is left alone.
+  const lastDefaultTool = useRef(currentTab);
+  useEffect(() => {
+    if (getValues('tool') === lastDefaultTool.current) {
+      setValue('tool', currentTab);
+    }
+    lastDefaultTool.current = currentTab;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTab]);
+
+  // #218: close (Cancel / backdrop / Esc) leaves the draft untouched — only
+  // the transient success/error UI state is reset. `reset()` is reserved for
+  // the post-submit path below.
   function handleClose() {
-    reset();
     setSubmitted(false);
     setSubmitError(null);
     onClose();
@@ -46,10 +86,11 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
   async function onSubmit(data: FeedbackForm) {
     setSubmitError(null);
     try {
-      await submitFeedback({ category: data.category, message: data.message });
+      await submitFeedback({ category: data.category, tool: data.tool, message: data.message });
       setSubmitted(true);
-      // Auto-close after 2s
+      // Auto-close after 2s, clearing the draft since submission succeeded
       setTimeout(() => {
+        reset({ category: 'idea', tool: currentTab, message: '' });
         handleClose();
       }, 2000);
     } catch (err: unknown) {
@@ -89,7 +130,27 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
               >
                 <option value="bug">Bug report</option>
                 <option value="idea">Feature idea</option>
+                <option value="ui">UI</option>
                 <option value="other">Other</option>
+              </select>
+            </div>
+
+            {/* #215: Tool/tab select — required, defaults to the current tab */}
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="fb-tool">
+                Tool
+              </label>
+              <select
+                id="fb-tool"
+                className={styles.select}
+                {...register('tool', { required: true })}
+              >
+                {DEFAULT_ORDER.map((tab) => (
+                  <option key={tab} value={tab}>
+                    {TAB_LABELS[tab]}
+                  </option>
+                ))}
+                <option value={OTHER_TOOL}>Other / N/A</option>
               </select>
             </div>
 
