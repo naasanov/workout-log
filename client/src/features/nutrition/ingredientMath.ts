@@ -98,6 +98,22 @@ export function recomputeMacros(
 // Because the baseline is derived fresh from current state every time (never
 // cached), a manual macro edit (handleMacroChange) automatically becomes the
 // new baseline for the next scale — no separate re-baseline step needed.
+//
+// #219 — that "derive fresh from current state" design has one hazard: if a
+// caller ever commits a row with `grams: 0` (e.g. the grams input was
+// transiently emptied mid-edit and naively coerced via `parseFloat(x) || 0`),
+// the row's own macros AND grams collapse to 0 in the same update, and the
+// baseline this function would derive next time is gone for good — there is
+// nothing left to scale from. The fix lives on the caller side: IngredientSheet
+// (handleQuantityChange) never writes an empty/zero-parsed grams value into
+// row state while the user is mid-edit — it freezes the input's own display
+// text locally and leaves the row (grams + macros) untouched, so the last
+// real (grams, macros) pair the row holds keeps serving as the baseline for
+// as long as the field sits empty, however long that is. The two guards below
+// are defense-in-depth for any other caller (e.g. applyNewPortions) that asks
+// to scale to/from a non-positive grams value: freeze instead of dividing by
+// (or scaling to) zero, so a stray 0 can never silently zero out — and lose —
+// a manual baseline.
 // ---------------------------------------------------------------------------
 export function scaleRowMacros(
   row: EditorRow,
@@ -106,9 +122,11 @@ export function scaleRowMacros(
   if (row.per100g) {
     return recomputeMacros(row.per100g, newGrams);
   }
-  // Guard divide-by-zero: with no prior grams to derive a rate from, there's
-  // no valid baseline — leave macros as-is rather than producing NaN/Infinity.
-  if (!row.grams) {
+  // Guard divide-by-zero (no prior grams to derive a rate from) and guard
+  // scaling TO a non-positive target (#219 — would zero out, and thereby
+  // destroy, the manual baseline). Either way, there's nothing sound to
+  // compute — leave macros as-is rather than producing NaN/Infinity/0.
+  if (!row.grams || newGrams <= 0) {
     return {
       calories: row.calories,
       protein_g: row.protein_g,
