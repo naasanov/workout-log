@@ -126,8 +126,13 @@ interface PendingPhoto {
 // barcode. `imageDataUrl` is the still-frame screenshot (UI-only thumbnail +
 // tap preview); `product` is the structured Open Food Facts data that gets
 // fed to the agent as a pre-fetched tool-result (see services/nutrition/agent.ts).
+// `id` is a client-generated key (like PendingPhoto's `previewUrl`) so MULTIPLE
+// scans can be pending at once — see #213: this used to be a single object,
+// which meant a second scan silently overwrote the first. It's now a LIST,
+// following the exact same append/remove-by-key pattern as pendingPhotos.
 // ---------------------------------------------------------------------------
 interface PendingBarcode {
+  id: string;
   code: string;
   imageDataUrl?: string;
   product: BarcodeAttachmentData['product'];
@@ -1315,7 +1320,9 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [barcodeOpen, setBarcodeOpen] = useState(false);
-  const [pendingBarcode, setPendingBarcode] = useState<PendingBarcode | null>(null);
+  // #213: LIST of pending scans (mirrors pendingPhotos), not a single object —
+  // a single-object slot meant a second scan silently overwrote the first.
+  const [pendingBarcodes, setPendingBarcodes] = useState<PendingBarcode[]>([]);
   const [barcodeNotice, setBarcodeNotice] = useState<string | null>(null);
   // Tap-to-preview: holds whichever barcode attachment (pending in composer, or
   // already sent in the transcript) the user tapped. null = no card open.
@@ -1448,7 +1455,9 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
         );
         return;
       }
-      setPendingBarcode({ code, imageDataUrl, product });
+      // #213: APPEND rather than replace, so a second (third, ...) scan adds
+      // another chip instead of overwriting the previous one.
+      setPendingBarcodes(prev => [...prev, { id: crypto.randomUUID(), code, imageDataUrl, product }]);
     } catch {
       setBarcodeNotice(
         `Barcode lookup failed. Describe the item in the chat, or take a photo of the nutrition label instead.`,
@@ -1458,12 +1467,12 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     }
   }, []);
 
-  const removePendingBarcode = useCallback(() => {
-    setPendingBarcode(null);
+  const removePendingBarcode = useCallback((id: string) => {
+    setPendingBarcodes(prev => prev.filter(b => b.id !== id));
   }, []);
 
   // ---- Send ----
-  const canSend = (text.trim().length > 0 || pendingPhotos.length > 0 || pendingBarcode !== null) && !isStreaming;
+  const canSend = (text.trim().length > 0 || pendingPhotos.length > 0 || pendingBarcodes.length > 0) && !isStreaming;
 
   // Denial tracking: deny no longer auto-sends a message (see
   // handleProposalDeny/handleCustomFoodDeny below). Instead the agent learns
@@ -1496,33 +1505,37 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     if (deniedProposalCount > 0) setPendingDenialCount(0);
 
     // A barcode-only send (no typed text) still needs SOME text content: the
-    // structured product data travels as a `data-barcodeAttachment` part, which
-    // convertToModelMessages drops from the user turn by design (it's UI-only —
-    // the model instead receives it as a pre-fetched tool-result, see agent.ts).
-    // Without this fallback the user turn could end up with empty content.
-    if (pendingBarcode && !msgText) {
-      msgText = `Log this scanned product: ${pendingBarcode.product.name}`;
+    // structured product data travels as one `data-barcodeAttachment` part PER
+    // scan, which convertToModelMessages drops from the user turn by design
+    // (it's UI-only — the model instead receives it as a pre-fetched
+    // tool-result, see agent.ts). Without this fallback the user turn could
+    // end up with empty content. #213: lists every scanned product, not just
+    // the first, when there's more than one pending.
+    if (pendingBarcodes.length > 0 && !msgText) {
+      const names = pendingBarcodes.map(b => b.product.name).join(', ');
+      msgText = pendingBarcodes.length === 1
+        ? `Log this scanned product: ${names}`
+        : `Log these scanned products: ${names}`;
     }
 
-    const barcodePart = pendingBarcode
-      ? [{
-          type: 'data-barcodeAttachment' as const,
-          data: {
-            code: pendingBarcode.code,
-            imageDataUrl: pendingBarcode.imageDataUrl ?? null,
-            product: pendingBarcode.product,
-          } satisfies BarcodeAttachmentData,
-        }]
-      : [];
+    // #213: one data-barcodeAttachment part per pending scan (was a single part).
+    const barcodeParts = pendingBarcodes.map(b => ({
+      type: 'data-barcodeAttachment' as const,
+      data: {
+        code: b.code,
+        imageDataUrl: b.imageDataUrl ?? null,
+        product: b.product,
+      } satisfies BarcodeAttachmentData,
+    }));
 
     pendingPhotos.forEach(p => URL.revokeObjectURL(p.previewUrl));
     setText('');
     setPendingPhotos([]);
-    setPendingBarcode(null);
+    setPendingBarcodes([]);
 
     const parts = [
       ...files,
-      ...barcodePart,
+      ...barcodeParts,
       ...(msgText ? [{ type: 'text' as const, text: msgText }] : []),
     ];
 
@@ -1530,7 +1543,7 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
       { parts } as Parameters<typeof sendMessage>[0],
       { body: { selectedDate, deniedProposalCount } },
     );
-  }, [canSend, text, pendingPhotos, pendingBarcode, pendingDenialCount, selectedDate, sendMessage]);
+  }, [canSend, text, pendingPhotos, pendingBarcodes, pendingDenialCount, selectedDate, sendMessage]);
 
   // #14: Stop button calls useChat stop()
   const handleStop = useCallback(() => {
@@ -1832,8 +1845,8 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Photo thumbnails + pending barcode attachment chip */}
-        {(pendingPhotos.length > 0 || pendingBarcode) && (
+        {/* Photo thumbnails + pending barcode attachment chips */}
+        {(pendingPhotos.length > 0 || pendingBarcodes.length > 0) && (
           <div className={styles.thumbnails}>
             {pendingPhotos.map(p => (
               <div key={p.previewUrl} className={styles.thumbnailWrap}>
@@ -1850,21 +1863,28 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
               </div>
             ))}
 
-            {/* #barcode-attachment: scanned-product chip — tap to preview, X to remove */}
-            {pendingBarcode && (
-              <div className={styles.thumbnailWrap}>
+            {/* #barcode-attachment (#213): one chip PER pending scan — tap to
+                preview, X to remove just that one. Each chip gets its own
+                index-qualified aria-label so multiple scans (even of the same
+                product) remain distinguishable to assistive tech. */}
+            {pendingBarcodes.map((b, i) => (
+              <div key={b.id} className={styles.thumbnailWrap}>
                 <button
                   type="button"
                   className={styles.barcodeThumbBtn}
                   onClick={() => setBarcodePreview({
-                    code: pendingBarcode.code,
-                    imageDataUrl: pendingBarcode.imageDataUrl ?? null,
-                    product: pendingBarcode.product,
+                    code: b.code,
+                    imageDataUrl: b.imageDataUrl ?? null,
+                    product: b.product,
                   })}
-                  aria-label={`View scanned product: ${pendingBarcode.product.name}`}
+                  aria-label={
+                    pendingBarcodes.length > 1
+                      ? `View scanned product ${i + 1} of ${pendingBarcodes.length}: ${b.product.name}`
+                      : `View scanned product: ${b.product.name}`
+                  }
                 >
-                  {pendingBarcode.imageDataUrl ? (
-                    <img src={pendingBarcode.imageDataUrl} alt="Scanned product" className={styles.thumbnail} />
+                  {b.imageDataUrl ? (
+                    <img src={b.imageDataUrl} alt="Scanned product" className={styles.thumbnail} />
                   ) : (
                     <span className={styles.thumbnail} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <ScanBarcode size={16} aria-hidden="true" style={{ display: 'block' }} />
@@ -1875,13 +1895,17 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
                 <button
                   type="button"
                   className={styles.thumbnailRemove}
-                  onClick={removePendingBarcode}
-                  aria-label="Remove scanned product"
+                  onClick={() => removePendingBarcode(b.id)}
+                  aria-label={
+                    pendingBarcodes.length > 1
+                      ? `Remove scanned product ${i + 1} of ${pendingBarcodes.length}: ${b.product.name}`
+                      : 'Remove scanned product'
+                  }
                 >
                   ✕
                 </button>
               </div>
-            )}
+            ))}
           </div>
         )}
 
