@@ -71,6 +71,10 @@ export const foodSearchResultSchema = z.object({
     .array(z.object({ label: z.string(), grams: z.number().positive() }))
     .nullable()
     .optional(),
+  // Disambiguates custom food vs custom meal for badge display / meal-expansion
+  // gating in the client. Optional/nullable because only source: 'custom' results
+  // have a kind — USDA and Open Food Facts results (providers.ts) never set it.
+  kind: z.enum(['food', 'meal']).nullable().optional(),
 });
 
 export type Meal = (typeof MEALS)[number];
