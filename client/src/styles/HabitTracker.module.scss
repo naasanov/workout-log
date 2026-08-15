@@ -131,6 +131,7 @@
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   padding: 0;
+  position: relative;
   transition: background-color 0.12s ease, border-color 0.12s ease;
 
   &:active {
@@ -148,6 +149,23 @@
     width: 40px;
     height: 40px;
     font-size: 24px;
+
+    // Accessibility: 40px painted box, 44px invisible hit area (WCAG 2.5.5).
+    // Scoped to this breakpoint deliberately: .adjustBtns' 4px gap only
+    // makes 44px hit areas touch (not overlap) at THIS box size (40+4=44).
+    // At the desktop 36px size above, the same math would leave hit areas
+    // overlapping by 4px, so the overlay is intentionally left off there —
+    // desktop pointer input doesn't carry the same sweaty-thumb constraint
+    // this fix targets.
+    &::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 44px;
+      height: 44px;
+    }
   }
 }
 
@@ -381,6 +399,7 @@
   color: rgba($text, 0.55);
   cursor: pointer;
   padding: 0;
+  position: relative;
   -webkit-tap-highlight-color: transparent;
 
   svg {
@@ -391,6 +410,20 @@
 
   &:active {
     color: $primary;
+  }
+
+  // Accessibility: height is already 44px; only width (40px) is under WCAG
+  // 2.5.5's minimum. Its only neighbor, .habitSelectBtn, is flex: 1 (a full
+  // habit-name label far wider than 44px), so widening this hit area can't
+  // steal taps meant for it.
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
   }
 }
 
@@ -552,6 +585,7 @@
   color: rgba($text, 0.5);
   cursor: pointer;
   padding: 0;
+  position: relative;
   -webkit-tap-highlight-color: transparent;
 
   svg {
@@ -562,6 +596,20 @@
 
   &:active {
     color: $text;
+  }
+
+  // Accessibility: 32px painted box, 44px invisible hit area (WCAG 2.5.5).
+  // .newHabitRow's 6px gap plus .newHabitSaveBtn's own padded text width
+  // keeps this hit area clear of the Save button — verified via
+  // elementFromPoint in browser testing, not just computed on paper.
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
   }
 }
 

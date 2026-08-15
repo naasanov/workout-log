@@ -151,10 +151,24 @@
   align-items: center;
   justify-content: center;
   padding: 4px;
+  position: relative;
 
   &:active {
     background-color: rgba($primary, 0.1);
     color: $primary;
+  }
+
+  // Accessibility: 40px painted box, 44px invisible hit area (WCAG 2.5.5).
+  // This is the only button in the movement header row (pushed right via
+  // .dotsMenuWrapper's margin-left: auto), so there's no neighbor to overlap.
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
   }
 }
 
