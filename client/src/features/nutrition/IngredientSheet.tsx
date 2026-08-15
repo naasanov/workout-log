@@ -92,7 +92,10 @@ function SearchDropdown({ query, onSelect }: SearchDropdownProps) {
         >
           <span className={styles.dropdownName}>{food.name}</span>
           <span className={styles.dropdownMeta}>
-            {food.per100g.calories} kcal/100g ·{' '}
+            {/* #228 — custom foods derive per100g by dividing totals by
+                total_grams, which yields long repeating decimals; round for
+                display only, the stored/computed value is untouched. */}
+            {Math.round(food.per100g.calories)} kcal/100g ·{' '}
             {food.source === 'custom'
               ? food.kind === 'meal'
                 ? 'Custom · Meal'
@@ -190,23 +193,36 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
       if (!isNaN(id)) {
         getCustomFood(id)
           .then(customFood => {
+            // #229 — meals were always expanding to their FULL-BATCH amounts
+            // (ing.grams as stored), so selecting a custom meal from search
+            // silently defaulted the serving size to "make the whole batch".
+            // If the meal has at least one defined serving, scale every
+            // expanded ingredient down to the first defined serving instead.
+            // Guard total_grams <= 0 (or missing) — nothing sound to scale
+            // from, so fall back to today's full-batch expansion rather than
+            // dividing by zero (same spirit as scaleRowMacros's guards).
+            const firstServing = customFood.servings[0];
+            const scale =
+              firstServing && customFood.total_grams > 0
+                ? firstServing.grams / customFood.total_grams
+                : 1;
             const expandedRows: EditorRow[] = customFood.ingredients.map(ing => ({
               rowKey: nextKey(),
               name: ing.name,
-              grams: ing.grams,
-              quantity: ing.grams,
+              grams: round2(ing.grams * scale),
+              quantity: round2(ing.grams * scale),
               unitLabel: 'g',
               unitGrams: 1,
               portions: [GRAMS_UNIT],
               source: ing.source as IngredientSource,
               source_ref: ing.source_ref ?? null,
-              calories: ing.calories,
-              protein_g: ing.protein_g,
-              carbs_g: ing.carbs_g,
-              fat_g: ing.fat_g,
-              fiber_g: ing.fiber_g ?? null,
-              sugar_g: ing.sugar_g ?? null,
-              sodium_mg: ing.sodium_mg ?? null,
+              calories: round2(ing.calories * scale),
+              protein_g: round2(ing.protein_g * scale),
+              carbs_g: round2(ing.carbs_g * scale),
+              fat_g: round2(ing.fat_g * scale),
+              fiber_g: ing.fiber_g != null ? round2(ing.fiber_g * scale) : null,
+              sugar_g: ing.sugar_g != null ? round2(ing.sugar_g * scale) : null,
+              sodium_mg: ing.sodium_mg != null ? round2(ing.sodium_mg * scale) : null,
               per100g: null,
             }));
             onExpandMeal(expandedRows);
@@ -553,10 +569,19 @@ export default function IngredientSheet({
               onExpandMeal={onExpandMeal ? handleExpandMeal : undefined}
             />
 
+            {/* #227 — manual dismiss only, no auto-hide timer. */}
             {barcodeError && (
-              <p className={styles.rowHint} style={{ color: 'var(--error, #ED1518)' }}>
-                {barcodeError}
-              </p>
+              <div className={styles.noticeRow}>
+                <p className={styles.noticeText}>{barcodeError}</p>
+                <button
+                  type="button"
+                  className={styles.noticeDismiss}
+                  onClick={() => setBarcodeError(null)}
+                  aria-label="Dismiss barcode error"
+                >
+                  <X size={14} aria-hidden="true" style={{ display: 'block' }} />
+                </button>
+              </div>
             )}
 
             {/* Delete button — only shown in edit mode */}
