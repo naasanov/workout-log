@@ -38,3 +38,7 @@ node_modules
 *.orig
 .idea/
 .vscode/
+# Agent worktrees live inside .claude/ but must never be committed — they are
+# git worktrees of this same repo. (.claude/skills/**/SKILL.md IS tracked: it's
+# shared repo knowledge. node_modules under .claude/ is covered by the rule above.)
+.claude/worktrees/

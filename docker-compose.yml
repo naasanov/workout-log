@@ -11,13 +11,15 @@ services:
       - "3307:3306"
     volumes:
       - db_data:/var/lib/mysql
-      - ./migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_initial_schema.sql
-      - ./migrations/002_body_weight.sql:/docker-entrypoint-initdb.d/002_body_weight.sql
-      - ./migrations/003_api_keys.sql:/docker-entrypoint-initdb.d/003_api_keys.sql
-      - ./migrations/004_variation_history_reps.sql:/docker-entrypoint-initdb.d/004_variation_history_reps.sql
-      - ./migrations/005_habit_tallies.sql:/docker-entrypoint-initdb.d/005_habit_tallies.sql
-      - ./migrations/006_sections_is_open.sql:/docker-entrypoint-initdb.d/006_sections_is_open.sql
-      - ./seeds/dev_user.sql:/docker-entrypoint-initdb.d/zzz_dev_user.sql
+    # Schema and seed data are NOT applied via docker-entrypoint-initdb.d. That mechanism
+    # only fires once, on a truly empty data directory, and previously mounted just
+    # migrations 001-006 (stale — the repo has migrations through 017) with no row written
+    # to schema_migrations, which left `npm run migrate` unable to tell what had already
+    # been applied. `scripts/migrate.js` + the `schema_migrations` table are now the single
+    # source of truth for schema state, for both fresh and pre-existing containers alike.
+    # After `docker compose up -d`, run (from the repo root, with DB_PORT=3307):
+    #   npm run db:setup
+    # See .claude/skills/browser-verify/SKILL.md ("Booting the dev stack") for the full flow.
 
 volumes:
   db_data:
