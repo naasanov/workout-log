@@ -4,7 +4,11 @@ import mobileStyles from "../../styles/ThinVariation.module.scss";
 import { Dumbbell, Number, Delete, Chart, Notes } from "../Icons";
 import DateInput from "../DateInput";
 
-function ThinVariation({ variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove, removeAllowed, onGraphOpen, onNotesOpen, hasNotes }) {
+function ThinVariation({
+  variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove, removeAllowed,
+  onGraphOpen, onNotesOpen, hasNotes,
+  pairEditing, pairFocus, weightInputRef, repsInputRef, onOpenPair, onPairInputChange, onPairSubmit
+}) {
   return (
     <div className={mobileStyles.variation}>
       <section>
@@ -49,12 +53,19 @@ function ThinVariation({ variation, details, handleLabelEdit, handleDetailEdit, 
       </section>
 
       <section>
-        {/* weight */}
+        {/* weight + reps: joined into one editing pair (#231) — tapping
+            either one opens both, so a single PATCH covers both fields and
+            the server logs one history row instead of two. */}
         <div className={`${styles.part} ${mobileStyles.weight}`}>
           <Dumbbell className={styles.icon} />
           <Editable
             value={details.weight}
-            onSubmit={change => handleDetailEdit("weight", change)}
+            editing={pairEditing}
+            onEditingChange={opening => opening && onOpenPair("weight")}
+            autoFocus={pairFocus === "weight"}
+            onInputChange={change => onPairInputChange("weight", change)}
+            onSubmit={onPairSubmit}
+            inputRef={weightInputRef}
             type="number"
           />
           <span> lbs</span>
@@ -65,7 +76,12 @@ function ThinVariation({ variation, details, handleLabelEdit, handleDetailEdit, 
           <Number className={styles.icon} />
           <Editable
             value={details.reps}
-            onSubmit={change => handleDetailEdit("reps", change)}
+            editing={pairEditing}
+            onEditingChange={opening => opening && onOpenPair("reps")}
+            autoFocus={pairFocus === "reps"}
+            onInputChange={change => onPairInputChange("reps", change)}
+            onSubmit={onPairSubmit}
+            inputRef={repsInputRef}
             type="number"
           />
           <span> reps</span>
