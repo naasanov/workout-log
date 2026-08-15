@@ -863,6 +863,10 @@ export async function searchCustomFoods(userUuid: string, query: string): Promis
       source_ref: String(id),
       per100g,
       portions,
+      // why: row.kind is already SELECTed above — without this, food.kind is
+      // always undefined on the client and every custom item (food or meal)
+      // renders as "Custom · Food" and can never trigger meal expansion.
+      kind: row.kind as 'food' | 'meal',
     });
   }
 
@@ -908,6 +912,9 @@ export async function recentCustomFoods(userUuid: string, limit = 5): Promise<Fo
       source_ref: String(id),
       per100g,
       portions,
+      // why: same as searchCustomFoods above — row.kind is already SELECTed
+      // (cf.kind) but was never attached, so this row is added for parity.
+      kind: row.kind as 'food' | 'meal',
     });
   }
 
