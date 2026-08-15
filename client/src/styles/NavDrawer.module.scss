@@ -213,7 +213,13 @@
 .editControls {
   display: flex;
   align-items: center;
-  gap: 2px;
+  // Accessibility: bumped from 2px to 4px. .iconBtn below now carries a 44px
+  // invisible tap-target overlay (WCAG 2.5.5); with 40px boxes, a gap
+  // narrower than 4px would make adjacent 44px hit areas overlap, and (up /
+  // down / remove sit in a row) a mis-tap could reorder or remove the wrong
+  // tab. 4px is the minimum that keeps the three hit areas touching, not
+  // overlapping.
+  gap: 4px;
   flex-shrink: 0;
 }
 
@@ -229,6 +235,7 @@
   border-radius: 8px;
   cursor: pointer;
   color: rgba($text, 0.7);
+  position: relative;
 
   &:active {
     background: rgba($primary, 0.12);
@@ -245,6 +252,18 @@
       background: rgba($primary, 0.08);
       color: $text;
     }
+  }
+
+  // Accessibility: 40px painted box, 44px invisible hit area (WCAG 2.5.5).
+  // See .editControls' gap above for why it needed to grow alongside this.
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
   }
 }
 

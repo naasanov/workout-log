@@ -128,6 +128,15 @@
 
 .remove {
   margin-left: auto;
+  // Accessibility: this wrapper holds the three-dots menu button directly
+  // next to the collapse chevron button with no gap. Both now carry a 44px
+  // invisible tap-target overlay (WCAG 2.5.5); without this gap the two
+  // 44px hit areas would overlap and the chevron (later in paint order)
+  // would silently steal taps meant for the dots menu. 4px matches the
+  // gap already used between icon buttons elsewhere (see Variation's
+  // .rightGroup) and is enough for the two 44px hit areas to touch, not
+  // overlap.
+  gap: 4px;
 }
 
 .variations {
@@ -207,10 +216,25 @@
   align-items: center;
   justify-content: center;
   padding: 4px;
+  position: relative;
 
   &:active {
     background-color: rgba($primary, 0.1);
     color: $primary;
+  }
+
+  // Accessibility: 40px painted box, 44px invisible hit area (WCAG 2.5.5).
+  // This button sits directly against the collapse chevron button in .remove
+  // below (no gap between them originally) — .remove's new 4px gap keeps
+  // these two 44px hit areas from overlapping/stealing each other's taps.
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
   }
 }
 
