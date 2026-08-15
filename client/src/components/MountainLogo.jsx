@@ -10,7 +10,14 @@ function MountainLogo({ className }) {
   return (
     <svg
       className={className}
-      viewBox="0 0 17 17"
+      // The artwork occupies only y 1.062..14 (and x -0.305..15.965) of the
+      // source's 0 0 17 17 box, i.e. ~76% of its own height. A box-sized SVG
+      // therefore carries dead space below the mountain, which any box-based
+      // alignment inherits — it made the mark hang below the "Peak" baseline.
+      // Tightening the viewBox to the path's real ink bounds makes the SVG
+      // box == the artwork, so `align-items: baseline` in Header.module.scss
+      // lands the mountain's base exactly on the text baseline.
+      viewBox="-0.305 1.062 16.27 12.938"
       fill="currentColor"
       aria-hidden="true"
       focusable="false"

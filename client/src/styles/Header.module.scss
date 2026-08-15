@@ -30,7 +30,10 @@
 
   .logo {
     display: flex;
-    align-items: flex-end;
+    // Baseline, not flex-end: flex-end aligns the mark to the LINE BOX bottom,
+    // which includes ~6px of descender space that the word "Peak" (no
+    // descenders) never uses — so the mark visibly hung below the text.
+    align-items: baseline;
     gap: 6px;
     // Let logo shrink if header is tight; headerRight gets its space
     flex: 1;
@@ -39,15 +42,14 @@
     min-width: 0;
     overflow: hidden;
 
-    // Mountain mark to the left of the wordmark. Sized so the glyph's INK
-    // matches the "Peak" cap height (title is 1.5rem/700 Sarabun, cap ~17px).
-    // The path only spans y 1.062->14 of a 0 0 17 17 viewBox, i.e. ~76% of its
-    // own box, so sizing the box to the cap height renders visibly too small —
-    // 17 / 0.761 ~= 22px of box gives ~17px of actual mountain.
+    // Mountain mark to the left of the wordmark. MountainLogo's viewBox is
+    // cropped to the path's ink bounds, so this height IS the rendered height
+    // of the mountain: 17px to match the "Peak" cap height (1.5rem/700 Sarabun,
+    // cap ~17.8px). With the baseline alignment above, the mark's base lands on
+    // the text baseline exactly — no magic offset.
     .mountainLogo {
-      width: 22px;
-      height: 22px;
-      margin-bottom: -1px;
+      width: auto;
+      height: 17px;
       color: $primary;
       // Never let the mark get squeezed/stretched when .title truncates.
       flex-shrink: 0;
