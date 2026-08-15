@@ -1,5 +1,5 @@
 /**
- * Icons — re-exported from lucide-react at a standardised 16×16.
+ * Icons — re-exported from lucide-react at a standardised 18×18.
  * All icons use `currentColor` so existing colour styling continues to work.
  * Legacy component names are kept so call-sites need no changes.
  */
@@ -16,42 +16,46 @@ import {
   NotebookPen,
 } from 'lucide-react';
 
+// #226: single source of truth for the shared icon size — bump this one
+// line rather than repeating a literal on every wrapper below.
+const ICON_SIZE = 18;
+
 export function Calender({ className }) {
-  return <Calendar className={className} size={16} />;
+  return <Calendar className={className} size={ICON_SIZE} />;
 }
 
 export function Delete({ className, style }) {
-  return <X className={className} style={style} size={16} />;
+  return <X className={className} style={style} size={ICON_SIZE} />;
 }
 
 export function DropdownClosed({ className }) {
-  return <ChevronRight className={className} size={16} />;
+  return <ChevronRight className={className} size={ICON_SIZE} />;
 }
 
 export function DropdownOpen({ className }) {
-  return <ChevronDown className={className} size={16} />;
+  return <ChevronDown className={className} size={ICON_SIZE} />;
 }
 
 export function Profile({ className }) {
-  return <CircleUserRound className={className} size={16} />;
+  return <CircleUserRound className={className} size={ICON_SIZE} />;
 }
 
 export function Plus({ className, ...props }) {
-  return <PlusIcon className={className} {...props} size={16} />;
+  return <PlusIcon className={className} {...props} size={ICON_SIZE} />;
 }
 
 export function Number({ className }) {
-  return <Hash className={className} size={16} />;
+  return <Hash className={className} size={ICON_SIZE} />;
 }
 
 export function Chart({ className }) {
-  return <BarChart3 className={className} size={16} />;
+  return <BarChart3 className={className} size={ICON_SIZE} />;
 }
 
 export function Dumbbell({ className, ...props }) {
-  return <DumbbellIcon className={className} {...props} size={16} />;
+  return <DumbbellIcon className={className} {...props} size={ICON_SIZE} />;
 }
 
 export function Notes({ className }) {
-  return <NotebookPen className={className} size={16} />;
+  return <NotebookPen className={className} size={ICON_SIZE} />;
 }
