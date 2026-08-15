@@ -5,15 +5,17 @@ import styles from '../styles/VariationNotesModal.module.scss';
 /**
  * VariationNotesModal — free-text notes editor for a variation.
  * Mirrors the shape of WeightGraphModal: same Modal wrapper, same
- * header-with-title-and-close pattern. Autosaves on blur, no Save button.
+ * header-with-title-and-close pattern. Autosaves on blur; the close button
+ * and the Save button are both just affordances into the same close path.
  *
  * Radix Dialog closes on Escape and overlay click without ever blurring the
  * textarea (no mousedown moves focus first), so `onBlur` alone misses those
  * paths and would silently discard the edit. Every close path — blur, the
- * close button, overlay click, and Escape — funnels through `flush()`,
- * which reads the latest typed value from a ref (avoiding stale closures)
- * and no-ops if it already matches what was last saved (avoiding duplicate
- * PATCHes when e.g. blur fires immediately before a close handler).
+ * close button, the Save button, overlay click, and Escape — funnels
+ * through `flush()`, which reads the latest typed value from a ref
+ * (avoiding stale closures) and no-ops if it already matches what was last
+ * saved (avoiding duplicate PATCHes when e.g. blur fires immediately before
+ * a close/save handler).
  *
  * Props:
  *   variation {object}   — must have .id and .label
@@ -71,6 +73,15 @@ function VariationNotesModal({ variation, notes, onSave, onClose }) {
           maxLength={2000}
           autoFocus
         />
+
+        <div className={styles.actions}>
+          {/* #232: purely a UX affordance — goes through the same handleClose
+              path as the X, so it inherits flush()'s dedupe and never fires
+              a second PATCH even if blur already flushed the edit. */}
+          <button type="button" className={styles.save} onClick={handleClose}>
+            Save
+          </button>
+        </div>
       </div>
     </Modal>
   );
