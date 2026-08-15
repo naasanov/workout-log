@@ -5,6 +5,7 @@ import { useUser } from "../context/UserProvider";
 import AccountMenu from "./AccountMenu";
 import FeedbackModal from "../features/nutrition/FeedbackModal";
 import NavDrawer from "./NavDrawer";
+import MountainLogo from "./MountainLogo";
 import { MessageSquare, Menu } from 'lucide-react';
 
 /**
@@ -54,6 +55,7 @@ function Header({
         </button>
 
         <Link to="/" className={styles.logo}>
+          <MountainLogo className={styles.mountainLogo} />
           <span className={styles.title}>Peak</span>
         </Link>
 

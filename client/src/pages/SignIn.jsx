@@ -4,8 +4,10 @@ import { Link, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import styles from "../styles/Authentication.module.scss";
 import { login } from "../api/authApi";
+import useDocumentTitle from "../hooks/useDocumentTitle";
 
 function SignIn() {
+  useDocumentTitle("Sign In · Peak"); // #236: unique per-page tab title
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [emailMessage, setEmailMessage] = useState(null);

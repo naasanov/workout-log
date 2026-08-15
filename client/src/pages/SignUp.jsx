@@ -5,8 +5,10 @@ import Header from "../components/Header";
 import styles from "../styles/Authentication.module.scss";
 import { signup } from "../api/authApi";
 import clientApi from "../api/clientApi";
+import useDocumentTitle from "../hooks/useDocumentTitle";
 
 function SignIn() {
+  useDocumentTitle("Sign Up · Peak"); // #236: unique per-page tab title
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [emailMessage, setEmailMessage] = useState(null);
