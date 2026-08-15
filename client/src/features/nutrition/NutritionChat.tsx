@@ -46,7 +46,7 @@ import ToolCallCard, { friendlyToolName } from './ToolCallCard';
 import ConfirmModal from '../../components/ConfirmModal';
 import type { EntryInput, EntryEditorMode, ProposeEntryArgs, ProposeCustomFoodArgs, CustomFoodInput, BarcodeAttachmentData, ImageRedactedData } from './types';
 import styles from './NutritionChat.module.scss';
-import { ChevronDown, Trash2, Camera, ScanBarcode, Square, Send, Images, AlertCircle, ChevronRight, MessageSquare, ImageOff } from 'lucide-react';
+import { ChevronDown, Trash2, Camera, ScanBarcode, Square, Send, Images, AlertCircle, ChevronRight, MessageSquare, ImageOff, X } from 'lucide-react';
 import useIsMobile from '../../hooks/useIsMobile';
 
 // ---------------------------------------------------------------------------
@@ -1913,8 +1913,19 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
           <p className={styles.photoError}>{photoError}</p>
         )}
 
+        {/* #227 — manual dismiss only, no auto-hide timer. */}
         {barcodeNotice && (
-          <p className={styles.photoError}>{barcodeNotice}</p>
+          <div className={styles.noticeRow}>
+            <p className={styles.noticeText}>{barcodeNotice}</p>
+            <button
+              type="button"
+              className={styles.noticeDismiss}
+              onClick={() => setBarcodeNotice(null)}
+              aria-label="Dismiss barcode notice"
+            >
+              <X size={14} aria-hidden="true" style={{ display: 'block' }} />
+            </button>
+          </div>
         )}
 
         {/* Composer — #3/#61: safe-area padding, #4: 16px font-size on mobile

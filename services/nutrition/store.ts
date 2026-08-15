@@ -480,6 +480,24 @@ async function fetchCustomServings(customFoodId: number): Promise<Array<CustomSe
   return rows as Array<CustomServing & { id: number; sort_order: number }>;
 }
 
+/**
+ * #229 — build the FoodSearchResult portions list for a custom food/meal.
+ * Defined servings come FIRST so `rowFromFood`'s "portions[1] is the default
+ * unit" heuristic (ingredientMath.ts) picks a real serving instead of the
+ * full batch. If there are no defined servings, 'full batch' is the only
+ * non-gram option and remains the default — that's correct, since there's
+ * nothing else it could mean.
+ */
+function buildCustomFoodPortions(
+  servings: Array<CustomServing & { id: number; sort_order: number }>,
+  total_grams: number,
+): FoodSearchResult['portions'] {
+  return [
+    ...servings.map((s) => ({ label: s.label, grams: s.grams })),
+    { label: 'full batch', grams: total_grams > 0 ? total_grams : 1 },
+  ];
+}
+
 /** Assemble a full CustomFoodRow from a raw DB row + its children. */
 async function buildCustomFoodRow(row: RowDataPacket): Promise<CustomFoodRow> {
   const id = row.id as number;
@@ -837,11 +855,7 @@ export async function searchCustomFoods(userUuid: string, query: string): Promis
       total_grams,
     );
     const servings = await fetchCustomServings(id);
-
-    const portions: FoodSearchResult['portions'] = [
-      { label: 'full batch', grams: total_grams > 0 ? total_grams : 1 },
-      ...servings.map((s) => ({ label: s.label, grams: s.grams })),
-    ];
+    const portions = buildCustomFoodPortions(servings, total_grams);
 
     results.push({
       name: row.name as string,
@@ -886,11 +900,7 @@ export async function recentCustomFoods(userUuid: string, limit = 5): Promise<Fo
       total_grams,
     );
     const servings = await fetchCustomServings(id);
-
-    const portions: FoodSearchResult['portions'] = [
-      { label: 'full batch', grams: total_grams > 0 ? total_grams : 1 },
-      ...servings.map((s) => ({ label: s.label, grams: s.grams })),
-    ];
+    const portions = buildCustomFoodPortions(servings, total_grams);
 
     results.push({
       name: row.name as string,
