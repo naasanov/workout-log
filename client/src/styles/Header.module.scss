@@ -39,12 +39,15 @@
     min-width: 0;
     overflow: hidden;
 
-    // Mountain mark to the left of the wordmark. Sized to ~match the "Peak"
-    // cap height (title is 1.5rem/700 Sarabun) rather than the full em box.
+    // Mountain mark to the left of the wordmark. Sized so the glyph's INK
+    // matches the "Peak" cap height (title is 1.5rem/700 Sarabun, cap ~17px).
+    // The path only spans y 1.062->14 of a 0 0 17 17 viewBox, i.e. ~76% of its
+    // own box, so sizing the box to the cap height renders visibly too small —
+    // 17 / 0.761 ~= 22px of box gives ~17px of actual mountain.
     .mountainLogo {
-      width: 18px;
-      height: 18px;
-      margin-bottom: 2px;
+      width: 22px;
+      height: 22px;
+      margin-bottom: -1px;
       color: $primary;
       // Never let the mark get squeezed/stretched when .title truncates.
       flex-shrink: 0;
