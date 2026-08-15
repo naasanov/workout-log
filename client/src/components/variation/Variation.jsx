@@ -83,18 +83,22 @@ function Variation({ variation, setVariations, removeAllowed }) {
     let repsVal = repsRaw ? parseInt(repsRaw) : NaN;
 
     // A field left blank (or otherwise unparseable) falls back to its prior
-    // value and surfaces the error banner — it must never PATCH NaN.
-    let hasBlank = false;
+    // value and must never PATCH NaN. The error banner is only for a field
+    // the user actually CLEARED — a field that never had a value ("___", e.g.
+    // the weight of a freshly created variation, or reps before the first
+    // edit) is legitimately blank, and opening the pair to fill in the OTHER
+    // field must not accuse the user of emptying it.
+    let clearedExisting = false;
     if (!weightRaw || isNaN(weightVal)) {
-      hasBlank = true;
+      if (priorWeight !== undefined) clearedExisting = true;
       weightVal = priorWeight;
     }
     if (!repsRaw || isNaN(repsVal)) {
-      hasBlank = true;
+      if (priorReps !== undefined) clearedExisting = true;
       repsVal = priorReps;
     }
 
-    if (hasBlank) setShowError(true);
+    if (clearedExisting) setShowError(true);
 
     setPairEditing(false);
     setPairFocus(null);
