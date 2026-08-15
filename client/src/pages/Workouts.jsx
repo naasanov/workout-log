@@ -11,8 +11,9 @@ import Header from '../components/Header.jsx';
 import clientApi from '../api/clientApi.js';
 import useAuth from '../hooks/useAuth.js';
 import { useQuery } from '@tanstack/react-query';
-import { TABS } from '../config/tabs';
+import { TABS, TAB_LABELS } from '../config/tabs';
 import { useTabPreferences } from '../api/tabPreferences';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 function Workouts() {
   const [sections, setSections] = useState([]);
@@ -74,6 +75,12 @@ function Workouts() {
   }, [sectionsQuery.data]);
 
   const showEmptyState = loggedIn && !prefsLoading && enabledTabs.length === 0;
+
+  // #236: unique tab titles, tab name first so browser-tab truncation
+  // (which cuts from the end) never eats the distinguishing word. activeTab
+  // is null in the empty state (logged in, no enabled tools) — fall back to
+  // the bare app name rather than showing a stale/undefined label.
+  useDocumentTitle(activeTab ? `${TAB_LABELS[activeTab]} · Peak` : 'Peak');
 
   return (
     <>
