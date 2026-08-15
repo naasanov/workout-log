@@ -54,10 +54,15 @@ function GraphTooltip({ active, payload, isEst1RM }) {
   };
 
   if (!isEst1RM) {
+    // #225: surface reps alongside weight on the Weight tab too, matching the
+    // "155 lbs × 9" style the est. 1RM branch below uses for its caption.
+    // Legacy rows predate reps tracking (reps null/0), so fall back to just
+    // the weight, exactly like the est-1RM branch's own fallback does.
+    const weightCaption = point.reps ? `${point.weight} lbs × ${point.reps}` : `${point.weight} lbs`;
     return (
       <div style={contentStyle}>
         <div>{`${point.value} lbs`}</div>
-        <div style={{ opacity: 0.7 }}>Weight</div>
+        <div style={{ opacity: 0.7 }}>{weightCaption}</div>
       </div>
     );
   }
@@ -215,6 +220,12 @@ function WeightGraphModal({ variation, onClose }) {
                   strokeWidth={2}
                   dot={{ fill: '#70EB70', r: 4 }}
                   activeDot={{ r: 6 }}
+                  // #230: recharts' default 1500ms animation made toggling
+                  // between Est. 1RM and Weight feel sluggish. Snappier but
+                  // still animated (not a hard cut).
+                  isAnimationActive
+                  animationDuration={300}
+                  animationEasing="ease-out"
                 />
               </LineChart>
             </ResponsiveContainer>

@@ -7,14 +7,18 @@
 }
 
 // Panel inner wrapper
+// #232: was `padding: 28px 32px; gap: 20px;` — combined with the close
+// button's 44px tap target that inflated the header row well past the
+// title's own line height, the header ended up with far more breathing
+// room above/below it than the rest of the panel. Tightened both here.
 .modal {
-  padding: 28px 32px;
+  padding: 18px 32px 24px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
 
   @media (max-width: $mobile-width) {
-    padding: 20px 16px;
+    padding: 14px 16px 20px;
   }
 }
 
@@ -35,6 +39,11 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  // #232: .textarea's typed text sits 15px in from the panel's content edge
+  // (1px border + 14px padding-left). Match that inset so the title's left
+  // edge lines up with where the note text begins, instead of the panel's
+  // raw content edge.
+  margin-left: 15px;
 }
 
 .close {
@@ -50,6 +59,10 @@
   // Tappable on mobile
   min-width: 44px;
   min-height: 44px;
+  // #232: keep the 44px hit area without letting it inflate the header
+  // row's visual height — pull the box back in with a negative margin so
+  // the row's rendered height tracks the title's line height instead.
+  margin: -10px 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -84,5 +97,33 @@
   &::placeholder {
     color: $text;
     opacity: 0.45;
+  }
+}
+
+// #232: Save button — purely a UX affordance, calls the same close path as
+// the X. Styled to match the sibling WeightGraphModal's toggle buttons
+// (translucent primary fill, primary text) rather than a new button look.
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.save {
+  background-color: $primary-translucent;
+  border: 1px solid $primary-border;
+  color: $primary;
+  font-family: $sarabun;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: $sarabun-spacing;
+  border-radius: $border-radius;
+  padding: 10px 24px;
+  // Tappable on mobile
+  min-height: 44px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+
+  &:hover {
+    opacity: 0.85;
   }
 }
