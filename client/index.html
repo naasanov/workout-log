@@ -4,7 +4,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#000000" />
+  <!-- Browser-chrome color for PWA/standalone mode. Hardcoded #282B28 here and
+       in client/public/manifest.json ("theme_color") since neither can read a
+       CSS variable — keep both literals in sync with $surface in
+       variables.scss, which is also the header's background-color. -->
+  <meta name="theme-color" content="#282B28" />
   <meta name="description" content="An app to help you track you personal records in the gym" />
   <!-- Mountain brand mark. Color is hardcoded #70EB70 ($primary) here and in
        client/public/mountain.svg since favicons can't read a CSS variable —
