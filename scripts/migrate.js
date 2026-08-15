@@ -9,6 +9,23 @@ function parseUrl(url) {
   return { user: m[1], password: m[2], host: m[3], port: parseInt(m[4]), database: m[5] };
 }
 
+// Mirrors database.ts's precedence exactly: JAWSDB_URL (Heroku/production) wins whenever
+// it's set, full stop. DB_HOST/DB_PORT/DB_USERNAME/DB_PASSWORD/DB_NAME are only a fallback
+// for local dev (docker-compose), so that `npm run migrate` can be pointed at the local
+// MySQL container the same way the server already can be.
+function getConnectionConfig() {
+  if (process.env.JAWSDB_URL !== undefined) {
+    return parseUrl(process.env.JAWSDB_URL);
+  }
+  return {
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 3306,
+    user: process.env.DB_USERNAME,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+  };
+}
+
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // The old web dyno is still serving traffic during the release phase, so its pool may be
@@ -32,10 +49,7 @@ async function connectWithRetry(config, attempts = 6, delayMs = 5000) {
 }
 
 async function run() {
-  const dbUrl = process.env.JAWSDB_URL;
-  if (!dbUrl) throw new Error('JAWSDB_URL not set');
-
-  const conn = await connectWithRetry(parseUrl(dbUrl));
+  const conn = await connectWithRetry(getConnectionConfig());
   console.log('Connected to database');
 
   await conn.execute(`
@@ -86,4 +100,12 @@ async function run() {
   console.log('Done');
 }
 
-run().catch(err => { console.error(err); process.exit(1); });
+// Only auto-run when invoked directly (`node scripts/migrate.js` / `npm run migrate`,
+// including the Heroku release-phase Procfile entry). When required as a module — e.g. by
+// scripts/seedDev.js, which wants the same JAWSDB_URL/DB_* connection logic without
+// re-running migrations — just export the helpers.
+if (require.main === module) {
+  run().catch(err => { console.error(err); process.exit(1); });
+}
+
+module.exports = { getConnectionConfig, connectWithRetry };
