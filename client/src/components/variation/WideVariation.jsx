@@ -79,16 +79,15 @@ function WideVariation({
           <Chart className={styles.icon} />
         </button>
 
-        {removeAllowed
-          ? (
-            <button className={styles.delete} onClick={handleRemove}>
-              <Delete style={{ visibility: showRemove ? 'visible' : 'hidden' }} className={styles.icon} />
-            </button>
-          )
-          : (
-            <div className={styles.noRemove} />
-          )
-        }
+        {/* #241 — removeAllowed is false only when this is the movement's
+            sole variation, so there's no sibling row to stay aligned with.
+            Render nothing instead of a spacer so notes/graph sit flush
+            against the edge. */}
+        {removeAllowed && (
+          <button className={styles.delete} onClick={handleRemove}>
+            <Delete style={{ visibility: showRemove ? 'visible' : 'hidden' }} className={styles.icon} />
+          </button>
+        )}
       </div>
     </>
   );
