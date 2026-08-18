@@ -56,6 +56,43 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 // ---------------------------------------------------------------------------
+// Autosave payload serialization
+//
+// #245 — single source of truth for turning builder state into the string
+// compared against the "as loaded" baseline. Both the live autosave payload
+// and the baseline snapshot MUST go through this exact function: JSON.stringify
+// drops `undefined` keys, and `rowKey` is a monotonically-increasing counter,
+// so a baseline built any other way would never byte-match the live value.
+// ---------------------------------------------------------------------------
+interface AutosaveState {
+  name: string;
+  notes: string;
+  rows: BuilderRow[];
+  servings: CustomServing[];
+  batchScale: number;
+  foodServingGrams: number;
+  foodCalories: number;
+  foodProtein: number;
+  foodCarbs: number;
+  foodFat: number;
+}
+
+function serializeAutosaveState(state: AutosaveState): string {
+  return JSON.stringify({
+    name: state.name,
+    notes: state.notes,
+    rows: state.rows.map(r => ({ ...r, rowKey: undefined })),
+    servings: state.servings,
+    batchScale: state.batchScale,
+    foodServingGrams: state.foodServingGrams,
+    foodCalories: state.foodCalories,
+    foodProtein: state.foodProtein,
+    foodCarbs: state.foodCarbs,
+    foodFat: state.foodFat,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 export interface MealBuilderProps {
@@ -109,6 +146,12 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
   const createMutation = useCreateCustomFood();
   const updateMutation = useUpdateCustomFood();
 
+  // #245 — snapshot of the autosave payload string exactly as loaded, so the
+  // autosave effect can tell "nothing changed" apart from "debounce ticked".
+  // null means "always autosave" (brand-new item, prefill, proposal) — a real
+  // payload string never equals null, so those paths are unaffected.
+  const baselineRef = useRef<string | null>(null);
+
   // ---------------------------------------------------------------------------
   // Init / reset on open
   // ---------------------------------------------------------------------------
@@ -121,6 +164,7 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
     setNewServingLabel('');
     setNewServingValue('');
     setNewServingType('grams');
+    baselineRef.current = null;
 
     // Proposal mode: pre-fill from agent args, no draft fetch
     if (proposalArgs) {
@@ -202,13 +246,20 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
   }, [open]);
 
   function loadFromRow(row: CustomFoodRow) {
-    setName(row.name);
-    setNotes(row.notes ?? '');
+    // Derive the values about to be set, so the SAME derived values can be
+    // used both for setState and for the baseline snapshot below — state
+    // isn't readable off `name`/`rows`/etc. right after setState (#245).
+    const loadedName = row.name;
+    const loadedNotes = row.notes ?? '';
+    const loadedServings = row.servings.map(s => ({ ...s }));
+
+    setName(loadedName);
+    setNotes(loadedNotes);
     setDraftId(row.id);
-    setServings(row.servings.map(s => ({ ...s })));
+    setServings(loadedServings);
 
     if (kind === 'meal') {
-      setRows(row.ingredients.map(ing => ({
+      const loadedRows = row.ingredients.map(ing => ({
         rowKey: nextKey(),
         name: ing.name,
         grams: ing.grams,
@@ -226,20 +277,62 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
         sugar_g: ing.sugar_g ?? null,
         sodium_mg: ing.sodium_mg ?? null,
         per100g: null,
-      })));
+      }));
+      setRows(loadedRows);
+
+      // #245 — the init effect always resets batchScale to 1 just before
+      // calling loadFromRow, so 1 (not the stale `batchScale` closure value)
+      // is what will actually be in state once this render commits.
+      baselineRef.current = serializeAutosaveState({
+        name: loadedName,
+        notes: loadedNotes,
+        rows: loadedRows,
+        servings: loadedServings,
+        batchScale: 1,
+        foodServingGrams,
+        foodCalories,
+        foodProtein,
+        foodCarbs,
+        foodFat,
+      });
     } else {
-      // Food mode: first ingredient holds the per-serving macros
+      // Food mode: first ingredient holds the per-serving macros. `rows` is
+      // left untouched by food-mode loads, so the current closure value IS
+      // what will remain in state — safe to reuse directly for the baseline.
       const ing = row.ingredients[0];
+      let loadedServingGrams = foodServingGrams;
+      let loadedCalories = foodCalories;
+      let loadedProtein = foodProtein;
+      let loadedCarbs = foodCarbs;
+      let loadedFat = foodFat;
       if (ing) {
-        setFoodServingGrams(ing.grams);
-        setFoodCalories(ing.calories);
-        setFoodProtein(ing.protein_g);
-        setFoodCarbs(ing.carbs_g);
-        setFoodFat(ing.fat_g);
+        loadedServingGrams = ing.grams;
+        loadedCalories = ing.calories;
+        loadedProtein = ing.protein_g;
+        loadedCarbs = ing.carbs_g;
+        loadedFat = ing.fat_g;
+        setFoodServingGrams(loadedServingGrams);
+        setFoodCalories(loadedCalories);
+        setFoodProtein(loadedProtein);
+        setFoodCarbs(loadedCarbs);
+        setFoodFat(loadedFat);
         setFoodFiber(ing.fiber_g != null ? String(ing.fiber_g) : '');
         setFoodSugar(ing.sugar_g != null ? String(ing.sugar_g) : '');
         setFoodSodium(ing.sodium_mg != null ? String(ing.sodium_mg) : '');
       }
+
+      baselineRef.current = serializeAutosaveState({
+        name: loadedName,
+        notes: loadedNotes,
+        rows,
+        servings: loadedServings,
+        batchScale: 1,
+        foodServingGrams: loadedServingGrams,
+        foodCalories: loadedCalories,
+        foodProtein: loadedProtein,
+        foodCarbs: loadedCarbs,
+        foodFat: loadedFat,
+      });
     }
   }
 
@@ -306,7 +399,7 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
   // ---------------------------------------------------------------------------
   // Autosave draft (debounced)
   // ---------------------------------------------------------------------------
-  const autosavePayloadStr = JSON.stringify({ name, notes, rows: rows.map(r => ({ ...r, rowKey: undefined })), servings, batchScale, foodServingGrams, foodCalories, foodProtein, foodCarbs, foodFat });
+  const autosavePayloadStr = serializeAutosaveState({ name, notes, rows, servings, batchScale, foodServingGrams, foodCalories, foodProtein, foodCarbs, foodFat });
   const debouncedPayloadStr = useDebounce(autosavePayloadStr, 600);
 
   const draftIdRef = useRef<number | null>(null);
@@ -319,6 +412,14 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
     // Only autosave if there's some content
     if (!name.trim() && rows.every(r => !r.name.trim()) && kind === 'meal') return;
     if (!name.trim() && kind === 'food') return;
+
+    // #245 — useDebounce always republishes ~600ms after `open` flips true,
+    // even with zero edits, which used to fire this effect once per open and
+    // flip a previously-saved custom food/meal to 'draft' just from viewing
+    // it. Skip the PATCH when the debounced payload still matches what was
+    // loaded (baselineRef is null for brand-new/prefill/proposal opens, which
+    // always keeps autosaving as before).
+    if (baselineRef.current !== null && debouncedPayloadStr === baselineRef.current) return;
 
     const payload = buildPayload('draft');
 
