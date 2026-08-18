@@ -1272,6 +1272,91 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     return () => clearInterval(interval);
   }, [pollingActive, selectedDate, fetchAndApplyTranscript]);
 
+  // ---------------------------------------------------------------------------
+  // #252: Stall watchdog — detects a stream that died SILENTLY.
+  //
+  // The bug this closes: routes/nutrition.ts already guarantees the model run
+  // completes and gets persisted (it `tee()`s the UI message stream and drains
+  // one branch server-side with `consumeStream`, independent of whether the
+  // HTTP response the client was reading from is still connected) — and the
+  // #154 poll loop just above already knows how to pull a completed reply back
+  // out of the DB. But that poll only arms via `evaluateDangling`, which
+  // refuses to run while `status` still reads 'streaming'/'submitted'. A
+  // socket that dies loudly (server error, explicit abort) flips `status` away
+  // from streaming and everything above already recovers. A socket that dies
+  // SILENTLY — a backgrounded mobile tab, a dropped mobile connection, a proxy
+  // timing out without sending FIN — never rejects the fetch behind useChat,
+  // so `status` never leaves 'streaming', `isStreaming` stays true, the poll
+  // never arms, and the "still working" indicator spins until the user
+  // reloads (reported: ~8 minutes).
+  //
+  // Why not a per-tool-call timeout: that treats slow legitimate work (e.g. a
+  // slow food search) as the failure, when the actual failure is a dead
+  // socket that has nothing to do with how long any one call takes — and it
+  // still wouldn't catch a stall in the gaps between tool calls.
+  //
+  // Fix: track the timestamp of the last observed stream activity. The AI SDK
+  // mutates `messages` on every incoming chunk (text deltas, tool-input-start/
+  // delta, tool-output-available), so a `useEffect` keyed on `[messages,
+  // status]` stamping a ref is a sound proxy for "bytes are still arriving".
+  // While `status` is 'streaming'/'submitted', poll that timestamp on a short
+  // interval (a few seconds — NOT on a 60s cadence, or worst-case detection
+  // time doubles); once STALL_THRESHOLD_MS passes with no activity, treat the
+  // stream as dead: call the existing `stop()` to abort the hung fetch, then
+  // re-run the *exact* #154 recovery (fetchAndApplyTranscript →
+  // evaluateDangling) rather than inventing a second recovery path.
+  // `stop()` produces an AbortError; `isDisconnectError` above already
+  // recognizes it ('aborted' / AbortError) and the effect below already
+  // clears it from `chatError`, so no error bubble appears — just the
+  // existing poll indicator taking over.
+  //
+  // Why 60s: Heroku's router already terminates a streaming response after
+  // ~55s with no bytes sent, so a genuine gap longer than that cannot survive
+  // production regardless of what we do client-side. This turns an ~8 minute
+  // silent hang into roughly a 1 minute automatic recovery, entirely
+  // client-side.
+  // ---------------------------------------------------------------------------
+  const STALL_THRESHOLD_MS = 60000;
+  const STALL_CHECK_INTERVAL_MS = 5000;
+
+  const lastActivityRef = useRef<number>(Date.now());
+  // Lets the working indicator read "Reconnecting…" instead of the plain
+  // pending copy while the watchdog-triggered poll is recovering. Reset on a
+  // fresh send (handleSend) and once the recovery poll finishes (below).
+  const [watchdogFired, setWatchdogFired] = useState(false);
+
+  // Any incoming chunk (message change) counts as activity.
+  useEffect(() => {
+    lastActivityRef.current = Date.now();
+  }, [messages, status]);
+
+  useEffect(() => {
+    if (status !== 'streaming' && status !== 'submitted') return;
+    const watchDate = selectedDate;
+
+    const interval = setInterval(() => {
+      // Stale day underneath us — the day-change effect already reset
+      // polling state; just let this interval expire on its own teardown.
+      if (watchDate !== loadedDateRef.current) return;
+      if (Date.now() - lastActivityRef.current < STALL_THRESHOLD_MS) return;
+
+      setWatchdogFired(true);
+      stop(); // abort the hung fetch — status leaves 'streaming'/'submitted'
+      fetchAndApplyTranscript(watchDate).then(applied => evaluateDangling(watchDate, applied));
+    }, STALL_CHECK_INTERVAL_MS);
+
+    // Torn down when status leaves streaming, on day change (selectedDate
+    // dep), and on unmount — mirrors the #154 poll effect's discipline.
+    return () => clearInterval(interval);
+  }, [status, selectedDate, stop, fetchAndApplyTranscript, evaluateDangling]);
+
+  // Once the recovery poll this watchdog armed has finished (or the
+  // condition never actually applied), drop the "Reconnecting…" label so it
+  // doesn't linger into some unrelated later wait.
+  useEffect(() => {
+    if (!pollingActive) setWatchdogFired(false);
+  }, [pollingActive]);
+
   // #154: Clear disconnect-style errors so they don't linger in useChat state
   // once the ErrorBubble is suppressed above (the transcript poll/refetch is
   // what actually recovers the assistant reply, not this error).
@@ -1489,6 +1574,11 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     setExpanded(true);
     isNearBottomRef.current = true; // force scroll to bottom on send
     setPollingActive(false); // this client will stream live — no poll/indicator
+    // #252: fresh send — start the stall-watchdog clock at submit (not at
+    // whatever `lastActivityRef` last held) and clear any stale "Reconnecting…"
+    // label left over from a previous stall/recovery cycle.
+    lastActivityRef.current = Date.now();
+    setWatchdogFired(false);
 
     const files: FileUIPart[] = pendingPhotos.map(p => ({
       type: 'file' as const,
@@ -1831,12 +1921,16 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
               being polled and this client is NOT streaming live (no duplicate
               indicator alongside the live stream). Reuses the streaming pulse
               cue (same animation as .reasoningSpinner). Sits before the scroll
-              anchor so it participates in stick-to-bottom. */}
+              anchor so it participates in stick-to-bottom.
+              #252: when this poll was armed by the stall watchdog (silent
+              disconnect detected + stream aborted) rather than a normal
+              backgrounded-return, the copy reads "Reconnecting…" instead of
+              the plain pending copy — same indicator, no restructuring. */}
           {pollingActive && !isStreaming && (
             <div className={`${styles.messageGroup} ${styles.messageGroupAssistant}`}>
               <div className={styles.workingBubble}>
                 <span className={styles.workingSpinner} aria-hidden="true" />
-                <span>Assistant is still working…</span>
+                <span>{watchdogFired ? 'Reconnecting…' : 'Assistant is still working…'}</span>
               </div>
             </div>
           )}
