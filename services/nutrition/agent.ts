@@ -2,13 +2,15 @@
 // Runs a tool-calling loop via the Vercel AI SDK's streamText, returning
 // the StreamTextResult for the route to pipe to the HTTP response.
 import { streamText, tool, stepCountIs, convertToModelMessages } from 'ai';
-import type { ModelMessage } from 'ai';
+import type { ModelMessage, ToolSet } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { proposeEntryArgsSchema, proposeCustomFoodArgsSchema } from '../../schemas/nutrition';
 import * as store from './store';
 import * as providers from './providers';
 import { recordUsage } from './usage';
+import { getUserFlags } from '../flags';
+import { searchUncFoods, getUncMenu, listUncLocations, getUncFood } from './unc';
 
 export interface NutritionChatOptions {
   userUuid: string;
@@ -151,14 +153,19 @@ export async function streamNutritionChat({
   autoConfirm,
   deniedProposalCount,
 }: NutritionChatOptions) {
-  // Fetch context in parallel — degrade gracefully if DB not available
-  const [recent, goals, todayDay] = await Promise.all([
+  // Fetch context in parallel — degrade gracefully if DB not available.
+  // getUserFlags never throws on its own (see services/flags.ts), but the .catch
+  // here matches the defensive style of the other three so a flag lookup can
+  // never take down the whole chat turn even under future changes.
+  const [recent, goals, todayDay, flags] = await Promise.all([
     store.recentEntries(userUuid, 3).catch(() => []),
     store.getGoals(userUuid).catch(() => ({ calories: null, protein_g: null, carbs_g: null, fat_g: null })),
     store.getDay(userUuid, selectedDate).catch(() => ({ date: selectedDate, totals: { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 }, entries: [] })),
+    getUserFlags(userUuid).catch(() => ({ unc_dining: false })),
   ]);
 
   const todayTotals = todayDay.totals;
+  const uncEnabled = flags.unc_dining;
 
   const goalsLine = [
     goals.calories != null ? `${goals.calories} kcal` : null,
@@ -259,7 +266,17 @@ Do NOT call \`propose_custom_food\` just because the user logged something once 
 - Use meal = breakfast / lunch / dinner / snack based on context or ask.
 - source should be "text" for text-described food, "photo" for photos, "barcode" for barcode scans, "mixed" for multi-ingredient items assembled from search results.
 - Never fabricate a source_ref. Use the fdcId string for USDA items, or OFF product id for barcode/OFF items.
-
+` + (uncEnabled
+    ? `
+## UNC campus dining (this account has it enabled)
+This account can search UNC's campus dining halls with \`search_unc_foods\`, \`get_unc_menu\`, \`list_unc_locations\`, and \`get_unc_food\`. Prefer these over a generic food search when the user mentions campus, a dining hall, a specific UNC location by name (Chase, Top of Lenoir, Bandidos, ...), or asks what's being served / what's open there.
+- UNC dining items are measured in **servings, not grams** — their macros (per_serving) are for ONE serving as UNC states it (e.g. "½ cup", "1 each"). UNC publishes no gram weight for almost any of them.
+- **Never** convert a UNC serving to grams, and never call \`convert_to_grams\` on one — any such conversion would be fabricated, since there is no gram weight to convert from.
+- To log a UNC item, emit an ingredient with: \`serving_qty\` (how many servings the user is having), \`serving_label\` (the serving exactly as UNC states it, e.g. "½ cup"), \`grams: null\`, \`source: 'unc'\`, \`source_ref\` = \`String(recipe_number)\`, and macros = the tool's per-serving values × \`serving_qty\`.
+- A result with \`not_published: true\` means UNC has not published that date yet (they publish roughly 31 days out) — tell the user that, not that nothing is being served.
+- \`get_unc_menu\`'s \`meal_period\` argument is a MEAL PERIOD ("breakfast"/"lunch"/"dinner"/"late night"/"open"/"now"), never a food name. Its periods also carry \`start_time\`/\`end_time\`, so it (and the cheaper \`list_unc_locations\`) can answer hours questions like "when does Chase close?" as well as "what's for dinner".
+`
+    : '') + `
 ## User context
 **Goals:** ${goalsLine || 'not set'}
 **Today (${selectedDate}) so far:** ${Math.round(todayTotals.calories)} kcal, ${Math.round(todayTotals.protein_g)}g P, ${Math.round(todayTotals.carbs_g)}g C, ${Math.round(todayTotals.fat_g)}g F
@@ -302,6 +319,89 @@ ${summariseEntries(recent)}
       modelMessages.push(...buildBarcodeToolResultMessages(barcodeAttachments, String(i)));
     }
   }
+
+  // UNC dining tools — built only when the account flag is on, and spread into
+  // `tools` below via `...uncTools`. This is the actual gating mechanism: when
+  // uncEnabled is false, uncTools is `{}` and the four tool names are entirely
+  // absent from the object the model sees (not present-but-refusing).
+  const uncTools: ToolSet = uncEnabled
+    ? {
+        /** Thin wrapper over unc/index.ts's searchUncFoods — per-serving UNC results. */
+        search_unc_foods: tool({
+          description:
+            'Search UNC campus dining for a food by name on a given date. Returns per-serving nutrition — UNC does NOT publish gram weights, so log these by servings (serving_qty + serving_label), never convert to grams. Prefer this over get_unc_menu when the user names a specific food they want to log.',
+          inputSchema: z.object({
+            query: z.string().describe('Food name to search for, e.g. "burrito" or "chicken tenders".'),
+            date: z
+              .string()
+              .optional()
+              .describe('YYYY-MM-DD, default today. Max today+31 — later dates return not_published: true (UNC has not published that far out yet).'),
+            location: z
+              .string()
+              .optional()
+              .describe('UNC dining location slug or friendly name to narrow the search, e.g. "chase" or "Top of Lenoir". Omit to search all locations that publish nutrition.'),
+          }),
+          execute: async ({ query, date, location }) => searchUncFoods(query, date, location),
+        }),
+
+        /**
+         * Thin wrapper over unc/index.ts's getUncMenu. `meal_period` is a MEAL
+         * PERIOD, not a food or an id — spelled out explicitly below because a
+         * reviewer previously misread it as a food-name filter.
+         */
+        get_unc_menu: tool({
+          description:
+            'What is being served at UNC dining on a date, grouped by location → meal period → station. This tool is also the source of operating HOURS — every period in the result carries start_time/end_time, so it answers "when does Chase close?" just as well as "what\'s for dinner". If the user only wants hours or what\'s open (no menu items needed), prefer list_unc_locations instead — it is cheaper since it returns no menu items. Returns item NAMES by default; pass include_nutrition: true for macros, or use search_unc_foods when the user names one specific food.',
+          inputSchema: z.object({
+            date: z
+              .string()
+              .optional()
+              .describe('YYYY-MM-DD, default today. Max today+31 (UNC\'s published horizon) — later dates return not_published: true.'),
+            meal_period: z
+              .string()
+              .optional()
+              .describe(
+                'A MEAL PERIOD, NOT a food name and NOT an id — e.g. "breakfast", "lunch", "dinner", "late night", "open", or "now" (matches whichever period is open right now). Matched loosely against UNC\'s own period labels. Never pass a food name in this field. Omit to return the whole day across all periods.',
+              ),
+            location: z
+              .string()
+              .optional()
+              .describe('UNC dining location slug or friendly name, e.g. "chase" or "Top of Lenoir". Omit to include every location open in that period.'),
+            station: z.string().optional().describe('Narrow to one station within a location, e.g. "Pizza".'),
+            include_nutrition: z
+              .boolean()
+              .optional()
+              .describe('When true, attaches full per-serving macros (per_serving) to every item — the response gets large. Default false returns item names only.'),
+          }),
+          execute: async ({ date, meal_period, location, station, include_nutrition }) =>
+            getUncMenu({ date, mealPeriod: meal_period, location, station, includeNutrition: include_nutrition }),
+        }),
+
+        /** Thin wrapper over unc/index.ts's listUncLocations — cheap hours/status lookup. */
+        list_unc_locations: tool({
+          description:
+            'Which UNC dining locations exist, whether each has a published menu for a date, and their operating hours (periods with start_time/end_time). Returns NO menu items — this is the cheaper choice when the user only wants to know what\'s open or when somewhere closes. Use get_unc_menu instead when they also want to know what food is being served.',
+          inputSchema: z.object({
+            date: z.string().optional().describe('YYYY-MM-DD, default today.'),
+          }),
+          execute: async ({ date }) => listUncLocations(date),
+        }),
+
+        /** Thin wrapper over unc/index.ts's getUncFood — full nutrition by recipe_number. */
+        get_unc_food: tool({
+          description:
+            'Full nutrition for one UNC dining item by recipe_number, typically after browsing a menu with get_unc_menu or search_unc_foods. Returns per-serving macros — UNC does not publish gram weights, so log this by servings, never convert to grams.',
+          inputSchema: z.object({
+            recipe_number: z.number().int().describe('UNC\'s global recipe id (stable across dates/locations), e.g. from a prior search_unc_foods or get_unc_menu result.'),
+            date: z
+              .string()
+              .optional()
+              .describe('YYYY-MM-DD, used to compute where/when this item is available that day. Default today.'),
+          }),
+          execute: async ({ recipe_number, date }) => getUncFood(recipe_number, date),
+        }),
+      }
+    : {};
 
   const result = streamText({
     model: openai('gpt-5.5'),
@@ -439,7 +539,7 @@ ${summariseEntries(recent)}
        */
       convert_to_grams: tool({
         description:
-          'Convert a weight amount from a given unit to grams. Handles: lb/lbs/pound, oz/ounce, kg, g, mg. Returns null with a note for volume units (ml, cup, tbsp, tsp) since those require density.',
+          'Convert a weight amount from a given unit to grams. For WEIGHT-BASED foods only. Handles: lb/lbs/pound, oz/ounce, kg, g, mg. Returns null with a note for volume units (ml, cup, tbsp, tsp) since those require density. Never call this on a UNC dining item (source: \'unc\') — UNC publishes no gram weight for its servings, so any conversion would be fabricated; log those with serving_qty + serving_label instead.',
         inputSchema: z.object({
           amount: z.number().describe('Numeric quantity to convert, e.g. 1.5'),
           unit: z.string().describe('Unit string, e.g. "lbs", "oz", "kg", "g", "mg"'),
@@ -593,7 +693,7 @@ ${summariseEntries(recent)}
        */
       propose_entry: tool({
         description:
-          'Propose a structured food entry for the user to review and confirm. Call this once you are confident about food identity and portion. Each ingredient must include quantity, unit (a real household serving label), portions list, and grams = quantity × unit_grams. The user will see an editor pre-filled with these values and can adjust before saving.',
+          'Propose a structured food entry for the user to review and confirm. Call this once you are confident about food identity and portion. For a weight-based ingredient, include quantity, unit (a real household serving label), portions list, and grams = quantity × unit_grams. For a SERVING-BASIS ingredient with no gram weight (e.g. a UNC dining item), instead set serving_qty (how many servings) and serving_label (the serving as published, e.g. "½ cup"), leave grams null, and set source: \'unc\'. Every ingredient must set EXACTLY ONE basis — grams, OR serving_qty + serving_label — never both, never neither. The user will see an editor pre-filled with these values and can adjust before saving.',
         inputSchema: proposeEntryArgsSchema,
         execute: async (args) => JSON.parse(JSON.stringify(args)),
       }),
@@ -610,6 +710,8 @@ ${summariseEntries(recent)}
         inputSchema: proposeCustomFoodArgsSchema,
         execute: async (args) => JSON.parse(JSON.stringify(args)),
       }),
+
+      ...uncTools,
     },
   });
 

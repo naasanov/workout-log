@@ -32,14 +32,56 @@ import {
   nextKey,
   emptyRow,
   round2,
+  sumRows,
+  rowFromStoredIngredient,
+  ingredientInputFromRow,
 } from './ingredientMath';
 
 // ---------------------------------------------------------------------------
 // #10: Build an EditorRow from a ProposeIngredient (serving-aware).
 // The proposal carries quantity/unit/portions so we can pre-select them.
-// ing.grams is already the resolved effective grams (quantity * unitGrams).
+// ing.grams is already the resolved effective grams (quantity * unitGrams) —
+// for a WEIGHT proposal. A UNC (serving-basis) proposal instead sets
+// grams: null and carries serving_qty/serving_label directly (see the agent's
+// propose_entry contract in services/nutrition/agent.ts) — there's no
+// "resolved grams" to fall back on for those, and none is needed since the
+// serving IS the amount.
 // ---------------------------------------------------------------------------
 function rowFromProposedIngredient(ing: ProposeIngredient): EditorRow {
+  if (ing.grams == null) {
+    // Serving basis: quantity = serving_qty as proposed, unitLabel = the
+    // serving label exactly as the source stated it. No portions dropdown —
+    // there's no gram weight to convert against (see ingredientMath's
+    // rowFromFood, which applies the same rule to a search-selected UNC food).
+    const quantity = ing.serving_qty ?? 1;
+    const unitLabel = ing.serving_label ?? 'serving';
+    return {
+      rowKey: nextKey(),
+      basis: 'serving',
+      name: ing.name,
+      grams: null,
+      quantity,
+      unitLabel,
+      unitGrams: 0,
+      portions: [],
+      source: ing.source,
+      source_ref: ing.source_ref ?? null,
+      calories: ing.calories,
+      protein_g: ing.protein_g,
+      carbs_g: ing.carbs_g,
+      fat_g: ing.fat_g,
+      fiber_g: ing.fiber_g ?? null,
+      sugar_g: ing.sugar_g ?? null,
+      sodium_mg: ing.sodium_mg ?? null,
+      serving_qty: quantity,
+      serving_label: unitLabel,
+      // Macros already resolved by the agent; no perServing snapshot needed
+      // for live recompute (matches the weight branch's per100g: null below).
+      per100g: null,
+      perServing: null,
+    };
+  }
+
   // Build the portions list: always start with 'g', then any proposal portions.
   const portionsList: FoodPortion[] = [GRAMS_UNIT];
   if (ing.portions && ing.portions.length > 0) {
@@ -69,6 +111,7 @@ function rowFromProposedIngredient(ing: ProposeIngredient): EditorRow {
 
   return {
     rowKey: nextKey(),
+    basis: 'weight',
     name: ing.name,
     grams: ing.grams, // effective grams already resolved by the agent
     quantity,
@@ -86,6 +129,7 @@ function rowFromProposedIngredient(ing: ProposeIngredient): EditorRow {
     sodium_mg: ing.sodium_mg ?? null,
     // Macros already resolved; no per100g needed for live recompute.
     per100g: null,
+    perServing: null,
   };
 }
 
@@ -97,22 +141,20 @@ interface TotalsProps {
 }
 
 function Totals({ rows }: TotalsProps) {
-  const totals = rows.reduce(
-    (acc, r) => ({
-      grams: acc.grams + r.grams,
-      calories: acc.calories + r.calories,
-      protein_g: acc.protein_g + r.protein_g,
-      carbs_g: acc.carbs_g + r.carbs_g,
-      fat_g: acc.fat_g + r.fat_g,
-    }),
-    { grams: 0, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
-  );
+  // sumRows (ingredientMath) already skips null grams from serving-basis rows
+  // so a mixed batch's gram total isn't corrupted into NaN.
+  const totals = sumRows(rows);
 
   return (
     <div className={styles.totals}>
       <span className={styles.totalsLabel}>Total</span>
       <span className={styles.totalsStat}>
-        <strong>{round2(totals.grams)}</strong>g
+        {/* No row carries a real weight (all-serving entry, e.g. UNC dining
+            items) — the true total weight is unknown/not applicable, not 0.
+            Show an em dash so this can't be misread as "0g of food" or as a
+            bug in the macro math below. Don't "simplify" this back to
+            `round2(totals.grams)}g` — see hasWeight's doc comment. */}
+        {totals.hasWeight ? <><strong>{round2(totals.grams)}</strong>g</> : <strong>—</strong>}
       </span>
       <span className={styles.totalsStat}>
         <strong>{Math.round(totals.calories)}</strong> kcal
@@ -162,18 +204,7 @@ export default function EntryEditor({
   // ----- Ingredient rows -----
   const [rows, setRows] = useState<EditorRow[]>(() => {
     if (mode.kind === 'manual-edit') {
-      return mode.entry.ingredients.map(ing => ({
-        ...ing,
-        rowKey: nextKey(),
-        quantity: ing.grams,
-        unitLabel: 'g',
-        unitGrams: 1,
-        portions: [GRAMS_UNIT],
-        fiber_g: ing.fiber_g ?? null,
-        sugar_g: ing.sugar_g ?? null,
-        sodium_mg: ing.sodium_mg ?? null,
-        per100g: null,
-      }));
+      return mode.entry.ingredients.map(rowFromStoredIngredient);
     }
     if (mode.kind === 'proposal') {
       // #10: pre-select serving unit/quantity from ProposeIngredient
@@ -204,20 +235,7 @@ export default function EntryEditor({
     if (mode.kind === 'manual-edit') {
       setMeal(mode.entry.meal);
       setEntryName(mode.entry.name);
-      setRows(
-        mode.entry.ingredients.map(ing => ({
-          ...ing,
-          rowKey: nextKey(),
-          quantity: ing.grams,
-          unitLabel: 'g',
-          unitGrams: 1,
-          portions: [GRAMS_UNIT],
-          fiber_g: ing.fiber_g ?? null,
-          sugar_g: ing.sugar_g ?? null,
-          sodium_mg: ing.sodium_mg ?? null,
-          per100g: null,
-        })),
-      );
+      setRows(mode.entry.ingredients.map(rowFromStoredIngredient));
     } else if (mode.kind === 'manual-add') {
       // #200: default new manually-created foods to Snack / Other instead of Breakfast.
       setMeal(mode.defaultMeal ?? 'snack');
@@ -284,7 +302,11 @@ export default function EntryEditor({
   }, [editingRow, removeRow]);
 
   // ----- Save -----
-  const firstValidIngredient = rows.find(r => r.name.trim().length > 0 && r.grams > 0);
+  // "Has a valid amount" is basis-aware: a weight row needs grams > 0, a
+  // serving row (grams always null) needs a positive serving quantity instead.
+  const firstValidIngredient = rows.find(
+    r => r.name.trim().length > 0 && (r.basis === 'serving' ? r.quantity > 0 : (r.grams ?? 0) > 0),
+  );
   const effectiveName = entryName.trim() || firstValidIngredient?.name.trim() || '';
 
   const canSave =
@@ -303,19 +325,9 @@ export default function EntryEditor({
       return;
     }
 
-    const ingredients: IngredientInput[] = rows.map(r => ({
-      name: r.name,
-      grams: r.grams, // effective grams = quantity × unitGrams
-      source: r.source,
-      source_ref: r.source_ref ?? null,
-      calories: r.calories,
-      protein_g: r.protein_g,
-      carbs_g: r.carbs_g,
-      fat_g: r.fat_g,
-      fiber_g: r.fiber_g ?? null,
-      sugar_g: r.sugar_g ?? null,
-      sodium_mg: r.sodium_mg ?? null,
-    }));
+    // ingredientInputFromRow emits exactly one basis per row: grams for a
+    // weight row, serving_qty + serving_label for a serving row.
+    const ingredients: IngredientInput[] = rows.map(r => ingredientInputFromRow(r));
 
     // Detect provenance: if any ingredient row was filled from a custom food/meal,
     // tag the entry with source='custom' and from_custom_food_id so that the
@@ -349,23 +361,17 @@ export default function EntryEditor({
     }
   }
 
-  // ----- Proposal confirm: strip serving metadata, send grams-based EntryInput -----
+  // ----- Proposal confirm: resolve serving-aware UI rows to plain IngredientInput -----
   function handleConfirm() {
     if (!onConfirm) return;
-    // #10: resolve serving-aware rows to plain grams-based IngredientInput
-    const ingredients: IngredientInput[] = rows.map(r => ({
-      name: r.name,
-      grams: r.grams, // always the effective grams (quantity × unitGrams)
-      source: r.source,
-      source_ref: r.source_ref ?? null,
-      calories: r.calories,
-      protein_g: r.protein_g,
-      carbs_g: r.carbs_g,
-      fat_g: r.fat_g,
-      fiber_g: r.fiber_g ?? null,
-      sugar_g: r.sugar_g ?? null,
-      sodium_mg: r.sodium_mg ?? null,
-    }));
+    // #10: resolve UI-only quantity/unit fields to a plain IngredientInput.
+    // A weight row resolves to its effective grams (quantity × unitGrams), as
+    // before. A UNC (serving-basis) row is NOT converted to grams — there is
+    // no gram weight to convert to (see the module doc comment in
+    // ingredientMath.ts) — it instead resolves to serving_qty + serving_label
+    // with grams left null. ingredientInputFromRow is the single place that
+    // decides this so both basis are always emitted correctly.
+    const ingredients: IngredientInput[] = rows.map(r => ingredientInputFromRow(r));
     const proposalSource = mode.kind === 'proposal' ? mode.proposal.source : 'manual';
     onConfirm({
       localDate: date,

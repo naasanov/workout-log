@@ -41,6 +41,8 @@ import {
   emptyRow as emptyBuilderRow,
   round2,
   sumRows,
+  rowFromStoredIngredient,
+  ingredientInputFromRow,
 } from './ingredientMath';
 
 // ---------------------------------------------------------------------------
@@ -183,30 +185,64 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
         })));
       }
       if (kind === 'meal' && proposalArgs.ingredients.length > 0) {
-        setRows(proposalArgs.ingredients.map(ing => ({
-          rowKey: nextKey(),
-          name: ing.name,
-          grams: ing.grams,
-          quantity: ing.quantity ?? ing.grams,
-          unitLabel: ing.unit ?? 'g',
-          unitGrams: ing.unit && ing.unit !== 'g' && ing.quantity && ing.quantity > 0
-            ? ing.grams / ing.quantity
-            : 1,
-          portions: ing.portions ?? [GRAMS_UNIT],
-          source: ing.source as IngredientSource,
-          source_ref: ing.source_ref ?? null,
-          calories: ing.calories,
-          protein_g: ing.protein_g,
-          carbs_g: ing.carbs_g,
-          fat_g: ing.fat_g,
-          fiber_g: ing.fiber_g ?? null,
-          sugar_g: ing.sugar_g ?? null,
-          sodium_mg: ing.sodium_mg ?? null,
-          per100g: null,
-        })));
+        // A proposed meal's ingredients can themselves be serving-basis (e.g.
+        // a UNC dining item folded into the meal) — grams is null in that
+        // case, and quantity/unit refer to serving_qty/serving_label instead
+        // of a weight (see ProposeCustomFoodIngredient / IngredientInput's
+        // basis invariant in types.ts). Same branch as IngredientSheet's
+        // custom-meal expansion.
+        setRows(proposalArgs.ingredients.map(ing => {
+          const commonFields = {
+            rowKey: nextKey(),
+            name: ing.name,
+            source: ing.source as IngredientSource,
+            source_ref: ing.source_ref ?? null,
+            calories: ing.calories,
+            protein_g: ing.protein_g,
+            carbs_g: ing.carbs_g,
+            fat_g: ing.fat_g,
+            fiber_g: ing.fiber_g ?? null,
+            sugar_g: ing.sugar_g ?? null,
+            sodium_mg: ing.sodium_mg ?? null,
+            per100g: null,
+            perServing: null,
+          };
+          if (ing.grams == null) {
+            const quantity = ing.serving_qty ?? ing.quantity ?? 1;
+            const unitLabel = ing.serving_label ?? ing.unit ?? 'serving';
+            return {
+              ...commonFields,
+              basis: 'serving' as const,
+              grams: null,
+              quantity,
+              unitLabel,
+              unitGrams: 0,
+              portions: [],
+              serving_qty: quantity,
+              serving_label: unitLabel,
+            };
+          }
+          return {
+            ...commonFields,
+            basis: 'weight' as const,
+            grams: ing.grams,
+            quantity: ing.quantity ?? ing.grams,
+            unitLabel: ing.unit ?? 'g',
+            unitGrams: ing.unit && ing.unit !== 'g' && ing.quantity && ing.quantity > 0
+              ? ing.grams / ing.quantity
+              : 1,
+            portions: ing.portions ?? [GRAMS_UNIT],
+          };
+        }));
       } else if (kind === 'food' && proposalArgs.ingredients.length > 0) {
         const ing = proposalArgs.ingredients[0];
-        setFoodServingGrams(ing.grams);
+        // Food mode's serving size is always a plain gram amount (there is no
+        // basis toggle for a custom "food" — see MealBuilderProps doc
+        // comment). Fall back to 100g in the unlikely case a serving-basis
+        // (UNC) ingredient is proposed as a single custom food — there's no
+        // gram weight to seed the field with, so it's left editable by the
+        // user rather than left blank/NaN.
+        setFoodServingGrams(ing.grams ?? 100);
         setFoodCalories(ing.calories);
         setFoodProtein(ing.protein_g);
         setFoodCarbs(ing.carbs_g);
@@ -259,25 +295,10 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
     setServings(loadedServings);
 
     if (kind === 'meal') {
-      const loadedRows = row.ingredients.map(ing => ({
-        rowKey: nextKey(),
-        name: ing.name,
-        grams: ing.grams,
-        quantity: ing.grams,
-        unitLabel: 'g',
-        unitGrams: 1,
-        portions: [GRAMS_UNIT],
-        source: ing.source as IngredientSource,
-        source_ref: ing.source_ref ?? null,
-        calories: ing.calories,
-        protein_g: ing.protein_g,
-        carbs_g: ing.carbs_g,
-        fat_g: ing.fat_g,
-        fiber_g: ing.fiber_g ?? null,
-        sugar_g: ing.sugar_g ?? null,
-        sodium_mg: ing.sodium_mg ?? null,
-        per100g: null,
-      }));
+      // rowFromStoredIngredient is basis-aware: a stored ingredient with
+      // grams: null (e.g. a UNC item saved into this meal) loads as a
+      // serving-basis row instead of crashing on a null gram amount.
+      const loadedRows = row.ingredients.map(rowFromStoredIngredient);
       setRows(loadedRows);
 
       // #245 — the init effect always resets batchScale to 1 just before
@@ -306,7 +327,10 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
       let loadedCarbs = foodCarbs;
       let loadedFat = foodFat;
       if (ing) {
-        loadedServingGrams = ing.grams;
+        // Food mode's serving size is always a plain gram amount (see the
+        // proposal-mode fallback above) — fall back to 100g in the unlikely
+        // case a stored food's single ingredient is serving-basis.
+        loadedServingGrams = ing.grams ?? 100;
         loadedCalories = ing.calories;
         loadedProtein = ing.protein_g;
         loadedCarbs = ing.carbs_g;
@@ -345,21 +369,15 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
 
     if (kind === 'meal') {
       const totals = sumRows(rows);
+      // "Has a valid amount" is basis-aware: a weight row needs grams > 0, a
+      // serving row (grams always null) needs a positive serving quantity.
+      // ingredientInputFromRow(r, batchScale) emits exactly one basis per row
+      // (grams for weight, serving_qty + serving_label for serving) with the
+      // batch-scale multiplier applied uniformly — it's a unitless factor, so
+      // it applies the same way to a gram amount or a serving count.
       ingredients = rows
-        .filter(r => r.name.trim() && r.grams > 0)
-        .map(r => ({
-          name: r.name,
-          grams: r.grams * batchScale,
-          source: r.source,
-          source_ref: r.source_ref ?? null,
-          calories: round2(r.calories * batchScale),
-          protein_g: round2(r.protein_g * batchScale),
-          carbs_g: round2(r.carbs_g * batchScale),
-          fat_g: round2(r.fat_g * batchScale),
-          fiber_g: r.fiber_g != null ? round2(r.fiber_g * batchScale) : null,
-          sugar_g: r.sugar_g != null ? round2(r.sugar_g * batchScale) : null,
-          sodium_mg: r.sodium_mg != null ? round2(r.sodium_mg * batchScale) : null,
-        }));
+        .filter(r => r.name.trim() && (r.basis === 'serving' ? r.quantity > 0 : (r.grams ?? 0) > 0))
+        .map(r => ingredientInputFromRow(r, batchScale));
       const scaledTotalGrams = totals.grams * batchScale;
       resolvedServings = servings.map(s => ({
         ...s,
@@ -676,7 +694,11 @@ export default function MealBuilder({ open, kind, initialDraft, prefillRows, onC
               {/* Macro readouts */}
               <div className={styles.macroReadouts}>
                 <div className={styles.macroSection}>
-                  <span className={styles.macroSectionLabel}>Full batch ({round2(scaledGrams)}g)</span>
+                  {/* No row carries a real weight (all-serving batch) — the
+                      true total weight is unknown/not applicable, not 0.
+                      Show an em dash so it doesn't read as "0g" (see
+                      sumRows's hasWeight doc comment in ingredientMath.ts). */}
+                  <span className={styles.macroSectionLabel}>Full batch ({batchTotals.hasWeight ? `${round2(scaledGrams)}g` : '—'})</span>
                   <div className={styles.macroGrid}>
                     <span>{Math.round(scaledCals)} kcal</span>
                     <span>{round2(scaledProtein)}g prot</span>
