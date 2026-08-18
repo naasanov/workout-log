@@ -133,11 +133,26 @@ Why each var is needed, all discovered by hitting the failure first:
   there on a second run — `npm run db:setup` is idempotent (migrations record
   themselves in `schema_migrations`; the seed is `INSERT IGNORE`), so it's
   always safe to re-run rather than guessing whether you need to.
-- **A git worktree gets its own docker-compose project** (Compose derives the
-  project name from the directory name by default), and therefore its own
-  `db_data` volume — it does **not** share the main checkout's database. A
-  worktree always starts from an empty DB and needs its own `db:setup` run;
-  don't assume the main checkout's seeded data is visible here.
+- **A worktree that runs `docker compose` from its own directory gets its own
+  project** (Compose derives the project name from the directory name by
+  default) and therefore its own `db_data` volume — it does **not** share the
+  main checkout's database, so it starts empty and needs its own `db:setup`
+  run. Don't assume the main checkout's seeded data is visible there.
+
+  **But do not read that as isolation.** Worktree isolation covers files and
+  git state; it does not extend to processes or host resources. Two things
+  break the assumption:
+  - **Host port 3307 is a single global resource.** Separate Compose projects
+    still cannot both bind it, so only one of these databases can be running
+    at a time regardless of how many volumes exist.
+  - **A session that just connects to `127.0.0.1:3307` is using whichever
+    container currently holds the port** — usually the main checkout's. It
+    never ran Compose, so it never got a project or a volume of its own.
+
+  The general rule: anything keyed off the *directory name* rather than the
+  worktree path will silently converge. Check `docker ps` before assuming the
+  database in front of you is yours, and before `docker compose down` (see
+  the cleanup checklist).
 
 **Standing login**: `dev@dev.com` / `dev` — created by `npm run db:setup`
 (specifically `scripts/seedDev.js`, which applies `seeds/dev_user.sql`). No
