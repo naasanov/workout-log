@@ -233,8 +233,16 @@ signup/cleanup needed; `lib/browser.mjs` defaults to it.
 ## Cleanup checklist after any verification session
 
 - Delete ZZTEST fixtures (the API cascade above, or the direct SQL sweep).
-- `docker compose down` (fine to leave the volume — it's what makes the next
-  session's boot fast).
+- `docker compose down` — but **check first whether anything else is using it.**
+  The compose project binds host port 3307, and a second Claude session or a
+  sibling worktree may be pointed at that same container even though it has
+  its own checkout (a worktree only gets its own compose project if it
+  actually runs `docker compose` from its own directory — one that connects
+  to 127.0.0.1:3307 is using YOURS). Tearing it down mid-session breaks their
+  connections and surfaces as a confusing app-level error on their end, not
+  an obvious "container is gone". `docker ps --format '{{.Names}}'` plus a
+  quick ask beats an apology. Data is safe either way as long as you never
+  pass `-v` — the volume is what makes the next boot fast.
 - Kill any `node dist/index.js` / `vite` processes you started.
 - Remove `client/.env.local` if you created it (gitignored, no repo impact,
   but no reason to leave stray files).
