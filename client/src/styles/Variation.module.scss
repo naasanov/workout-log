@@ -195,15 +195,3 @@
   gap: 4px;
 }
 
-// Accessibility audit note: this is a plain <div>, not a <button> — it's a
-// non-interactive spacer that reserves .delete's width when removal isn't
-// allowed, so it has no click handler and no tap target to expand.
-.noRemove {
-  display: flex;
-  width: 40px;
-  height: 40px;
-  align-items: center;
-  background-color: transparent;
-  border: none;
-  border-radius: 100px;
-}
