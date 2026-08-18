@@ -3,10 +3,21 @@
 // Full-screen overlay rendered on top of everything, including the
 // IngredientSheet it's mounted inside of (#177: scanner must cover the
 // sheet, so this must beat IngredientSheet's .sheet at z-index 1101).
+//
+// #251: this must now also beat everything *inside* the sheet. The scanner
+// used to be a portal sibling of the sheet, so 1102 vs the sheet's 1101 was
+// enough — it outranked the whole sheet subtree in one comparison. Now that
+// it renders INSIDE Dialog.Content (so Radix doesn't treat it as inert and
+// swallow taps on Cancel), .sheet's z-index 1101 is its stacking context and
+// 1102 resolves against the sheet's own children — where IngredientSheet's
+// .searchDropdown sits at 1200 and painted its <li> items over the scanner,
+// blocking Cancel exactly like the original bug. Caught at runtime:
+// elementFromPoint at Cancel's center returned _dropdownItem_ when the food
+// search dropdown was left open. 1300 clears the highest z-index in the sheet.
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 1102;
+  z-index: 1300;
   background-color: rgba(0, 0, 0, 0.92);
   display: flex;
   align-items: center;
