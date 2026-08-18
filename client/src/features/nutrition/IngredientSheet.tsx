@@ -531,6 +531,15 @@ export default function IngredientSheet({
         <Dialog.Content
           className={styles.sheet}
           aria-label={title}
+          // #251: on the desktop breakpoint .sheet is centered via
+          // `transform: translateY(-50%)`, which establishes a new containing
+          // block for any `position: fixed` descendant (the barcode scanner's
+          // full-viewport overlay is now nested inside Content — see below).
+          // Neutralize it while the scanner is open so the overlay is sized
+          // against the real viewport instead of being clipped to the sheet's
+          // box. It's fully hidden behind the scanner's opaque overlay, so the
+          // sheet jumping position underneath is never visible.
+          style={barcodeOpen ? { transform: 'none' } : undefined}
           // Prevent auto-focus from jumping unexpectedly (mobile UX)
           onOpenAutoFocus={e => e.preventDefault()}
           // Stop Escape from bubbling up and closing the parent dialog.
@@ -596,15 +605,20 @@ export default function IngredientSheet({
               </button>
             )}
           </div>
-        </Dialog.Content>
 
-        {/* Barcode scanner — rendered inside the same portal layer */}
-        {barcodeOpen && (
-          <BarcodeScanner
-            onDetected={handleBarcodeDetected}
-            onClose={() => setBarcodeOpen(false)}
-          />
-        )}
+          {/* #251: must render INSIDE Dialog.Content, not as a portal sibling.
+              Radix's DismissableLayer treats anything outside Content's DOM
+              subtree as "outside the dialog" and swallows pointer input on it
+              (that's what made the scanner's Cancel button untappable here,
+              even though the identical component works fine in NutritionChat
+              where it isn't nested in a Radix dialog at all). */}
+          {barcodeOpen && (
+            <BarcodeScanner
+              onDetected={handleBarcodeDetected}
+              onClose={() => setBarcodeOpen(false)}
+            />
+          )}
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   );
