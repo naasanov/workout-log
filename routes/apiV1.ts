@@ -664,7 +664,7 @@ router.post('/nutrition/entry', async (req, res): Promise<any> => {
             return res.status(500).json({ message: 'Agent did not produce a food entry' });
         }
 
-        // Convert ProposeEntryArgs → EntryInput: add localDate, strip serving metadata from ingredients
+        // Convert ProposeEntryArgs → EntryInput: add localDate; ingredient mapping below
         const entryInput: EntryInput = {
             localDate: selectedDate,
             meal: proposedEntry.meal,
@@ -672,15 +672,27 @@ router.post('/nutrition/entry', async (req, res): Promise<any> => {
             source: proposedEntry.source ?? 'text',
             barcode: proposedEntry.barcode ?? null,
             raw_llm_json: proposedEntry,
+            // Ingredients carry EITHER a weight basis (grams) OR a serving basis
+            // (serving_qty + serving_label) — never both, never neither (see
+            // checkIngredientBasis in schemas/nutrition.ts). A UNC dining ingredient
+            // has no gram weight to report, so `grams: null` here is legitimate, not
+            // a bug — the serving fields are what make that row meaningful, and both
+            // bases must be carried through faithfully for the exactly-one-basis
+            // validation to pass.
             ingredients: (proposedEntry.ingredients as any[]).map((ing: any) => ({
                 name: ing.name,
-                grams: ing.grams,
+                grams: ing.grams ?? null,
                 source: ing.source,
                 source_ref: ing.source_ref ?? null,
                 calories: ing.calories,
                 protein_g: ing.protein_g,
                 carbs_g: ing.carbs_g,
                 fat_g: ing.fat_g,
+                fiber_g: ing.fiber_g ?? null,
+                sugar_g: ing.sugar_g ?? null,
+                sodium_mg: ing.sodium_mg ?? null,
+                serving_qty: ing.serving_qty ?? null,
+                serving_label: ing.serving_label ?? null,
             })),
         };
 

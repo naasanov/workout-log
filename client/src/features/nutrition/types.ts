@@ -3,7 +3,7 @@
 
 export type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export type EntrySource = 'manual' | 'text' | 'photo' | 'barcode' | 'mixed' | 'custom';
-export type IngredientSource = 'usda' | 'off' | 'manual' | 'custom';
+export type IngredientSource = 'usda' | 'off' | 'manual' | 'custom' | 'unc';
 
 export const MEALS: Meal[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
@@ -33,9 +33,15 @@ export interface FoodPortion {
 
 export interface FoodSearchResult {
   name: string;
-  source: 'usda' | 'off' | 'custom';
+  source: 'usda' | 'off' | 'custom' | 'unc';
   source_ref: string;
-  per100g: Per100g;
+  // Weight basis: null for a serving-basis result (UNC dining) — see per_serving.
+  per100g: Per100g | null;
+  // Serving basis (UNC dining): nutrients for ONE serving, no gram equivalent.
+  // Exactly one of per100g / per_serving is set (never both, never neither).
+  per_serving?: Per100g | null;
+  // Display label for the serving per_serving is measured in (e.g. "1/2 cup").
+  serving_label?: string | null;
   serving_grams?: number | null;
   // Serving sizes attached inline for the top result(s) (#8).
   portions?: FoodPortion[] | null;
@@ -71,7 +77,9 @@ export interface ImageRedactedData {
 
 export interface IngredientInput {
   name: string;
-  grams: number;
+  // Weight basis: null for a serving-basis row (UNC dining) — see serving_qty
+  // / serving_label. Exactly one basis is set (never both, never neither).
+  grams: number | null;
   source: IngredientSource;
   source_ref?: string | null;
   calories: number;
@@ -82,6 +90,10 @@ export interface IngredientInput {
   fiber_g?: number | null;
   sugar_g?: number | null;
   sodium_mg?: number | null;
+  // Serving basis: an alternative to `grams` for foods with no gram weight
+  // (e.g. UNC's "1/2 cup", "1 each"). Both fields are set together or not at all.
+  serving_qty?: number | null;
+  serving_label?: string | null;
 }
 export interface IngredientRow extends IngredientInput {
   id: number;

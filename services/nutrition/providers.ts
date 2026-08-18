@@ -23,7 +23,7 @@ const cache = new Map<string, FoodSearchResult>();
 const portionsCache = new Map<string, FoodPortion[]>();
 
 /** Normalize a string to a set of lowercase tokens. */
-function tokenize(str: string): Set<string> {
+export function tokenize(str: string): Set<string> {
   const tokens = str
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, ' ')
@@ -33,7 +33,7 @@ function tokenize(str: string): Set<string> {
 }
 
 /** Dice coefficient between two token sets. */
-function diceScore(a: Set<string>, b: Set<string>): number {
+export function diceScore(a: Set<string>, b: Set<string>): number {
   if (a.size === 0 && b.size === 0) return 1;
   if (a.size === 0 || b.size === 0) return 0;
   let intersection = 0;

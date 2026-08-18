@@ -6,9 +6,11 @@ import { z } from 'zod';
 
 export const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 export const ENTRY_SOURCES = ['manual', 'text', 'photo', 'barcode', 'mixed', 'custom'] as const;
-export const INGREDIENT_SOURCES = ['usda', 'off', 'manual', 'custom'] as const;
+export const INGREDIENT_SOURCES = ['usda', 'off', 'manual', 'custom', 'unc'] as const;
 
-// Per-100g nutrient profile returned by food search / barcode lookup.
+// Per-100g nutrient profile returned by food search / barcode lookup. Also reused
+// (despite the name) as the plain nutrient-bundle shape for `per_serving` below,
+// since a serving's nutrients are the same six fields, just not normalized to 100g.
 export const per100gSchema = z.object({
   calories: z.number().nonnegative(),
   protein_g: z.number().nonnegative(),
@@ -19,22 +21,72 @@ export const per100gSchema = z.object({
   sodium_mg: z.number().nonnegative().nullable().optional(),
 });
 
+// Shared cross-field check for the exactly-one-basis invariant (weight OR serving,
+// never both, never neither). Used by ingredientInputSchema and every schema that
+// extends it (proposeIngredientSchema, proposeCustomFoodIngredientSchema, the
+// ingredients array in customFoodRowSchema) so the invariant can't be bypassed by
+// going through one of those instead of the base schema.
+function checkIngredientBasis(
+  val: { grams?: number | null; serving_qty?: number | null; serving_label?: string | null },
+  ctx: z.RefinementCtx,
+): void {
+  const hasGrams = val.grams != null;
+  const hasServingQty = val.serving_qty != null;
+  const hasServingLabel = val.serving_label != null;
+  const hasServing = hasServingQty || hasServingLabel;
+
+  if (hasGrams && hasServing) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Ingredient row must not set both grams (weight basis) and serving_qty/serving_label (serving basis) — exactly one basis is required.',
+      path: ['grams'],
+    });
+  } else if (!hasGrams && !hasServing) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Ingredient row must set either grams (weight basis) or serving_qty + serving_label (serving basis).',
+      path: ['grams'],
+    });
+  } else if (hasServing && (!hasServingQty || !hasServingLabel)) {
+    // Serving basis chosen but incomplete — UNC (and any future serving source)
+    // has no gram equivalent, so a half-filled serving basis is unusable: name
+    // which specific field is missing rather than a generic "invalid" error.
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: hasServingQty
+        ? 'Serving basis requires serving_label (in addition to serving_qty) to be set.'
+        : 'Serving basis requires serving_qty (in addition to serving_label) to be set.',
+      path: hasServingQty ? ['serving_label'] : ['serving_qty'],
+    });
+  }
+}
+
 // One ingredient row as sent by the client. Macros are the contribution at
-// `grams` (client computes per100g * grams/100, or types them for manual rows).
-export const ingredientInputSchema = z.object({
-  name: z.string().min(1).max(255),
-  grams: z.number().positive(),
-  source: z.enum(INGREDIENT_SOURCES),
-  source_ref: z.string().max(64).nullable().optional(),
-  calories: z.number().nonnegative(),
-  protein_g: z.number().nonnegative(),
-  carbs_g: z.number().nonnegative(),
-  fat_g: z.number().nonnegative(),
-  // Optional micros — carried so meal snapshots and entry totals can sum them.
-  fiber_g: z.number().nonnegative().nullable().optional(),
-  sugar_g: z.number().nonnegative().nullable().optional(),
-  sodium_mg: z.number().nonnegative().nullable().optional(),
-});
+// `grams` (client computes per100g * grams/100, or types them for manual rows) —
+// OR, for a serving-basis row (UNC dining, #? — see migrations/018_unc_dining.sql),
+// the contribution of `serving_qty` servings of `serving_label` as published by
+// the source, with `grams` left null since no gram weight exists to derive from.
+export const ingredientInputSchema = z
+  .object({
+    name: z.string().min(1).max(255),
+    grams: z.number().positive().nullable().optional(),
+    source: z.enum(INGREDIENT_SOURCES),
+    source_ref: z.string().max(64).nullable().optional(),
+    calories: z.number().nonnegative(),
+    protein_g: z.number().nonnegative(),
+    carbs_g: z.number().nonnegative(),
+    fat_g: z.number().nonnegative(),
+    // Optional micros — carried so meal snapshots and entry totals can sum them.
+    fiber_g: z.number().nonnegative().nullable().optional(),
+    sugar_g: z.number().nonnegative().nullable().optional(),
+    sodium_mg: z.number().nonnegative().nullable().optional(),
+    // Serving basis: an alternative to `grams` for foods with no gram weight
+    // (e.g. UNC's "1/2 cup", "1 each"). See checkIngredientBasis above for the
+    // exactly-one-basis invariant this row must satisfy.
+    serving_qty: z.number().positive().nullable().optional(),
+    serving_label: z.string().max(64).nullable().optional(),
+  })
+  .superRefine(checkIngredientBasis);
 
 // Create/replace an entry (POST /entries, PATCH /entries/:id share this shape).
 export const entryInputSchema = z.object({
@@ -58,24 +110,50 @@ export const goalsSchema = z.object({
   fat_g: z.number().nonnegative().nullable().optional(),
 });
 
-export const foodSearchResultSchema = z.object({
-  name: z.string(),
-  source: z.enum(['usda', 'off', 'custom']),
-  source_ref: z.string(),
-  per100g: per100gSchema,
-  serving_grams: z.number().positive().nullable().optional(),
-  // Household serving sizes, attached inline for the top result(s) so the agent
-  // can propose real servings without a separate get_portions call (#8). May be
-  // omitted/empty when not (yet) fetched; the foodPortionSchema is defined below.
-  portions: z
-    .array(z.object({ label: z.string(), grams: z.number().positive() }))
-    .nullable()
-    .optional(),
-  // Disambiguates custom food vs custom meal for badge display / meal-expansion
-  // gating in the client. Optional/nullable because only source: 'custom' results
-  // have a kind — USDA and Open Food Facts results (providers.ts) never set it.
-  kind: z.enum(['food', 'meal']).nullable().optional(),
-});
+export const foodSearchResultSchema = z
+  .object({
+    name: z.string(),
+    source: z.enum(['usda', 'off', 'custom', 'unc']),
+    source_ref: z.string(),
+    // Weight basis: per-100g nutrients, for USDA/OFF/custom results. Nullable
+    // because UNC results carry `per_serving` instead — see the refine below.
+    per100g: per100gSchema.nullable(),
+    // Serving basis (UNC dining): nutrients for ONE serving as published by the
+    // source, with no gram equivalent. Reuses per100gSchema's nutrient shape.
+    per_serving: per100gSchema.nullable().optional(),
+    // Display label for the serving per_serving is measured in (e.g. "1/2 cup").
+    // Only meaningful alongside per_serving.
+    serving_label: z.string().nullable().optional(),
+    serving_grams: z.number().positive().nullable().optional(),
+    // Household serving sizes, attached inline for the top result(s) so the agent
+    // can propose real servings without a separate get_portions call (#8). May be
+    // omitted/empty when not (yet) fetched; the foodPortionSchema is defined below.
+    portions: z
+      .array(z.object({ label: z.string(), grams: z.number().positive() }))
+      .nullable()
+      .optional(),
+    // Disambiguates custom food vs custom meal for badge display / meal-expansion
+    // gating in the client. Optional/nullable because only source: 'custom' results
+    // have a kind — USDA and Open Food Facts results (providers.ts) never set it.
+    kind: z.enum(['food', 'meal']).nullable().optional(),
+  })
+  .superRefine((val, ctx) => {
+    const hasPer100g = val.per100g != null;
+    const hasPerServing = val.per_serving != null;
+    if (hasPer100g && hasPerServing) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Food search result must not set both per100g and per_serving — exactly one basis is required.',
+        path: ['per100g'],
+      });
+    } else if (!hasPer100g && !hasPerServing) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Food search result must set exactly one of per100g (weight basis) or per_serving (serving basis).',
+        path: ['per100g'],
+      });
+    }
+  });
 
 export type Meal = (typeof MEALS)[number];
 export type EntrySource = (typeof ENTRY_SOURCES)[number];
@@ -186,7 +264,11 @@ export const customFoodRowSchema = z.object({
   status: z.enum(['draft', 'saved']),
   name: z.string(),
   notes: z.string().nullable(),
-  total_grams: z.number().nonnegative(),
+  // Null when the batch can't produce a meaningful total weight — i.e. it
+  // contains at least one serving-basis ingredient (no gram equivalent), so
+  // summing grams across rows would understate the true batch weight rather
+  // than represent it. See services/nutrition/store.ts sumIngredientsFull.
+  total_grams: z.number().nonnegative().nullable(),
   calories: z.number().nonnegative(),
   protein_g: z.number().nonnegative(),
   carbs_g: z.number().nonnegative(),
@@ -194,7 +276,9 @@ export const customFoodRowSchema = z.object({
   fiber_g: z.number().nullable(),
   sugar_g: z.number().nullable(),
   sodium_mg: z.number().nullable(),
-  per100g: per100gSchema,
+  // Null alongside a null total_grams, for the same reason — a per-100g rate
+  // is meaningless without a known total batch weight.
+  per100g: per100gSchema.nullable(),
   ingredients: z.array(ingredientInputSchema.extend({ id: z.number() })),
   servings: z.array(customServingSchema.extend({ id: z.number(), sort_order: z.number() })),
   created_at: z.string(),

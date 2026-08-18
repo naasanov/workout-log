@@ -94,8 +94,16 @@ function SearchDropdown({ query, onSelect }: SearchDropdownProps) {
           <span className={styles.dropdownMeta}>
             {/* #228 — custom foods derive per100g by dividing totals by
                 total_grams, which yields long repeating decimals; round for
-                display only, the stored/computed value is untouched. */}
-            {Math.round(food.per100g.calories)} kcal/100g ·{' '}
+                display only, the stored/computed value is untouched.
+                UNC (and any other serving-basis result) has no per100g at
+                all — show the per-serving calories against the serving
+                label instead of fabricating a gram rate. */}
+            {food.per100g != null
+              ? `${Math.round(food.per100g.calories)} kcal/100g`
+              : food.per_serving != null
+                ? `${Math.round(food.per_serving.calories ?? 0)} kcal / ${food.serving_label ?? 'serving'}`
+                : '—'}
+            {' · '}
             {food.source === 'custom'
               ? food.kind === 'meal'
                 ? 'Custom · Meal'
@@ -171,15 +179,27 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
     const name = e.target.value;
     setSearchQuery(name);
     setShowSearch(true);
+    // Manual entry is always weight-basis (see ingredientMath's emptyRow/
+    // manual-entry contract). A serving row has grams: null, which is not a
+    // valid weight amount to keep around once the row switches to manual —
+    // fall back to sane weight defaults instead of carrying over a serving
+    // count as if it were grams. A row that was already weight-basis keeps
+    // its current quantity/grams untouched, matching prior behaviour.
+    const wasServing = row.basis === 'serving';
     onChange({
       ...row,
       name,
       source: 'manual',
       source_ref: null,
+      basis: 'weight',
       per100g: null,
+      perServing: null,
       portions: [GRAMS_UNIT],
       unitLabel: 'g',
       unitGrams: 1,
+      serving_qty: null,
+      serving_label: null,
+      ...(wasServing ? { grams: 100, quantity: 100 } : {}),
     });
   }
 
@@ -206,25 +226,58 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
               firstServing && customFood.total_grams > 0
                 ? firstServing.grams / customFood.total_grams
                 : 1;
-            const expandedRows: EditorRow[] = customFood.ingredients.map(ing => ({
-              rowKey: nextKey(),
-              name: ing.name,
-              grams: round2(ing.grams * scale),
-              quantity: round2(ing.grams * scale),
-              unitLabel: 'g',
-              unitGrams: 1,
-              portions: [GRAMS_UNIT],
-              source: ing.source as IngredientSource,
-              source_ref: ing.source_ref ?? null,
-              calories: round2(ing.calories * scale),
-              protein_g: round2(ing.protein_g * scale),
-              carbs_g: round2(ing.carbs_g * scale),
-              fat_g: round2(ing.fat_g * scale),
-              fiber_g: ing.fiber_g != null ? round2(ing.fiber_g * scale) : null,
-              sugar_g: ing.sugar_g != null ? round2(ing.sugar_g * scale) : null,
-              sodium_mg: ing.sodium_mg != null ? round2(ing.sodium_mg * scale) : null,
-              per100g: null,
-            }));
+            // A meal's own ingredients mirror IngredientInput, so a stored
+            // ingredient may itself be serving-basis (e.g. a UNC item folded
+            // into a custom meal) — `ing.grams` is null in that case. `scale`
+            // is a unitless batch-fraction (macros scale by it regardless of
+            // basis), so it still applies to a serving ingredient's quantity
+            // and macros; only the weight-specific fields (grams/unitGrams)
+            // differ per branch. No per100g/perServing snapshot survives a
+            // meal expansion either way — same as before, this becomes the
+            // scaleRowMacros-derived baseline for any further edit (#185).
+            const expandedRows: EditorRow[] = customFood.ingredients.map(ing => {
+              const isServing = ing.grams == null;
+              const base = {
+                rowKey: nextKey(),
+                name: ing.name,
+                source: ing.source as IngredientSource,
+                source_ref: ing.source_ref ?? null,
+                calories: round2(ing.calories * scale),
+                protein_g: round2(ing.protein_g * scale),
+                carbs_g: round2(ing.carbs_g * scale),
+                fat_g: round2(ing.fat_g * scale),
+                fiber_g: ing.fiber_g != null ? round2(ing.fiber_g * scale) : null,
+                sugar_g: ing.sugar_g != null ? round2(ing.sugar_g * scale) : null,
+                sodium_mg: ing.sodium_mg != null ? round2(ing.sodium_mg * scale) : null,
+                per100g: null,
+                perServing: null,
+              };
+              if (isServing) {
+                const quantity = round2((ing.serving_qty ?? 1) * scale);
+                const unitLabel = ing.serving_label ?? 'serving';
+                return {
+                  ...base,
+                  basis: 'serving' as const,
+                  grams: null,
+                  quantity,
+                  unitLabel,
+                  unitGrams: 0,
+                  portions: [],
+                  serving_qty: quantity,
+                  serving_label: unitLabel,
+                };
+              }
+              const grams = round2(ing.grams! * scale);
+              return {
+                ...base,
+                basis: 'weight' as const,
+                grams,
+                quantity: grams,
+                unitLabel: 'g',
+                unitGrams: 1,
+                portions: [GRAMS_UNIT],
+              };
+            });
             onExpandMeal(expandedRows);
           })
           .catch(() => {
@@ -249,17 +302,20 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
   }
 
   // #185 — quantity/unit changes must scale macros even when the row has no
-  // per100g snapshot (hand-typed macros, or a snapshot lost via
+  // per100g/perServing snapshot (hand-typed macros, or a snapshot lost via
   // handleNameChange). scaleRowMacros derives a baseline from the row's
-  // current macros ÷ current grams in that case, so this always scales.
+  // current macros ÷ current amount in that case, so this always scales.
   //
-  // #219 — an empty (or genuinely zero/invalid) grams field is deliberately
+  // #219 — an empty (or genuinely zero/invalid) quantity field is deliberately
   // NOT committed to `row` at all: `parseFloat('') || 0` used to coerce empty
   // straight to 0 and write it through, which zeroed every macro and wiped
   // out the baseline scaleRowMacros needs for the *next* edit (see the block
   // comment on scaleRowMacros). Instead, freeze — track the raw text locally
   // so the field still visibly reads empty, but leave quantity/grams/macros
   // untouched until a real positive number is typed, however long that takes.
+  // This applies identically on a serving row: it's the same hazard (a
+  // derived baseline lives only in the row's own current macros/quantity),
+  // just with servings instead of grams as the amount being cleared.
   function handleQuantityChange(e: React.ChangeEvent<HTMLInputElement>) {
     const raw = e.target.value;
     const parsed = parseFloat(raw);
@@ -268,10 +324,23 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
       return;
     }
     setFrozenQuantityText(null);
+    if (row.basis === 'serving') {
+      // No gram equivalent exists for a serving row — `quantity` IS the
+      // amount being scaled (see scaleRowMacros's basis branch).
+      onChange({
+        ...row,
+        quantity: parsed,
+        serving_qty: parsed,
+        ...scaleRowMacros(row, parsed),
+      });
+      return;
+    }
     const effectiveGrams = parsed * row.unitGrams;
     onChange({ ...row, quantity: parsed, grams: effectiveGrams, ...scaleRowMacros(row, effectiveGrams) });
   }
 
+  // Weight rows only — a serving row has no portions dropdown (showUnitDropdown
+  // is false for it, see below), so this handler is never wired to one.
   function handleUnitChange(e: React.ChangeEvent<HTMLSelectElement>) {
     setFrozenQuantityText(null);
     const label = e.target.value;
@@ -286,11 +355,11 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
     });
   }
 
-  // Only reachable when macrosReadOnly is false (row.per100g === null): the
-  // user is hand-entering a macro value. No separate "re-baseline" step is
-  // needed — scaleRowMacros (#185) always derives its baseline from the row's
-  // CURRENT macros/grams, so this edit automatically becomes the reference
-  // for the next quantity/unit change.
+  // Only reachable when macrosReadOnly is false (no per100g/perServing
+  // snapshot): the user is hand-entering a macro value. No separate
+  // "re-baseline" step is needed — scaleRowMacros (#185) always derives its
+  // baseline from the row's CURRENT macros/amount, so this edit automatically
+  // becomes the reference for the next quantity/unit change.
   function handleMacroChange(
     field: 'calories' | 'protein_g' | 'carbs_g' | 'fat_g',
     value: string,
@@ -298,8 +367,13 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
     onChange({ ...row, [field]: parseFloat(value) || 0 });
   }
 
-  const macrosReadOnly = row.per100g !== null;
-  const showUnitDropdown = row.portions.length > 1;
+  const isServingRow = row.basis === 'serving';
+  const macrosReadOnly = isServingRow ? row.perServing !== null : row.per100g !== null;
+  // A serving row has no gram-convertible portions at all (UNC publishes no
+  // gram weight) — never show a unit dropdown, and never offer a "g" option,
+  // for one (see the static branch below, which prints the serving label
+  // instead of "g" on a serving row).
+  const showUnitDropdown = !isServingRow && row.portions.length > 1;
 
   return (
     <>
@@ -364,7 +438,9 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
         ) : (
           <label className={styles.fieldLabel}>
             <span>Unit</span>
-            <span className={styles.unitStatic}>g</span>
+            {/* Serving row: show the serving label alone (e.g. "½ cup") — there
+                is no gram weight, so printing one (or "g") would be a lie. */}
+            <span className={styles.unitStatic}>{isServingRow ? row.unitLabel : 'g'}</span>
           </label>
         )}
       </div>
@@ -428,7 +504,9 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
         </div>
         {macrosReadOnly && (
           <p className={styles.rowHint}>
-            Macros computed from per-100g values · adjust qty/unit to recalculate
+            {isServingRow
+              ? 'Macros computed from per-serving values · adjust qty to recalculate'
+              : 'Macros computed from per-100g values · adjust qty/unit to recalculate'}
           </p>
         )}
       </div>

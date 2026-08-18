@@ -14,6 +14,7 @@ import habits from './routes/habits';
 import nutrition from './routes/nutrition';
 import feedback from './routes/feedback';
 import apiV1 from './routes/apiV1';
+import flags from './routes/flags';
 
 dotenv.config();
 
@@ -40,6 +41,7 @@ app.use('/api/habits', habits);
 app.use('/api/nutrition', nutrition);
 app.use('/api/feedback', feedback);
 app.use('/api/v1', apiV1);
+app.use('/api/flags', flags);
 
 app.get('/api', (req, res) => {
     res.send("running");
