@@ -238,21 +238,6 @@ export default function EntryEditor({
     setRows(prev => prev.filter(r => r.rowKey !== key));
   }, []);
 
-  // Called when a custom meal is selected: replace the editing row (if editing
-  // an empty row) or append the expanded rows.
-  const handleExpandMeal = useCallback((expandedRows: EditorRow[]) => {
-    setRows(prev => {
-      if (editingRow !== null) {
-        const idx = prev.findIndex(r => r.rowKey === editingRow.rowKey);
-        if (idx !== -1 && !prev[idx].name.trim()) {
-          return [...prev.slice(0, idx), ...expandedRows, ...prev.slice(idx + 1)];
-        }
-      }
-      return [...prev, ...expandedRows];
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingRow]);
-
   // ----- Sheet open/close helpers -----
   // #178: reuse an existing empty/untitled row instead of stacking a new blank
   // one each time "add ingredient" is tapped.
@@ -283,6 +268,12 @@ export default function EntryEditor({
       // Add new
       return [...prev, row];
     });
+    // #246 — a custom food/meal row's own name is the sensible entry name
+    // (custom foods are single-ingredient items too), so adopt it when the
+    // user hasn't typed one of their own. Never clobber a typed name.
+    if (row.source === 'custom') {
+      setEntryName(prev => (prev.trim() ? prev : row.name));
+    }
   }, []);
 
   // Sheet Delete: remove the row being edited
@@ -520,7 +511,12 @@ export default function EntryEditor({
       onClose={closeSheet}
       onDone={handleSheetDone}
       onDelete={editingRow !== null ? handleSheetDelete : undefined}
-      onExpandMeal={handleExpandMeal}
+      // #247 — deliberately NOT passing onExpandMeal here. IngredientSheet's
+      // meal-expansion branch is guarded by `&& onExpandMeal`, so omitting it
+      // routes custom meals through the normal rowFromFood path instead:
+      // a single row named after the meal, with a working portion dropdown.
+      // MealBuilder still passes onExpandMeal (expanding a meal into
+      // ingredient rows is correct there) — don't "fix" this by restoring it.
     />
   );
 
