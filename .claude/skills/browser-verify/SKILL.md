@@ -189,6 +189,40 @@ signup/cleanup needed; `lib/browser.mjs` defaults to it.
   demand and can take several seconds beyond normal fetch+render. Give first
   waits real headroom (15-20s); it's fast on every subsequent load against
   the same long-lived process.
+- **`div[class*="_sheet_"]` matches TWO elements** on the nutrition tab:
+  NutritionChat's own composer sheet (`_sheet_vydzr_*`, first in DOM) and the
+  portaled IngredientSheet dialog (`_sheet_1ofci_*`). A bare `querySelector`
+  gets the chat's. Anchor off content instead —
+  `document.querySelector('input[aria-label="Ingredient name"]').closest('[role=dialog]')`.
+- **There are TWO `<BarcodeScanner>` instances**, and the same shadowing trap:
+  NutritionChat renders a scan button + scanner inline in `MAIN`, which
+  precede the body-appended dialog portal in DOM order. So a bare
+  `button[aria-label="Scan barcode"]` / `button[aria-label="Close barcode
+  scanner"]` resolves to the *chat's*, not the sheet's. Worse, while a Radix
+  modal is open the chat's copy is inert (`pointer-events: none`,
+  `aria-hidden` ancestor) — but `page.evaluate(() => el.click())` fires it
+  anyway, so you get a real scanner overlay that is genuinely untappable.
+  That looks precisely like "the fix under test didn't work" (cost two runs
+  on #251). Scope to the dialog, and prefer `page.mouse.click(x, y)` at the
+  element's center over `el.click()` when the *point* of the check is whether
+  something is tappable — `el.click()` bypasses hit-testing entirely and will
+  happily "succeed" on an inert element.
+- **Camera/`getUserMedia` needs the full Chromium build.** Playwright's
+  default headless `chromium-headless-shell` has no media stack:
+  `getUserMedia` rejects with `NotSupportedError`, and `BarcodeScanner`'s
+  catch-block calls `onClose()`, so the overlay unmounts a moment after it
+  appears. Launch with `channel: 'chromium'` plus
+  `args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-capture']`
+  and `contextOptions: { permissions: ['camera'] }`. `lib/browser.mjs`'s
+  `launchAuthed` takes `launchOptions` / `contextOptions` passthroughs for this.
+- **To simulate a *silently* dead stream** (not a loud disconnect), intercept
+  the request and never settle it: `page.route('**/nutrition/chat', async () => {})`.
+  The fetch stays open, nothing rejects, and `useChat` keeps `status ===
+  'streaming'` — which is the actual #252 failure. Devtools offline/throttling
+  does NOT reproduce it; that produces a fetch rejection, which is the
+  already-handled path. Pair it with direct `chat_messages` inserts to stand in
+  for what the server's `tee()`/`consumeStream` drain persists while the
+  client is disconnected.
 - The API routes require an `Authorization: Bearer <accessToken>` header —
   the refresh-token cookie alone (which is all the *browser* needs, since the
   React app exchanges it for an access token on load) is **not** accepted by
