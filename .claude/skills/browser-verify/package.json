@@ -1,0 +1,9 @@
+{
+  "name": "browser-verify",
+  "private": true,
+  "type": "module",
+  "description": "Isolated deps for standalone Playwright verification scripts. Not part of the app — see SKILL.md.",
+  "dependencies": {
+    "playwright": "^1.62.1"
+  }
+}
