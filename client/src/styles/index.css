@@ -6,6 +6,14 @@
 body {
   margin: 0;
   background-color: #151515;
+  /* #267: `* { font: inherit }` above makes every element inherit its font
+   * from its parent, all the way up to this body rule -- so declaring the
+   * font-family exactly once here is what makes it apply unconditionally,
+   * including to Radix dialog portals (which mount into document.body) and
+   * any element styled only with inline styles or a class that forgot to
+   * set font-family. Omitting it is what let those subtrees fall back to
+   * the browser's default serif font. */
+  font-family: "Sarabun", sans-serif;
 }
 
 html {

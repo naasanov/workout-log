@@ -50,7 +50,6 @@
 
 .title {
   margin: 0;
-  font-family: $sarabun;
   font-size: 20px;
   font-weight: 700;
   letter-spacing: $sarabun-spacing;
@@ -72,7 +71,6 @@
   color: rgba($text, 0.65);
   border: 2px solid $surface-border;
   border-radius: 10px;
-  font-family: $sarabun;
   font-size: 15px;
   letter-spacing: $sarabun-spacing;
   cursor: pointer;
@@ -97,7 +95,6 @@
 }
 
 .fieldLabel {
-  font-family: $sarabun;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: $sarabun-spacing;
@@ -112,7 +109,6 @@
   border: none;
   border-bottom: 2px solid $primary-border;
   padding: 6px 4px;
-  font-family: $sarabun;
   font-size: 16px;
   letter-spacing: $sarabun-spacing;
   width: 100%;
@@ -158,7 +154,6 @@
 }
 
 .ingredientsLabel {
-  font-family: $sarabun;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: $sarabun-spacing;
@@ -279,7 +274,6 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-family: $sarabun;
   font-size: 11px;
   letter-spacing: $sarabun-spacing;
   color: rgba($text, 0.55);
@@ -298,7 +292,6 @@
   border: none;
   border-bottom: 2px solid $primary-border;
   padding: 4px 20px 4px 2px; // right padding for chevron
-  font-family: $sarabun;
   font-size: 14px;
   letter-spacing: $sarabun-spacing;
   min-height: 36px;
@@ -327,7 +320,6 @@
 // Static "g" badge when only grams is available
 .unitStatic {
   display: inline-block;
-  font-family: $sarabun;
   font-size: 14px;
   letter-spacing: $sarabun-spacing;
   color: rgba($text, 0.55);
@@ -360,7 +352,6 @@
 
 .rowHint {
   margin: 0;
-  font-family: $sarabun;
   font-size: 11px;
   color: rgba($text, 0.4);
   letter-spacing: $sarabun-spacing;
@@ -397,14 +388,12 @@
 }
 
 .dropdownName {
-  font-family: $sarabun;
   font-size: 15px;
   color: $text;
   letter-spacing: $sarabun-spacing;
 }
 
 .dropdownMeta {
-  font-family: $sarabun;
   font-size: 12px;
   color: rgba($text, 0.5);
   letter-spacing: $sarabun-spacing;
@@ -412,7 +401,6 @@
 
 .dropdownHint {
   padding: 10px 14px;
-  font-family: $sarabun;
   font-size: 14px;
   color: rgba($text, 0.5);
   letter-spacing: $sarabun-spacing;
@@ -427,7 +415,6 @@
   color: $primary;
   border: 2px dashed $primary-border;
   border-radius: 10px;
-  font-family: $sarabun;
   font-size: 15px;
   letter-spacing: $sarabun-spacing;
   cursor: pointer;
@@ -450,7 +437,6 @@
 }
 
 .totalsLabel {
-  font-family: $sarabun;
   font-size: 13px;
   font-weight: 700;
   color: $primary;
@@ -460,7 +446,6 @@
 }
 
 .totalsStat {
-  font-family: $sarabun;
   font-size: 14px;
   color: rgba($text, 0.85);
   letter-spacing: $sarabun-spacing;
@@ -474,7 +459,6 @@
 // Error message
 .errorMsg {
   margin: 0;
-  font-family: $sarabun;
   font-size: 14px;
   color: $error;
   letter-spacing: $sarabun-spacing;
@@ -485,7 +469,6 @@
 .proposalNotes {
   margin: 0;
   padding: 8px 12px;
-  font-family: $sarabun;
   font-size: 13px;
   color: rgba($text, 0.6);
   letter-spacing: $sarabun-spacing;
@@ -508,7 +491,6 @@
   min-height: 48px; // mobile tap target
   padding: 10px 24px;
   border-radius: $border-radius;
-  font-family: $sarabun;
   font-size: 16px;
   font-weight: 600;
   letter-spacing: $sarabun-spacing;

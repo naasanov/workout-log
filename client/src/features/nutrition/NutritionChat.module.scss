@@ -118,7 +118,6 @@
 
 .headerTitle {
   flex: 1;
-  font-family: $sarabun;
   font-size: 17px;
   font-weight: 700;
   letter-spacing: $sarabun-spacing;
@@ -214,7 +213,6 @@
   padding: 24px 0;
 
   p {
-    font-family: $sarabun;
     font-size: 15px;
     color: rgba($text, 0.4);
     letter-spacing: $sarabun-spacing;
@@ -276,7 +274,6 @@
   border-bottom-left-radius: 4px;
   padding: 10px 14px;
   box-sizing: border-box;
-  font-family: $sarabun;
   font-size: 14px;
   letter-spacing: $sarabun-spacing;
   color: rgba($text, 0.6);
@@ -295,7 +292,6 @@
 
 .bubbleText {
   margin: 0;
-  font-family: $sarabun;
   font-size: 15px;
   line-height: 1.5;
   letter-spacing: $sarabun-spacing;
@@ -311,7 +307,6 @@
 
 // Markdown container in assistant bubbles
 .bubbleMarkdown {
-  font-family: $sarabun;
   font-size: 15px;
   line-height: 1.5;
   letter-spacing: $sarabun-spacing;
@@ -502,7 +497,6 @@
   // #77: same comfortable tap target as ToolCallCard
   min-height: 32px;
   box-sizing: border-box;
-  font-family: $sarabun;
   font-size: 12px;
   font-weight: 500;
   letter-spacing: $sarabun-spacing;
@@ -551,7 +545,6 @@
   border-left: 2px solid rgba($surface-border, 0.2);
   margin-left: 2px;
   padding: 4px 10px 8px;
-  font-family: $sarabun;
   font-size: 12px;
   line-height: 1.5;
   color: rgba($text, 0.55);
@@ -611,7 +604,6 @@
 .proposalConfirmed {
   padding: 8px 12px;
   border-radius: 10px;
-  font-family: $sarabun;
   font-size: 13px;
   letter-spacing: $sarabun-spacing;
   max-width: min(80%, 400px);
@@ -645,7 +637,6 @@
   background-color: rgba($error, 0.06);
   border: 1px solid rgba($error, 0.2);
   border-radius: 8px;
-  font-family: $sarabun;
   font-size: 12px;
   color: rgba($error, 0.75);
   letter-spacing: $sarabun-spacing;
@@ -718,7 +709,6 @@
 .photoError {
   margin: 0;
   padding: 4px 14px;
-  font-family: $sarabun;
   font-size: 13px;
   color: $error;
   letter-spacing: $sarabun-spacing;
@@ -737,7 +727,6 @@
   margin: 0;
   flex: 1;
   padding: 4px 0 4px 14px;
-  font-family: $sarabun;
   font-size: 13px;
   color: $error;
   letter-spacing: $sarabun-spacing;
@@ -802,7 +791,6 @@
   background-color: rgba($surface-border, 0.15);
   border: 1px solid rgba($surface-border, 0.4);
   border-radius: 8px;
-  font-family: $sarabun;
   font-size: 12px;
   color: rgba($text, 0.55);
   letter-spacing: $sarabun-spacing;
@@ -864,7 +852,6 @@
 }
 
 .barcodeAttachmentName {
-  font-family: $sarabun;
   font-size: 13px;
   letter-spacing: $sarabun-spacing;
   color: $text;
@@ -996,7 +983,6 @@
   // #92: vertical centering: padding 8px top/bottom, line-height 24px.
   //      Total single-line height = 8 + 24 + 8 + 2(border) = 42px ≈ 40px min-height.
   padding: 8px 12px;
-  font-family: $sarabun;
   // #4: 16px on mobile (≤$mobile-width) to suppress iOS auto-zoom on focus
   font-size: 16px;
   letter-spacing: $sarabun-spacing;
@@ -1103,7 +1089,6 @@
 
 .errorBubbleLabel {
   flex: 1;
-  font-family: $sarabun;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: $sarabun-spacing;

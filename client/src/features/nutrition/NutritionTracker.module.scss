@@ -57,7 +57,6 @@
   border: 2px solid rgba($surface-border, 0.7);
   border-radius: 10px;
   color: $text;
-  font-family: $sarabun;
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
@@ -86,7 +85,6 @@
   border: 2px solid rgba($surface-border, 0.7);
   border-radius: 10px;
   padding: 8px 12px;
-  font-family: $sarabun;
   font-size: 16px;
   letter-spacing: $sarabun-spacing;
   text-align: center;
@@ -127,7 +125,6 @@
   color: $background;
   border: none;
   border-radius: $border-radius;
-  font-family: $sarabun;
   font-size: 16px;
   font-weight: 700;
   letter-spacing: $sarabun-spacing;
@@ -188,7 +185,6 @@
 }
 
 .caloriesBig {
-  font-family: $sarabun;
   font-size: 36px;
   font-weight: 700;
   color: $text;
@@ -197,14 +193,12 @@
 }
 
 .caloriesUnit {
-  font-family: $sarabun;
   font-size: 15px;
   color: rgba($text, 0.5);
   letter-spacing: $sarabun-spacing;
 }
 
 .caloriesGoal {
-  font-family: $sarabun;
   font-size: 15px;
   color: rgba($text, 0.5);
   letter-spacing: $sarabun-spacing;
@@ -251,7 +245,6 @@
 }
 
 .macroName {
-  font-family: $sarabun;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: $sarabun-spacing;
@@ -260,7 +253,6 @@
 }
 
 .macroValue {
-  font-family: $sarabun;
   font-size: 13px;
   color: rgba($text, 0.85);
   letter-spacing: $sarabun-spacing;
@@ -274,7 +266,6 @@
 }
 
 .mealHeader {
-  font-family: $sarabun;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 1.5px;
@@ -308,7 +299,6 @@
 // Name takes available space and wraps naturally (up to 2 lines via line-clamp)
 .entryName {
   flex: 1;
-  font-family: $sarabun;
   font-size: 16px;
   font-weight: 600;
   color: $text;
@@ -397,7 +387,6 @@
   background: transparent;
   border: none;
   color: $text;
-  font-family: $sarabun;
   font-size: 15px;
   letter-spacing: $sarabun-spacing;
   padding: 10px 14px;
@@ -438,7 +427,6 @@
 }
 
 .entryCalories {
-  font-family: $sarabun;
   font-size: 14px;
   font-weight: 700;
   color: $primary;
@@ -463,7 +451,6 @@
 }
 
 .chip {
-  font-family: $sarabun;
   font-size: 12px;
   letter-spacing: $sarabun-spacing;
   color: rgba($text, 0.55);
@@ -476,7 +463,6 @@
 // ---- Empty / loading states ----
 .emptyDay {
   text-align: center;
-  font-family: $sarabun;
   font-size: 15px;
   color: rgba($text, 0.4);
   letter-spacing: $sarabun-spacing;
@@ -484,7 +470,6 @@
 }
 
 .errorMsg {
-  font-family: $sarabun;
   font-size: 14px;
   color: $error;
   letter-spacing: $sarabun-spacing;
@@ -492,7 +477,6 @@
 }
 
 .loadingMsg {
-  font-family: $sarabun;
   font-size: 14px;
   color: rgba($text, 0.5);
   letter-spacing: $sarabun-spacing;

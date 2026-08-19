@@ -51,7 +51,6 @@
 
 .drawerTitle {
   color: $text;
-  font-family: $sarabun;
   font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: $sarabun-spacing;
@@ -74,7 +73,6 @@
   min-height: 44px;
   cursor: pointer;
   color: rgba($text, 0.7);
-  font-family: $sarabun;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: $sarabun-spacing;
@@ -143,7 +141,6 @@
   text-align: left;
   cursor: pointer;
   color: rgba($text, 0.7);
-  font-family: $sarabun;
   font-size: 18px;
   font-weight: 500;
   letter-spacing: $sarabun-spacing;
@@ -201,7 +198,6 @@
 
 .editTabLabel {
   color: rgba($text, 0.9);
-  font-family: $sarabun;
   font-size: 17px;
   font-weight: 500;
   letter-spacing: $sarabun-spacing;
@@ -307,7 +303,6 @@
 .addHeading {
   padding: 0 12px;
   color: rgba($text, 0.45);
-  font-family: $sarabun;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: $sarabun-spacing;

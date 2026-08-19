@@ -31,7 +31,6 @@
 
 .title {
   color: $text;
-  font-family: $sarabun;
   font-size: 20px;
   font-weight: 400;
   letter-spacing: $sarabun-spacing;
@@ -81,7 +80,6 @@
   border: 1px solid $surface-border;
   border-radius: $border-radius;
   color: $text;
-  font-family: $sarabun;
   letter-spacing: $sarabun-spacing;
   padding: 12px 14px;
   // font-size is intentionally left unset below 885px so the global
@@ -112,7 +110,6 @@
   background-color: $primary-translucent;
   border: 1px solid $primary-border;
   color: $primary;
-  font-family: $sarabun;
   font-size: 14px;
   font-weight: 500;
   letter-spacing: $sarabun-spacing;

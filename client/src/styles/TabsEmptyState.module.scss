@@ -25,7 +25,6 @@
 .heading {
   margin: 0;
   color: $text;
-  font-family: $sarabun;
   font-size: 26px;
   font-weight: 700;
   letter-spacing: $sarabun-spacing;
@@ -34,7 +33,6 @@
 .subtext {
   margin: 0;
   color: rgba($text, 0.6);
-  font-family: $sarabun;
   font-size: 16px;
   line-height: 1.5;
   letter-spacing: $sarabun-spacing;
@@ -55,7 +53,6 @@
   border-radius: 999px;
   border: 1px solid $surface-border;
   color: rgba($text, 0.7);
-  font-family: $sarabun;
   font-size: 14px;
   font-weight: 500;
   letter-spacing: $sarabun-spacing;
@@ -73,7 +70,6 @@
   cursor: pointer;
   background: $primary;
   color: $background;
-  font-family: $sarabun;
   font-size: 16px;
   font-weight: 700;
   letter-spacing: $sarabun-spacing;

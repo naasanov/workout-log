@@ -24,7 +24,6 @@
 
 .title {
   margin: 0;
-  font-family: $sarabun;
   font-size: 20px;
   font-weight: 700;
   letter-spacing: $sarabun-spacing;
@@ -33,7 +32,6 @@
 
 .hint {
   margin: 0;
-  font-family: $sarabun;
   font-size: 13px;
   color: rgba($text, 0.45);
   letter-spacing: $sarabun-spacing;
@@ -52,7 +50,6 @@
 }
 
 .label {
-  font-family: $sarabun;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: $sarabun-spacing;
@@ -66,7 +63,6 @@
   border: none;
   border-bottom: 2px solid $primary-border;
   padding: 8px 4px;
-  font-family: $sarabun;
   font-size: 16px;
   letter-spacing: $sarabun-spacing;
   width: 100%;
@@ -85,7 +81,6 @@
 
 .errorMsg {
   margin: 0;
-  font-family: $sarabun;
   font-size: 14px;
   color: $error;
   letter-spacing: $sarabun-spacing;
@@ -102,7 +97,6 @@
   min-height: 48px;
   padding: 10px 24px;
   border-radius: $border-radius;
-  font-family: $sarabun;
   font-size: 16px;
   font-weight: 600;
   letter-spacing: $sarabun-spacing;
