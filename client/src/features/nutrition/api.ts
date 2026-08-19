@@ -264,5 +264,13 @@ export async function submitFeedback(input: {
   tool?: string;
   message: string;
 }): Promise<void> {
-  await clientApi.post('/feedback', input);
+  try {
+    await clientApi.post('/feedback', input);
+  } catch (err: unknown) {
+    // #266: axios's own Error#message is the generic "Request failed with
+    // status code 400" — surface the server's actual validation message
+    // (e.g. "Message is too long...") when the response envelope has one.
+    const serverMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+    throw new Error(serverMessage || 'Failed to send feedback. Please try again.');
+  }
 }

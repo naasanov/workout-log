@@ -32,6 +32,10 @@ type FeedbackCategory = 'bug' | 'idea' | 'ui' | 'other';
 // catch-all for feedback that isn't tied to a specific tab.
 const OTHER_TOOL = 'other';
 
+// #266: mirrors the server's `message` max (routes/feedback.ts) so the
+// common "too long" case is caught client-side and never round-trips.
+const MESSAGE_MAX_LENGTH = 4000;
+
 interface FeedbackForm {
   category: FeedbackCategory;
   tool: string;
@@ -47,7 +51,10 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
   // back to Workouts). Imported from the shared config, not duplicated.
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
-  const currentTab = VALID_TABS.has(tabParam) ? tabParam : TABS.WORKOUTS;
+  // Pre-existing tsc gap: URLSearchParams#get is `string | null`, but
+  // VALID_TABS (from the untyped tabs.js config) infers `Set<string>` — guard
+  // the null case explicitly rather than widening the shared config's types.
+  const currentTab = tabParam != null && VALID_TABS.has(tabParam) ? tabParam : TABS.WORKOUTS;
 
   const {
     register,
@@ -55,10 +62,15 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
     reset,
     setValue,
     getValues,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FeedbackForm>({
     defaultValues: { category: 'idea', tool: currentTab, message: '' },
   });
+
+  // #266: live character count for the counter under the textarea.
+  const messageLength = watch('message')?.length ?? 0;
+  const overLimit = messageLength > MESSAGE_MAX_LENGTH;
 
   // Since this modal stays mounted app-wide (see header comment), the user
   // can navigate tabs while it's closed. Keep "tool" following the active
@@ -167,8 +179,18 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
                 {...register('message', {
                   required: 'Please add a message.',
                   minLength: { value: 5, message: 'Message is too short.' },
+                  // #266: client-side cap matching the server's limit so the
+                  // common overflow case never round-trips to get a 400.
+                  maxLength: {
+                    value: MESSAGE_MAX_LENGTH,
+                    message: 'Message is too long — please keep it under 4000 characters.',
+                  },
                 })}
               />
+              {/* #266: live counter, flips to the error color once over the limit */}
+              <span className={`${styles.charCount} ${overLimit ? styles.charCountError : ''}`}>
+                {messageLength} / {MESSAGE_MAX_LENGTH}
+              </span>
               {errors.message && (
                 <span className={styles.fieldError}>{errors.message.message}</span>
               )}
