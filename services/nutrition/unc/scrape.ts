@@ -280,6 +280,16 @@ export function parseMenuHtml(
           .filter((c) => c.startsWith('prop-'))
           .map((c) => c.slice('prop-'.length))
           .sort();
+        const name = textFromHtmlFragment(nameHtml);
+
+        // #265: an item with no name is never useful to the model, whatever the cause --
+        // rather than trying to prove ITEM_RE can never produce one (extensive live
+        // reproduction across many dates/locations turned up zero cases; the observed
+        // blanks appear to come from unc_recipes rows that got permanently stuck with a
+        // blank name, see the store.ts fix), drop it here too so the *fresh*-scrape path
+        // degrades to "fewer items" the same way the cached-read path does, even against
+        // a markup shape we haven't seen yet.
+        if (!name) continue;
 
         items.push({
           meal_period: rawPeriod,
@@ -288,7 +298,7 @@ export function parseMenuHtml(
           period_end,
           station,
           recipe_number: parseInt(recipeStr, 10),
-          name: textFromHtmlFragment(nameHtml),
+          name,
           allergens,
           dietary,
           ingredients_search: unescapeHtml(searchable),

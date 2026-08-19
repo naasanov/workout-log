@@ -63,12 +63,20 @@ function rowToRecipeCacheRow(row: RowDataPacket): RecipeCacheRow {
   };
 }
 
-/** Which of these recipe_numbers already have a permanently-cached row. */
+/** Which of these recipe_numbers already have a permanently-cached row.
+ *
+ * #265: deliberately excludes rows with a blank `name` from "already cached". A blank
+ * name only ever gets in here from a transient recipe.php failure/empty response at
+ * write time (see ensureRecipesCached's `recipe.name || item.name` fallback in
+ * index.ts) -- without this exclusion that row would count as "done" forever, since
+ * recipe_number is a stable id that's never re-fetched once present, and the blank
+ * name would keep resurfacing on every subsequent read. Treating it as still-missing
+ * lets the next scrape that touches this recipe_number retry and self-heal it. */
 export async function getCachedRecipeNumbers(recipeNumbers: number[]): Promise<Set<number>> {
   if (recipeNumbers.length === 0) return new Set();
   const placeholders = recipeNumbers.map(() => '?').join(', ');
   const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT recipe_number FROM unc_recipes WHERE recipe_number IN (${placeholders})`,
+    `SELECT recipe_number FROM unc_recipes WHERE recipe_number IN (${placeholders}) AND name <> ''`,
     recipeNumbers,
   );
   return new Set(rows.map((r) => r.recipe_number as number));
@@ -151,7 +159,16 @@ function timeColToHHMM(value: unknown): string | null {
  *  name/allergens/dietary (unc_menu_items itself only stores the recipe_number linkage).
  *  If a recipe_number was never successfully cached (a past fetchRecipe failure), that
  *  item's name/allergens/dietary come back empty -- it will be retried the next time
- *  this recipe_number is encountered, since getCachedRecipeNumbers still won't find it. */
+ *  this recipe_number is encountered, since getCachedRecipeNumbers still won't find it.
+ *
+ *  #265: this is also the read path that surfaced "blank name" items in the wild -- an
+ *  unc_recipes row saved with name = '' (transient recipe.php failure at write time, see
+ *  getCachedRecipeNumbers) LEFT JOINs to a real name-less row here, and every caller of
+ *  ensureMenuDay (fresh-scrape and cached-read alike -- both round-trip through this
+ *  function, see index.ts) inherits it. Drop those rows rather than returning them: a
+ *  nameless item is never useful to the model, and getCachedRecipeNumbers now retries
+ *  the underlying recipe on the next scrape, so this is "missing today" not "missing
+ *  forever". */
 export async function getMenuDayItems(slug: string, date: string): Promise<UncMenuItem[]> {
   const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT mi.id, mi.meal_period, mi.period_start, mi.period_end, mi.station, mi.recipe_number,
@@ -163,13 +180,15 @@ export async function getMenuDayItems(slug: string, date: string): Promise<UncMe
     [slug, date],
   );
 
-  return rows.map((row) => {
+  const items: UncMenuItem[] = [];
+  for (const row of rows) {
+    const name = (row.recipe_name as string | null) ?? '';
+    if (!name) continue; // #265: never-cached or blank-cached recipe -- see comment above
     const rawPeriod = row.meal_period as string;
     // period_label is derivable from meal_period (the raw tab label) -- no need for a
     // separate column; reuse the exact parser the scraper used to produce it originally.
     const { period_label } = parsePeriodLabel(rawPeriod);
-    const name = (row.recipe_name as string | null) ?? '';
-    return {
+    items.push({
       meal_period: rawPeriod,
       period_label,
       period_start: timeColToHHMM(row.period_start),
@@ -180,8 +199,9 @@ export async function getMenuDayItems(slug: string, date: string): Promise<UncMe
       allergens: splitCsv(row.recipe_allergens as string | null),
       dietary: splitCsv(row.recipe_dietary as string | null),
       ingredients_search: name,
-    };
-  });
+    });
+  }
+  return items;
 }
 
 /**
