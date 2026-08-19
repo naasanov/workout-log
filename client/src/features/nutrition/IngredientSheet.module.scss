@@ -514,6 +514,19 @@
   flex-shrink: 0;
 }
 
+// #259: total grams (or serving amount for a null-grams serving row),
+// alongside kcal. Muted vs. .cardCalories so kcal stays the visual anchor;
+// flex-shrink:0 + nowrap so it can't be squeezed/broken at 320px — .cardMacros
+// already wraps .macroChips onto its own line first when space runs out.
+.cardGrams {
+  font-family: $sarabun;
+  font-size: 12px;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.5);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .macroChips {
   display: flex;
   gap: 4px;
