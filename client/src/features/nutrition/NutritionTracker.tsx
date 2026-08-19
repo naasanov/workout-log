@@ -348,6 +348,19 @@ export default function NutritionTracker() {
           aria-label="Select date"
         />
 
+        {/* #264: only rendered once the user has navigated away from today, so
+            the common case (already on today) pays no layout cost and there's
+            no dimmed/disabled variant to design for. */}
+        {selectedDate !== getTodayLocalDate() && (
+          <button
+            className={styles.todayBtn}
+            onClick={() => setSelectedDate(getTodayLocalDate())}
+            aria-label="Jump to today"
+          >
+            Today
+          </button>
+        )}
+
         <button
           className={styles.arrowBtn}
           onClick={handleNextDay}

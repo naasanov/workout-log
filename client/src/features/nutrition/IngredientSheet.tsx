@@ -731,6 +731,20 @@ export function IngredientCardList({ rows, onEditRow }: IngredientCardListProps)
               <span className={styles.cardCalories}>
                 {Math.round(row.calories)} kcal
               </span>
+              {/* #259 — row.grams is null for a serving-basis row (e.g. UNC
+                  dining items priced per serving, not per weight — see the
+                  basis comments in ingredientMath.ts). Rendering `0g` there
+                  would read as "0g of food" rather than "not applicable", so
+                  mirror EntryEditor's Totals treatment: fall back to the
+                  serving amount, then to an em dash. Don't "simplify" this
+                  back to `round2(row.grams)}g`. */}
+              <span className={styles.cardGrams}>
+                {row.grams != null
+                  ? `${round2(row.grams)}g`
+                  : row.quantity > 0
+                    ? `${round2(row.quantity)} ${row.unitLabel || 'serving'}`
+                    : '—'}
+              </span>
               <div className={styles.macroChips}>
                 <span className={styles.chip}>P {round2(row.protein_g)}g</span>
                 <span className={styles.chip}>C {round2(row.carbs_g)}g</span>

@@ -929,6 +929,23 @@
   align-items: flex-end;
   gap: 6px;
   padding: 4px 12px 10px;
+
+  // #268 — flush-to-edge (just the 10px above + .sheet's own safe-area
+  // padding, which is 0 on a device that reports a zero inset) put the
+  // composer's tap target right where an upward swipe near the bottom edge
+  // is grabbed by the OS home-gesture/back-swipe instead of the button, so
+  // reopening the composer after it auto-hid could dismiss the app instead.
+  // `env(safe-area-inset-bottom)` is added again here (on top of .sheet's
+  // own) because the fixed constant is what actually fixes a *zero*-inset
+  // phone; keeping env() alongside it means a notched phone still scales
+  // correctly rather than relying on the constant alone. Mobile-only —
+  // desktop pointer input doesn't have this gesture-collision problem, so
+  // it's reset back to the plain 10px below.
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px) + 10px);
+
+  @media (min-width: #{$mobile-width + 1px}) {
+    padding-bottom: 10px;
+  }
 }
 
 // Keep .composerBtn for backwards-compat (not rendered any more but avoids
