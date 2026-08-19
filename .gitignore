@@ -42,3 +42,10 @@ node_modules
 # git worktrees of this same repo. (.claude/skills/**/SKILL.md IS tracked: it's
 # shared repo knowledge. node_modules under .claude/ is covered by the rule above.)
 .claude/worktrees/
+
+# Scratch artifacts from agent/browser-verify runs and issue triage. These get
+# dropped in the repo root by Playwright screenshots and the issue-orchestrator
+# skill; none of them are repo content.
+/*.png
+/*.jpg
+/ISSUE_PLAN.md
