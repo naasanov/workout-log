@@ -118,6 +118,19 @@
   }
 }
 
+// #266: live character counter under the message textarea
+.charCount {
+  align-self: flex-end;
+  font-family: $sarabun;
+  font-size: 12px;
+  letter-spacing: $sarabun-spacing;
+  color: rgba($text, 0.45);
+
+  &.charCountError {
+    color: $error;
+  }
+}
+
 .fieldError {
   font-family: $sarabun;
   font-size: 13px;

@@ -60,15 +60,19 @@ function Header({
         </Link>
 
         <div className={styles.headerRight}>
-          {/* #60: Feedback icon button — visible on every tab, logged in or not */}
-          <button
-            className={styles.feedbackBtn}
-            onClick={() => setFeedbackOpen(true)}
-            aria-label="Send feedback"
-            title="Send feedback"
-          >
-            <MessageSquare className={styles.feedbackIcon} size={16} aria-hidden="true" />
-          </button>
+          {/* #258: Feedback icon button — only for signed-in users. POST
+              /api/feedback requires auth, so a signed-out user would fill
+              out the form and get a 401; hide the entry point instead. */}
+          {user != null && (
+            <button
+              className={styles.feedbackBtn}
+              onClick={() => setFeedbackOpen(true)}
+              aria-label="Send feedback"
+              title="Send feedback"
+            >
+              <MessageSquare className={styles.feedbackIcon} size={16} aria-hidden="true" />
+            </button>
+          )}
 
           <div className={styles.authLinks}>
             {user == null
