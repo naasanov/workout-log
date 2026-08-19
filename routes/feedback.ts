@@ -13,7 +13,12 @@ const feedbackSchema = z.object({
   // #215: which tab/tool the feedback concerns. Free-form-ish but constrained
   // to the client's known values (the four tabs, or 'other').
   tool: z.string().min(1).max(32).optional(),
-  message: z.string().min(1).max(4000),
+  // #266: explicit messages — zod's defaults ("String must contain at
+  // most 4000 character(s)") surface as-is via the 400 body below, so they
+  // need to already read like something a user should see.
+  message: z.string()
+    .min(1, 'Please add a message.')
+    .max(4000, 'Message is too long — please keep it under 4000 characters.'),
 });
 
 type FeedbackBody = z.infer<typeof feedbackSchema>;
