@@ -856,7 +856,7 @@ function ChatMessage({
             if (isDenied) {
               return (
                 <div key={idx} className={styles.proposalDenied}>
-                  Proposal declined — please refine your request.
+                  Proposal declined
                 </div>
               );
             }
@@ -910,7 +910,7 @@ function ChatMessage({
             if (isDenied) {
               return (
                 <div key={idx} className={styles.proposalDenied}>
-                  Proposal declined — please refine your request.
+                  Proposal declined
                 </div>
               );
             }

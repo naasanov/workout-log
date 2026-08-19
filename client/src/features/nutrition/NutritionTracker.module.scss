@@ -45,6 +45,35 @@
   height: 16px;
 }
 
+// #264: compact "jump to today" pill, only rendered when off today. Keeps the
+// 44px touch target of .arrowBtn but trims the horizontal padding so it can't
+// push the row into overflow at 320px alongside the two arrows + shrinkable
+// date input.
+.todayBtn {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 10px;
+  background: transparent;
+  border: 2px solid rgba($surface-border, 0.7);
+  border-radius: 10px;
+  color: $text;
+  font-family: $sarabun;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:active {
+    background-color: rgba($primary, 0.12);
+    border-color: $primary-border;
+  }
+
+  @media (max-width: 360px) {
+    padding: 0 6px;
+    font-size: 12px;
+  }
+}
+
 .dateInput {
   flex: 1;
   // A date input carries an intrinsic minimum width, and a flex item's default
