@@ -89,7 +89,8 @@ those, seed directly with `docker exec ... mysql -udev -pdev workout_log -e
 
 ```
 docker compose up -d                                                    # MySQL on host port 3307
-DB_PORT=3307 npm run db:setup                                           # schema + dev@dev.com seed
+DB_HOST=127.0.0.1 DB_PORT=3307 DB_USERNAME=dev DB_PASSWORD=dev \
+  DB_NAME=workout_log npm run db:setup                                  # schema + dev@dev.com seed
 ACCESS_TOKEN_SECRET=x REFRESH_TOKEN_SECRET=x \
   DB_PORT=3307 PORT=3000 FRONTEND_URL=http://localhost:3001 node dist/index.js &   # after `npm run build`
 echo "VITE_API_URL=http://localhost:3000/api" > client/.env.local
@@ -108,6 +109,16 @@ Why each var is needed, all discovered by hitting the failure first:
   brand-new volume **and** an existing one from before this change — an old
   volume's tables didn't come from `migrate.js`, so `schema_migrations` is
   still empty on it and needs a first `db:setup` run too.
+- **The full `DB_*` set, not just `DB_PORT`.** `migrate.js`/`seedDev.js` read
+  `DB_HOST`/`DB_USERNAME`/`DB_PASSWORD`/`DB_NAME` straight from `process.env`
+  and do **not** load the root `.env` — so passing only `DB_PORT` fails with
+  `ER_ACCESS_DENIED_ERROR (1045)` even from the main checkout, where `.env`
+  exists. The values above are the ones `docker-compose.yml` provisions
+  (`dev`/`dev`/`workout_log`); they're dev-container credentials, not secrets.
+  Before debugging this, check whether the DB is *already* migrated — it
+  usually is, and the whole step is skippable:
+  `docker exec workout-log-db-1 mysql -udev -pdev workout_log -e "SELECT COUNT(*) FROM schema_migrations;"`
+  (the table's column is `filename`, not `name`).
 - `DB_PORT=3307` — matches `docker-compose.yml`'s host port mapping; both the
   server's and `migrate.js`'s own default is 3306 (bare MySQL default), which
   nothing is listening on locally. Needed on the `db:setup` line and the
@@ -238,6 +249,26 @@ signup/cleanup needed; `lib/browser.mjs` defaults to it.
   already-handled path. Pair it with direct `chat_messages` inserts to stand in
   for what the server's `tee()`/`consumeStream` drain persists while the
   client is disconnected.
+- **Tab query-param values are lowercase kebab-case**, from
+  `client/src/config/tabs.js`: `workouts`, `body-weight`, `habits`,
+  `nutrition`. `?tab=Nutrition` (title case) is not valid and silently falls
+  back to Workouts.
+- **Every tab panel is in the DOM at once; inactive ones are merely
+  invisible.** So `querySelector` finding your element proves nothing about
+  whether you can interact with it — a Playwright `.click()` on an element in
+  a non-active tab hangs the full 30s with `element is not visible` while the
+  selector itself resolves fine. Navigate to the right `?tab=` first, and read
+  "resolved to <button …> but not visible" as "wrong tab", not "wrong selector".
+- **`input[type="date"]` matches at least twice** — the Body Weight tab renders
+  one and it precedes the nutrition date-nav's in DOM order, so a bare
+  selector silently reads the wrong field (its value looks plausible, which is
+  what makes this expensive). Scope via a uniquely-labelled sibling:
+  `document.querySelector('button[aria-label="Previous day"]').parentElement.querySelector('input[type="date"]')`.
+- **`waitFor(page, predicate, opts)` takes no trailing args to forward into the
+  predicate** (unlike Playwright's own `waitForFunction`). Passing a 4th
+  argument is silently ignored and the predicate's parameter arrives
+  `undefined` — which surfaces as a confusing timeout rather than an error.
+  Close over the value or inline it in the predicate body.
 - The API routes require an `Authorization: Bearer <accessToken>` header —
   the refresh-token cookie alone (which is all the *browser* needs, since the
   React app exchanges it for an access token on load) is **not** accepted by

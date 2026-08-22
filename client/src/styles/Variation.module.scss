@@ -1,5 +1,4 @@
-@import "variables";
-
+@use "variables" as vars;
 .part {
   display: flex;
   justify-content: flex-start;
@@ -17,9 +16,9 @@
   input {
     max-width: 10em;
     background-color: transparent;
-    color: $text;
+    color: vars.$text;
     border: none;
-    border-bottom: solid 3px $primary-border;
+    border-bottom: solid 3px vars.$primary-border;
 
     &:focus {
       outline: none;
@@ -78,7 +77,7 @@
   }
 
   &:hover {
-    background-color: $primary-translucent;
+    background-color: vars.$primary-translucent;
   }
 
   // Accessibility: WCAG 2.5.5 / Apple HIG want a >=44x44 tap target, but this
@@ -101,7 +100,7 @@
 .icon {
   display: block;
   padding-right: 7px;
-  color: $primary;
+  color: vars.$primary;
   flex-shrink: 0;
 }
 
@@ -124,11 +123,11 @@
   border: none;
   border-radius: 100px;
   cursor: pointer;
-  color: $primary;
+  color: vars.$primary;
   position: relative;
 
   &:hover {
-    background-color: $primary-translucent;
+    background-color: vars.$primary-translucent;
   }
 
   .icon {
@@ -157,11 +156,11 @@
   border: none;
   border-radius: 100px;
   cursor: pointer;
-  color: $primary;
+  color: vars.$primary;
   position: relative;
 
   &:hover {
-    background-color: $primary-translucent;
+    background-color: vars.$primary-translucent;
   }
 
   .icon {
@@ -182,10 +181,10 @@
 
 // #212: .notesBtn used to carry its own dimmed opacity, making the notes icon
 // look darker than the adjacent .graphBtn/.delete icons even though all three
-// are the same $primary color. Base opacity is gone now, so .notesBtnActive's
+// are the same vars.$primary color. Base opacity is gone now, so .notesBtnActive's
 // highlighted background is the only "this variation has notes" cue.
 .notesBtnActive {
-  background-color: $primary-translucent;
+  background-color: vars.$primary-translucent;
 }
 
 .rightGroup {

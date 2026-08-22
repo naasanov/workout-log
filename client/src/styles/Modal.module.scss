@@ -1,5 +1,4 @@
-@import "variables";
-
+@use "variables" as vars;
 // Radix Dialog overlay — fills the viewport behind the panel
 .overlay {
   position: fixed;
@@ -22,8 +21,8 @@
   top: 50%;
   transform: translate(-50%, -50%);
   z-index: 1000;
-  background-color: $surface;
-  border-radius: $border-radius;
+  background-color: vars.$surface;
+  border-radius: vars.$border-radius;
   width: 90%;
 
   // Default sizing; callers can override via contentClassName

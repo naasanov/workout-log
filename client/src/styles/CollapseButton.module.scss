@@ -1,5 +1,4 @@
-@import "variables";
-
+@use "variables" as vars;
 .btn {
   display: flex;
   // Keep tap-target size at 40px; the icon itself is standardized to 16px (#75)
@@ -13,7 +12,7 @@
   border-radius: 100px;
   cursor: pointer;
   // Green chevron (lucide uses currentColor) to match the other workout accents
-  color: $primary;
+  color: vars.$primary;
   position: relative;
 
   // #75: standardize collapse chevron to 16px on all breakpoints
@@ -24,7 +23,7 @@
   }
 
   &:hover {
-    background-color: $primary-translucent;
+    background-color: vars.$primary-translucent;
   }
 
   // Accessibility: expand the invisible hit area to 44x44 (WCAG 2.5.5) without

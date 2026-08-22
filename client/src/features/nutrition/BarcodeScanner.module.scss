@@ -1,5 +1,4 @@
-@import "../../styles/variables";
-
+@use "../../styles/variables" as vars;
 // Full-screen overlay rendered on top of everything, including the
 // IngredientSheet it's mounted inside of (#177: scanner must cover the
 // sheet, so this must beat IngredientSheet's .sheet at z-index 1101).
@@ -64,9 +63,9 @@
 
 .hint {
   margin: 0;
-  color: rgba($text, 0.75);
+  color: rgba(vars.$text, 0.75);
   font-size: 15px;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   text-align: center;
 }
 
@@ -75,15 +74,15 @@
   min-width: 120px;
   padding: 10px 28px;
   background-color: transparent;
-  color: $text;
-  border: 2px solid $surface-border;
-  border-radius: $border-radius;
+  color: vars.$text;
+  border: 2px solid vars.$surface-border;
+  border-radius: vars.$border-radius;
   font-size: 16px;
   font-weight: 600;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
 
   &:active {
-    background-color: rgba($text, 0.1);
+    background-color: rgba(vars.$text, 0.1);
   }
 }

@@ -1,11 +1,10 @@
-@import 'variables';
-
+@use "variables" as vars;
 .signin {
     display: flex;
     flex-direction: column;
     align-items: center;
     margin-top: 100px;
-    color: $text;
+    color: vars.$text;
 
     > span {
         margin-bottom: 50px;
@@ -13,13 +12,13 @@
     }
 
     > div {
-        background-color: $surface;
+        background-color: vars.$surface;
         display: flex;
         flex-direction: column;
         align-items: center;
         padding: 35px 30px;
-        border-radius: $border-radius;
-        border: solid 1px $surface-border;
+        border-radius: vars.$border-radius;
+        border: solid 1px vars.$surface-border;
         font-size: 17px;
 
         > form {
@@ -40,27 +39,27 @@
                     border-radius: 5px;
                     padding: 6px 10px;
                     margin-bottom: 5px;
-                    background-color: $background;
-                    color: $text;
-                    border: solid 1px $surface-border;
+                    background-color: vars.$background;
+                    color: vars.$text;
+                    border: solid 1px vars.$surface-border;
 
                     &:focus {
-                        outline: solid 1px $primary-border
+                        outline: solid 1px vars.$primary-border
                     }
                 }
 
                 > span {
                     font-size: 15px;
-                    color: $error;
+                    color: vars.$error;
                 }
             }
             
             .error {
-                border-color: $error !important;
+                border-color: vars.$error !important;
             }
 
             .message {
-                color: $error;
+                color: vars.$error;
                 margin-top: 15px;
             }
 
@@ -76,14 +75,14 @@
                     font-size: 17px;
                     font-weight: 500;
                     padding: 10px;
-                    background-color: $primary;
+                    background-color: vars.$primary;
                     width: 100%;
                     cursor: pointer;
-                    color: $background;
+                    color: vars.$background;
                     transition: 0.2s ease-in;
 
                     &:hover {
-                        background-color: $button-hover
+                        background-color: vars.$button-hover
                     }
                 }
 
@@ -91,7 +90,7 @@
                     margin-top: 10px;
 
                     > a {
-                        color: $primary;
+                        color: vars.$primary;
                         text-decoration: none;
 
                         &:hover {

@@ -1,14 +1,13 @@
-@import "variables";
-
+@use "variables" as vars;
 .header {
   display: flex;
   justify-content: space-between;
-  background-color: $surface;
+  background-color: vars.$surface;
   align-items: center;
   width: 100%;
   height: 8vh;
   padding: 2rem 2.5rem;
-  border-bottom: 5px solid $primary-border;
+  border-bottom: 5px solid vars.$primary-border;
   position: sticky;
   top: 0;
   z-index: 50;
@@ -19,7 +18,7 @@
   }
 
   .title, .subtitle {
-    color: $text;
+    color: vars.$text;
 
     font: {
       family: 'Sarabun';
@@ -50,7 +49,7 @@
     .mountainLogo {
       width: auto;
       height: 17px;
-      color: $primary;
+      color: vars.$primary;
       // Never let the mark get squeezed/stretched when .title truncates.
       flex-shrink: 0;
     }
@@ -64,7 +63,7 @@
 
   // #192: tighten header padding on mobile — the 2.5rem side padding is a
   // big part of what squeezes the auth pills into wrapping on narrow screens.
-  @media (max-width: $mobile-width) {
+  @media (max-width: vars.$mobile-width) {
     padding: 1.25rem 1rem;
   }
 }
@@ -82,18 +81,18 @@
   border: none;
   border-radius: 50%;
   cursor: pointer;
-  color: rgba($text, 0.7);
+  color: rgba(vars.$text, 0.7);
   flex-shrink: 0;
 
   &:active {
-    background-color: rgba($primary, 0.1);
-    color: $primary;
+    background-color: rgba(vars.$primary, 0.1);
+    color: vars.$primary;
   }
 
   @media (hover: hover) {
     &:hover {
-      background-color: rgba($primary, 0.08);
-      color: $primary;
+      background-color: rgba(vars.$primary, 0.08);
+      color: vars.$primary;
     }
   }
 }
@@ -119,20 +118,20 @@
   border: none;
   border-radius: 50%;
   cursor: pointer;
-  color: rgba($text, 0.55);
+  color: rgba(vars.$text, 0.55);
   // Ensure tap target is at least 44px on mobile
   min-width: 44px;
   min-height: 44px;
 
   &:active {
-    background-color: rgba($primary, 0.1);
-    color: $primary;
+    background-color: rgba(vars.$primary, 0.1);
+    color: vars.$primary;
   }
 
   @media (hover: hover) {
     &:hover {
-      background-color: rgba($primary, 0.08);
-      color: $primary;
+      background-color: rgba(vars.$primary, 0.08);
+      color: vars.$primary;
     }
   }
 }
@@ -150,7 +149,7 @@
   // the buttons wrapping their text is worse than the logo truncating.
   flex-shrink: 0;
   font: {
-    family: $sarabun;
+    family: vars.$sarabun;
     size: 18px;
     weight: 400;
   }
@@ -166,27 +165,27 @@
   }
 
   .transparentButton {
-    color: $primary !important;
+    color: vars.$primary !important;
     cursor: pointer;
     transition: ease 0.2s;
     &:hover {
-      background-color: rgba($primary, 0.1);
+      background-color: rgba(vars.$primary, 0.1);
     }
   }
 
   .solidButton {
-    background-color: $primary;
+    background-color: vars.$primary;
     cursor: pointer;
     transition: ease 0.2s;
     &:hover {
-      background-color: $button-hover;
+      background-color: vars.$button-hover;
     }
   }
 
   // #192: on mobile, shrink the pills' font/padding/gap so both buttons
   // fit without squeezing — keeps ~40px effective tap height, matching
   // the hamburger/feedback icon buttons.
-  @media (max-width: $mobile-width) {
+  @media (max-width: vars.$mobile-width) {
     gap: 6px;
     font-size: 15px;
 
@@ -212,12 +211,12 @@
   border: none;
   border-radius: 50%;
   cursor: pointer;
-  color: $primary;
+  color: vars.$primary;
   transition: background-color 0.2s ease;
   position: relative;
 
   &:hover {
-    background-color: rgba($primary, 0.1);
+    background-color: rgba(vars.$primary, 0.1);
   }
 
   // Accessibility: 38px is under the 44px WCAG 2.5.5 / HIG tap-target
@@ -238,15 +237,15 @@
 
 .profileIcon {
   display: block;
-  color: $primary;
+  color: vars.$primary;
 }
 
 .dropdown {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  background-color: $surface;
-  border: 1px solid $surface-border;
+  background-color: vars.$surface;
+  border: 1px solid vars.$surface-border;
   border-radius: 10px;
   padding: 6px;
   display: flex;
@@ -260,9 +259,9 @@
 .dropdownItem {
   background: transparent;
   border: none;
-  color: $text;
+  color: vars.$text;
   font-size: 15px;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   padding: 8px 14px;
   border-radius: 7px;
   cursor: pointer;
@@ -270,14 +269,14 @@
   transition: background-color 0.15s ease;
 
   &:hover {
-    background-color: rgba($primary, 0.12);
-    color: $primary;
+    background-color: rgba(vars.$primary, 0.12);
+    color: vars.$primary;
   }
 }
 
 .dropdownItemDanger {
   &:hover {
-    background-color: rgba($error, 0.12);
-    color: $error;
+    background-color: rgba(vars.$error, 0.12);
+    color: vars.$error;
   }
 }

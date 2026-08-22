@@ -1,17 +1,16 @@
-@import "variables";
-
+@use "variables" as vars;
 .section {
   display: flex;
   flex-direction: column;
 
-  background-color: $surface;
+  background-color: vars.$surface;
 
-  border-radius: $border-radius;
+  border-radius: vars.$border-radius;
   padding: 0 32px;
   margin-bottom: 0.5rem;
 
-  letter-spacing: $sarabun-spacing;
-  color: $text;
+  letter-spacing: vars.$sarabun-spacing;
+  color: vars.$text;
 
   font: {
     family: "Sarabun", sans-serif;
@@ -44,14 +43,14 @@
     padding: 17px 0 0 0;
   }
 
-  @media (max-width: $mobile-width) {
+  @media (max-width: vars.$mobile-width) {
     display: flex;
     flex-direction: column;
     gap: 20px;
     padding: 8px 0 2rem 0;
   }
 
-  @media (min-width: $mobile-width) {
+  @media (min-width: vars.$mobile-width) {
     display: grid;
     grid-template-columns: min-content min-content min-content auto min-content;
     gap: 0px 20px;
@@ -62,10 +61,10 @@
 .sectionPart input {
   max-width: 10em;
   background-color: transparent;
-  color: $text;
+  color: vars.$text;
   border: none;
-  border-bottom: solid 3px $primary-border;
-  letter-spacing: $sarabun-spacing;
+  border-bottom: solid 3px vars.$primary-border;
+  letter-spacing: vars.$sarabun-spacing;
   font: {
     family: "Sarabun", sans-serif;
     weight: 500;
@@ -83,11 +82,11 @@
   width: fit-content;
   padding: 5px 10px;
   margin-left: 5px;
-  border-radius: $border-radius;
+  border-radius: vars.$border-radius;
   cursor: pointer;
 
   &:hover {
-    background-color: $primary-translucent;
+    background-color: vars.$primary-translucent;
   }
 
   button {
@@ -96,13 +95,13 @@
     cursor: pointer;
 
     font: {
-      family: $sarabun;
+      family: vars.$sarabun;
       weight: 500;
       size: 22px;
     }
 
-    letter-spacing: $sarabun-spacing;
-    color: $primary;
+    letter-spacing: vars.$sarabun-spacing;
+    color: vars.$primary;
   }
 }
 
@@ -127,7 +126,7 @@
   }
 
   &:hover {
-    background-color: $primary-translucent;
+    background-color: vars.$primary-translucent;
   }
 }
 
@@ -145,7 +144,7 @@
   border: none;
   border-radius: 8px;
   // Green, matching the collapse chevron and other accent icons
-  color: $primary;
+  color: vars.$primary;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -154,8 +153,8 @@
   position: relative;
 
   &:active {
-    background-color: rgba($primary, 0.1);
-    color: $primary;
+    background-color: rgba(vars.$primary, 0.1);
+    color: vars.$primary;
   }
 
   // Accessibility: 40px painted box, 44px invisible hit area (WCAG 2.5.5).
@@ -181,8 +180,8 @@
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
-  background-color: $surface;
-  border: 1px solid $surface-border;
+  background-color: vars.$surface;
+  border: 1px solid vars.$surface-border;
   border-radius: 10px;
   padding: 4px;
   display: flex;
@@ -196,10 +195,10 @@
 .dotsDropdownItem {
   background: transparent;
   border: none;
-  color: $text;
+  color: vars.$text;
   font-size: 15px;
   font-weight: 500;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   padding: 10px 14px;
   border-radius: 7px;
   cursor: pointer;
@@ -210,14 +209,14 @@
   align-items: center;
 
   &:active {
-    background-color: rgba($primary, 0.12);
-    color: $primary;
+    background-color: rgba(vars.$primary, 0.12);
+    color: vars.$primary;
   }
 }
 
 .dotsDropdownItemDanger {
   &:active {
-    background-color: rgba($error, 0.12);
-    color: $error;
+    background-color: rgba(vars.$error, 0.12);
+    color: vars.$error;
   }
 }

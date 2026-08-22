@@ -1,5 +1,4 @@
-@import "../../styles/variables";
-
+@use "../../styles/variables" as vars;
 .modalContent {
   max-width: 420px !important;
 }
@@ -10,7 +9,7 @@
   gap: 20px;
   padding: 24px 20px 20px;
 
-  @media (max-width: $mobile-width) {
+  @media (max-width: vars.$mobile-width) {
     padding: 18px 16px 16px;
     gap: 16px;
   }
@@ -26,15 +25,15 @@
   margin: 0;
   font-size: 20px;
   font-weight: 700;
-  letter-spacing: $sarabun-spacing;
-  color: $text;
+  letter-spacing: vars.$sarabun-spacing;
+  color: vars.$text;
 }
 
 .hint {
   margin: 0;
   font-size: 13px;
-  color: rgba($text, 0.45);
-  letter-spacing: $sarabun-spacing;
+  color: rgba(vars.$text, 0.45);
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 .fields {
@@ -52,38 +51,38 @@
 .label {
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: $sarabun-spacing;
-  color: rgba($text, 0.6);
+  letter-spacing: vars.$sarabun-spacing;
+  color: rgba(vars.$text, 0.6);
   text-transform: uppercase;
 }
 
 .input {
   background-color: transparent;
-  color: $text;
+  color: vars.$text;
   border: none;
-  border-bottom: 2px solid $primary-border;
+  border-bottom: 2px solid vars.$primary-border;
   padding: 8px 4px;
   font-size: 16px;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   width: 100%;
   box-sizing: border-box;
   min-height: 44px;
 
   &::placeholder {
-    color: rgba($text, 0.3);
+    color: rgba(vars.$text, 0.3);
   }
 
   &:focus {
     outline: none;
-    border-bottom-color: $primary;
+    border-bottom-color: vars.$primary;
   }
 }
 
 .errorMsg {
   margin: 0;
   font-size: 14px;
-  color: $error;
-  letter-spacing: $sarabun-spacing;
+  color: vars.$error;
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 .footer {
@@ -96,10 +95,10 @@
 %btn-base {
   min-height: 48px;
   padding: 10px 24px;
-  border-radius: $border-radius;
+  border-radius: vars.$border-radius;
   font-size: 16px;
   font-weight: 600;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
   border: none;
 
@@ -111,17 +110,17 @@
 
 .saveBtn {
   @extend %btn-base;
-  background-color: $primary;
-  color: $background;
+  background-color: vars.$primary;
+  color: vars.$background;
 
   &:not(:disabled):active {
-    background-color: $primary-dark;
+    background-color: vars.$primary-dark;
   }
 }
 
 .cancelBtn {
   @extend %btn-base;
   background-color: transparent;
-  color: rgba($text, 0.75);
-  border: 2px solid $surface-border;
+  color: rgba(vars.$text, 0.75);
+  border: 2px solid vars.$surface-border;
 }

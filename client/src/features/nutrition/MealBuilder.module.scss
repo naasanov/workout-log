@@ -1,5 +1,4 @@
-@import "../../styles/variables";
-
+@use "../../styles/variables" as vars;
 // Full-screen overlay
 .overlay {
   position: fixed;
@@ -9,7 +8,7 @@
   display: flex;
   align-items: flex-end;
 
-  @media (min-width: #{$mobile-width + 1px}) {
+  @media (min-width: #{vars.$mobile-width + 1px}) {
     align-items: center;
     justify-content: center;
   }
@@ -21,14 +20,14 @@
   width: 100%;
   max-width: 680px;
   max-height: 96dvh;
-  background-color: $surface;
+  background-color: vars.$surface;
   border-radius: 20px 20px 0 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   padding-bottom: env(safe-area-inset-bottom);
 
-  @media (min-width: #{$mobile-width + 1px}) {
+  @media (min-width: #{vars.$mobile-width + 1px}) {
     border-radius: 20px;
     max-height: 90dvh;
     margin: 0 auto;
@@ -41,7 +40,7 @@
   align-items: center;
   gap: 8px;
   padding: 14px 16px 12px;
-  border-bottom: 1px solid rgba($surface-border, 0.4);
+  border-bottom: 1px solid rgba(vars.$surface-border, 0.4);
   flex-shrink: 0;
 }
 
@@ -50,8 +49,8 @@
   margin: 0;
   font-size: 18px;
   font-weight: 700;
-  letter-spacing: $sarabun-spacing;
-  color: $text;
+  letter-spacing: vars.$sarabun-spacing;
+  color: vars.$text;
 }
 
 .closeBtn {
@@ -59,7 +58,7 @@
   min-height: 36px;
   background: transparent;
   border: none;
-  color: rgba($text, 0.5);
+  color: rgba(vars.$text, 0.5);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -67,20 +66,20 @@
   border-radius: 8px;
 
   &:active {
-    background-color: rgba($text, 0.1);
+    background-color: rgba(vars.$text, 0.1);
   }
 }
 
 .saveBtn {
   min-height: 36px;
   padding: 6px 16px;
-  background-color: $primary;
-  color: $background;
+  background-color: vars.$primary;
+  color: vars.$background;
   border: none;
   border-radius: 10px;
   font-size: 15px;
   font-weight: 600;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
 
   &:disabled {
@@ -89,7 +88,7 @@
   }
 
   &:not(:disabled):active {
-    background-color: $primary-dark;
+    background-color: vars.$primary-dark;
   }
 }
 
@@ -115,30 +114,30 @@
 .fieldLabelText {
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: $sarabun-spacing;
-  color: rgba($text, 0.6);
+  letter-spacing: vars.$sarabun-spacing;
+  color: rgba(vars.$text, 0.6);
   text-transform: uppercase;
 }
 
 .input {
   background-color: transparent;
-  color: $text;
+  color: vars.$text;
   border: none;
-  border-bottom: 2px solid $primary-border;
+  border-bottom: 2px solid vars.$primary-border;
   padding: 6px 4px;
   font-size: 16px;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   width: 100%;
   box-sizing: border-box;
   min-height: 44px;
 
   &::placeholder {
-    color: rgba($text, 0.4);
+    color: rgba(vars.$text, 0.4);
   }
 
   &:focus {
     outline: none;
-    border-bottom-color: $primary;
+    border-bottom-color: vars.$primary;
   }
 }
 
@@ -148,24 +147,24 @@
   min-height: 60px;
   line-height: 1.5;
   padding: 8px 4px;
-  border: 1px solid rgba($surface-border, 0.5);
-  border-bottom: 2px solid $primary-border;
+  border: 1px solid rgba(vars.$surface-border, 0.5);
+  border-bottom: 2px solid vars.$primary-border;
   border-radius: 6px 6px 0 0;
 
   &:focus {
     outline: none;
-    border-bottom-color: $primary;
+    border-bottom-color: vars.$primary;
   }
 }
 
 .inputSmall {
   background-color: transparent;
-  color: $text;
+  color: vars.$text;
   border: none;
-  border-bottom: 2px solid $primary-border;
+  border-bottom: 2px solid vars.$primary-border;
   padding: 4px 2px;
   font-size: 14px;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   min-height: 36px;
   width: 70px;
   text-align: right;
@@ -173,11 +172,11 @@
 
   &:focus {
     outline: none;
-    border-bottom-color: $primary;
+    border-bottom-color: vars.$primary;
   }
 
   &[readonly] {
-    color: rgba($text, 0.55);
+    color: rgba(vars.$text, 0.55);
     border-bottom-style: dashed;
   }
 }
@@ -203,8 +202,8 @@
   min-height: 40px;
   padding: 0;
   background-color: transparent;
-  color: $primary;
-  border: 2px solid $primary-border;
+  color: vars.$primary;
+  border: 2px solid vars.$primary-border;
   border-radius: 8px;
   cursor: pointer;
   display: flex;
@@ -212,15 +211,15 @@
   justify-content: center;
 
   &:active {
-    background-color: $primary-translucent;
+    background-color: vars.$primary-translucent;
   }
 }
 
 .sectionLabel {
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: $sarabun-spacing;
-  color: rgba($text, 0.6);
+  letter-spacing: vars.$sarabun-spacing;
+  color: rgba(vars.$text, 0.6);
   text-transform: uppercase;
 }
 
@@ -242,9 +241,9 @@
   min-width: 40px;
   min-height: 40px;
   background: transparent;
-  border: 2px solid rgba($surface-border, 0.7);
+  border: 2px solid rgba(vars.$surface-border, 0.7);
   border-radius: 10px;
-  color: $text;
+  color: vars.$text;
   font-size: 18px;
   cursor: pointer;
   display: flex;
@@ -257,24 +256,24 @@
   }
 
   &:not(:disabled):active {
-    border-color: $primary-border;
-    color: $primary;
+    border-color: vars.$primary-border;
+    color: vars.$primary;
   }
 }
 
 .scaleValue {
   font-size: 17px;
   font-weight: 700;
-  color: $primary;
-  letter-spacing: $sarabun-spacing;
+  color: vars.$primary;
+  letter-spacing: vars.$sarabun-spacing;
   min-width: 40px;
   text-align: center;
 }
 
 .scaleHint {
   font-size: 12px;
-  color: rgba($text, 0.45);
-  letter-spacing: $sarabun-spacing;
+  color: rgba(vars.$text, 0.45);
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 // Ingredient list
@@ -285,8 +284,8 @@
 }
 
 .ingredientRow {
-  background-color: rgba($background, 0.5);
-  border: 1px solid rgba($surface-border, 0.5);
+  background-color: rgba(vars.$background, 0.5);
+  border: 1px solid rgba(vars.$surface-border, 0.5);
   border-radius: 10px;
   padding: 12px;
   display: flex;
@@ -312,7 +311,7 @@
   min-height: 36px;
   background: transparent;
   border: none;
-  color: rgba($text, 0.4);
+  color: rgba(vars.$text, 0.4);
   cursor: pointer;
   border-radius: 6px;
   display: flex;
@@ -321,8 +320,8 @@
   padding: 4px;
 
   &:active {
-    color: $error;
-    background-color: rgba($error, 0.12);
+    color: vars.$error;
+    background-color: rgba(vars.$error, 0.12);
   }
 }
 
@@ -338,20 +337,20 @@
   flex-direction: column;
   gap: 2px;
   font-size: 11px;
-  letter-spacing: $sarabun-spacing;
-  color: rgba($text, 0.55);
+  letter-spacing: vars.$sarabun-spacing;
+  color: rgba(vars.$text, 0.55);
 }
 
 .unitSelect {
   appearance: none;
   -webkit-appearance: none;
   background-color: transparent;
-  color: $text;
+  color: vars.$text;
   border: none;
-  border-bottom: 2px solid $primary-border;
+  border-bottom: 2px solid vars.$primary-border;
   padding: 4px 20px 4px 2px;
   font-size: 14px;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   min-height: 36px;
   min-width: 60px;
   max-width: 160px;
@@ -363,21 +362,21 @@
 
   &:focus {
     outline: none;
-    border-bottom-color: $primary;
+    border-bottom-color: vars.$primary;
   }
 
   option {
-    background-color: $surface;
-    color: $text;
+    background-color: vars.$surface;
+    color: vars.$text;
   }
 }
 
 .unitStatic {
   display: inline-block;
   font-size: 14px;
-  letter-spacing: $sarabun-spacing;
-  color: rgba($text, 0.55);
-  border-bottom: 2px solid rgba($surface-border, 0.5);
+  letter-spacing: vars.$sarabun-spacing;
+  color: rgba(vars.$text, 0.55);
+  border-bottom: 2px solid rgba(vars.$surface-border, 0.5);
   padding: 4px 2px;
   min-height: 36px;
   min-width: 24px;
@@ -388,8 +387,8 @@
 .rowHint {
   margin: 0;
   font-size: 11px;
-  color: rgba($text, 0.45);
-  letter-spacing: $sarabun-spacing;
+  color: rgba(vars.$text, 0.45);
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 .addIngredientBtn {
@@ -397,18 +396,18 @@
   min-height: 40px;
   padding: 8px 14px;
   background-color: transparent;
-  color: $primary;
-  border: 2px dashed $primary-border;
+  color: vars.$primary;
+  border: 2px dashed vars.$primary-border;
   border-radius: 10px;
   font-size: 14px;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
 
   &:active {
-    background-color: $primary-translucent;
+    background-color: vars.$primary-translucent;
   }
 }
 
@@ -424,16 +423,16 @@
   flex-direction: column;
   gap: 6px;
   padding: 12px 14px;
-  background-color: rgba($primary, 0.07);
-  border: 1px solid rgba($primary-border, 0.35);
+  background-color: rgba(vars.$primary, 0.07);
+  border: 1px solid rgba(vars.$primary-border, 0.35);
   border-radius: 10px;
 }
 
 .macroSectionLabel {
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: $sarabun-spacing;
-  color: $primary;
+  letter-spacing: vars.$sarabun-spacing;
+  color: vars.$primary;
   text-transform: uppercase;
 }
 
@@ -442,8 +441,8 @@
   flex-wrap: wrap;
   gap: 6px 14px;
   font-size: 14px;
-  color: rgba($text, 0.85);
-  letter-spacing: $sarabun-spacing;
+  color: rgba(vars.$text, 0.85);
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 // Servings list
@@ -461,22 +460,22 @@
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  background-color: rgba($background, 0.4);
+  background-color: rgba(vars.$background, 0.4);
   border-radius: 8px;
-  border: 1px solid rgba($surface-border, 0.4);
+  border: 1px solid rgba(vars.$surface-border, 0.4);
 }
 
 .servingName {
   flex: 1;
   font-size: 14px;
-  color: $text;
-  letter-spacing: $sarabun-spacing;
+  color: vars.$text;
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 .servingGrams {
   font-size: 13px;
-  color: rgba($text, 0.6);
-  letter-spacing: $sarabun-spacing;
+  color: rgba(vars.$text, 0.6);
+  letter-spacing: vars.$sarabun-spacing;
   flex-shrink: 0;
 }
 
@@ -491,18 +490,18 @@
   min-height: 36px;
   padding: 6px 12px;
   background-color: transparent;
-  color: $primary;
-  border: 1px solid $primary-border;
+  color: vars.$primary;
+  border: 1px solid vars.$primary-border;
   border-radius: 8px;
   font-size: 14px;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 4px;
 
   &:active {
-    background-color: $primary-translucent;
+    background-color: vars.$primary-translucent;
   }
 }
 
@@ -524,8 +523,8 @@
   list-style: none;
   margin: 0;
   padding: 4px 0;
-  background-color: $surface;
-  border: 1px solid $surface-border;
+  background-color: vars.$surface;
+  border: 1px solid vars.$surface-border;
   border-radius: 10px;
   max-height: 240px;
   overflow-y: auto;
@@ -540,35 +539,35 @@
   cursor: pointer;
 
   &:active {
-    background-color: rgba($primary, 0.12);
+    background-color: rgba(vars.$primary, 0.12);
   }
 }
 
 .dropdownName {
   font-size: 15px;
-  color: $text;
-  letter-spacing: $sarabun-spacing;
+  color: vars.$text;
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 .dropdownMeta {
   font-size: 12px;
-  color: rgba($text, 0.5);
-  letter-spacing: $sarabun-spacing;
+  color: rgba(vars.$text, 0.5);
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 .dropdownHint {
   padding: 10px 14px;
   font-size: 14px;
-  color: rgba($text, 0.5);
-  letter-spacing: $sarabun-spacing;
+  color: rgba(vars.$text, 0.5);
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 // Error
 .errorMsg {
   margin: 0;
   font-size: 14px;
-  color: $error;
-  letter-spacing: $sarabun-spacing;
+  color: vars.$error;
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 // Proposal mode — inline card in NutritionChat thread (no overlay/backdrop)
@@ -579,8 +578,8 @@
 
 .proposalSheet {
   width: 100%;
-  background-color: $surface;
-  border: 1px solid rgba($surface-border, 0.5);
+  background-color: vars.$surface;
+  border: 1px solid rgba(vars.$surface-border, 0.5);
   border-radius: 12px;
   display: flex;
   flex-direction: column;

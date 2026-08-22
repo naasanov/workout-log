@@ -1,11 +1,10 @@
-@import "variables";
-
+@use "variables" as vars;
 .container {
-  background-color: $surface;
-  border-radius: $border-radius;
+  background-color: vars.$surface;
+  border-radius: vars.$border-radius;
   padding: 24px 32px;
 
-  @media (max-width: $mobile-width) {
+  @media (max-width: vars.$mobile-width) {
     padding: 20px 16px;
   }
 }
@@ -19,12 +18,12 @@
 
 .input {
   background-color: transparent;
-  color: $text;
+  color: vars.$text;
   border: none;
-  border-bottom: solid 3px $primary-border;
+  border-bottom: solid 3px vars.$primary-border;
   padding: 4px 4px;
   font-size: 16px;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   min-width: 120px;
 
   &:focus {
@@ -36,23 +35,23 @@
   }
 
   &::placeholder {
-    color: rgba($text, 0.5);
+    color: rgba(vars.$text, 0.5);
   }
 }
 
 .submitBtn {
-  background-color: $primary;
-  color: $background;
+  background-color: vars.$primary;
+  color: vars.$background;
   border: none;
-  border-radius: $border-radius;
+  border-radius: vars.$border-radius;
   padding: 6px 20px;
   font-size: 16px;
   font-weight: 600;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
 
   &:hover {
-    background-color: $primary-dark;
+    background-color: vars.$primary-dark;
   }
 
   &:disabled {
@@ -72,22 +71,40 @@
   left: -8px;
   transform: translateY(-50%) rotate(-90deg);
   margin: 0;
-  color: $primary;
+  color: vars.$primary;
   font-size: 12px;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   pointer-events: none;
 
-  @media (max-width: $mobile-width) {
+  @media (max-width: vars.$mobile-width) {
     display: none;
+  }
+}
+
+// TEMP: for picking a smoothing window value, see issue #275 — delete once a value is chosen
+.smoothingControl {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  color: vars.$text;
+  font-size: 13px;
+  letter-spacing: vars.$sarabun-spacing;
+  opacity: 0.8;
+
+  input[type="range"] {
+    accent-color: vars.$primary;
+    flex: 1;
+    max-width: 240px;
   }
 }
 
 .empty {
   margin: 0 0 16px;
-  color: $text;
+  color: vars.$text;
   font-size: 16px;
   font-weight: 300;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   opacity: 0.7;
 }
 
@@ -107,10 +124,10 @@
   align-items: center;
   gap: 16px;
   padding: 6px 0;
-  border-bottom: 1px solid rgba($surface-border, 0.4);
-  color: $text;
+  border-bottom: 1px solid rgba(vars.$surface-border, 0.4);
+  color: vars.$text;
   font-size: 15px;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
 
   &:last-child {
     border-bottom: none;
@@ -130,7 +147,7 @@
   margin-left: auto;
   background: transparent;
   border: none;
-  color: $text;
+  color: vars.$text;
   opacity: 0.5;
   cursor: pointer;
   font-size: 14px;
@@ -140,7 +157,7 @@
 
   &:hover {
     opacity: 1;
-    background-color: rgba($error, 0.15);
-    color: $error;
+    background-color: rgba(vars.$error, 0.15);
+    color: vars.$error;
   }
 }

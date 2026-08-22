@@ -1,5 +1,4 @@
-@import "variables";
-
+@use "variables" as vars;
 // ── Overlay / scrim ──────────────────────────────────────────────────────────
 .overlay {
   position: fixed;
@@ -24,8 +23,8 @@
   bottom: 0;
   width: 280px;
   max-width: 85vw;
-  background-color: $surface;
-  border-right: 2px solid $primary-border;
+  background-color: vars.$surface;
+  border-right: 2px solid vars.$primary-border;
   z-index: 201;
   display: flex;
   flex-direction: column;
@@ -45,15 +44,15 @@
   justify-content: space-between;
   padding: 0 12px 0 20px;
   height: 8vh;
-  border-bottom: 2px solid $primary-border;
+  border-bottom: 2px solid vars.$primary-border;
   flex-shrink: 0;
 }
 
 .drawerTitle {
-  color: $text;
+  color: vars.$text;
   font-size: 1.1rem;
   font-weight: 700;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   opacity: 0.6;
   text-transform: uppercase;
 }
@@ -72,26 +71,26 @@
   padding: 8px 12px;
   min-height: 44px;
   cursor: pointer;
-  color: rgba($text, 0.7);
+  color: rgba(vars.$text, 0.7);
   font-size: 15px;
   font-weight: 600;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
 
   &:active {
-    background: $primary-translucent;
-    color: $primary;
+    background: vars.$primary-translucent;
+    color: vars.$primary;
   }
 
   @media (hover: hover) {
     &:hover {
-      background: rgba($primary, 0.08);
-      color: $text;
+      background: rgba(vars.$primary, 0.08);
+      color: vars.$text;
     }
   }
 }
 
 .editBtnActive {
-  color: $primary;
+  color: vars.$primary;
 }
 
 .closeBtn {
@@ -106,17 +105,17 @@
   border: none;
   border-radius: 50%;
   cursor: pointer;
-  color: rgba($text, 0.55);
+  color: rgba(vars.$text, 0.55);
 
   &:active {
-    background-color: rgba($primary, 0.1);
-    color: $primary;
+    background-color: rgba(vars.$primary, 0.1);
+    color: vars.$primary;
   }
 
   @media (hover: hover) {
     &:hover {
-      background-color: rgba($primary, 0.08);
-      color: $primary;
+      background-color: rgba(vars.$primary, 0.08);
+      color: vars.$primary;
     }
   }
 }
@@ -140,30 +139,30 @@
   padding: 14px 18px;
   text-align: left;
   cursor: pointer;
-  color: rgba($text, 0.7);
+  color: rgba(vars.$text, 0.7);
   font-size: 18px;
   font-weight: 500;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   // Mobile tap target
   min-height: 44px;
   transition: background 0.12s ease, color 0.12s ease;
 
   &:active {
-    background: $primary-translucent;
-    color: $primary;
+    background: vars.$primary-translucent;
+    color: vars.$primary;
   }
 
   @media (hover: hover) {
     &:hover {
-      background: rgba($primary, 0.08);
-      color: $text;
+      background: rgba(vars.$primary, 0.08);
+      color: vars.$text;
     }
   }
 }
 
 .navItemActive {
-  color: $primary;
-  background: $primary-translucent;
+  color: vars.$primary;
+  background: vars.$primary-translucent;
   font-weight: 600;
 }
 
@@ -193,14 +192,14 @@
   padding: 4px 6px 4px 12px;
   border-radius: 10px;
   min-height: 48px;
-  background: rgba($text, 0.03);
+  background: rgba(vars.$text, 0.03);
 }
 
 .editTabLabel {
-  color: rgba($text, 0.9);
+  color: rgba(vars.$text, 0.9);
   font-size: 17px;
   font-weight: 500;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -230,12 +229,12 @@
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  color: rgba($text, 0.7);
+  color: rgba(vars.$text, 0.7);
   position: relative;
 
   &:active {
-    background: rgba($primary, 0.12);
-    color: $primary;
+    background: rgba(vars.$primary, 0.12);
+    color: vars.$primary;
   }
 
   &:disabled {
@@ -245,8 +244,8 @@
 
   @media (hover: hover) {
     &:hover:not(:disabled) {
-      background: rgba($primary, 0.08);
-      color: $text;
+      background: rgba(vars.$primary, 0.08);
+      color: vars.$text;
     }
   }
 
@@ -264,32 +263,32 @@
 }
 
 .removeBtn {
-  color: rgba($error, 0.85);
+  color: rgba(vars.$error, 0.85);
 
   &:active {
-    background: rgba($error, 0.14);
-    color: $error;
+    background: rgba(vars.$error, 0.14);
+    color: vars.$error;
   }
 
   @media (hover: hover) {
     &:hover:not(:disabled) {
-      background: rgba($error, 0.1);
-      color: $error;
+      background: rgba(vars.$error, 0.1);
+      color: vars.$error;
     }
   }
 }
 
 .addBtn {
-  color: $primary;
+  color: vars.$primary;
 
   &:active {
-    background: $primary-translucent;
+    background: vars.$primary-translucent;
   }
 
   @media (hover: hover) {
     &:hover:not(:disabled) {
-      background: rgba($primary, 0.1);
-      color: $primary;
+      background: rgba(vars.$primary, 0.1);
+      color: vars.$primary;
     }
   }
 }
@@ -302,9 +301,9 @@
 
 .addHeading {
   padding: 0 12px;
-  color: rgba($text, 0.45);
+  color: rgba(vars.$text, 0.45);
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   text-transform: uppercase;
 }
