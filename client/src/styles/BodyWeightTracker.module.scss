@@ -84,6 +84,25 @@
   }
 }
 
+// TEMP: for picking a smoothing window value, see issue #275 — delete once a value is chosen
+.smoothingControl {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  color: vars.$text;
+  font-family: vars.$sarabun;
+  font-size: 13px;
+  letter-spacing: vars.$sarabun-spacing;
+  opacity: 0.8;
+
+  input[type="range"] {
+    accent-color: vars.$primary;
+    flex: 1;
+    max-width: 240px;
+  }
+}
+
 .empty {
   margin: 0 0 16px;
   color: vars.$text;
