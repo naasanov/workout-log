@@ -90,14 +90,14 @@
   align-items: center;
   gap: 12px;
   margin-top: 8px;
-  color: $text;
-  font-family: $sarabun;
+  color: vars.$text;
+  font-family: vars.$sarabun;
   font-size: 13px;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   opacity: 0.8;
 
   input[type="range"] {
-    accent-color: $primary;
+    accent-color: vars.$primary;
     flex: 1;
     max-width: 240px;
   }
