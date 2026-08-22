@@ -1,5 +1,4 @@
-@import 'variables';
-
+@use "variables" as vars;
 .date {
     input {
         width: 30px;
@@ -11,7 +10,7 @@
         }
 
         &:focus {
-            border-bottom: solid 3px $primary-border !important;
+            border-bottom: solid 3px vars.$primary-border !important;
         }
     }
 

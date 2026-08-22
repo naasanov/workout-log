@@ -1,5 +1,4 @@
-@import "variables";
-
+@use "variables" as vars;
 // Sizing override applied to Radix Dialog.Content for this wider panel.
 // Passed as contentClassName={styles.modalContent} from WeightGraphModal.jsx.
 .modalContent {
@@ -13,7 +12,7 @@
   flex-direction: column;
   gap: 20px;
 
-  @media (max-width: $mobile-width) {
+  @media (max-width: vars.$mobile-width) {
     padding: 20px 16px;
   }
 }
@@ -26,11 +25,11 @@
 }
 
 .title {
-  color: $text;
-  font-family: $sarabun;
+  color: vars.$text;
+  font-family: vars.$sarabun;
   font-size: 20px;
   font-weight: 400;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   font-style: italic;
   white-space: nowrap;
   overflow: hidden;
@@ -40,7 +39,7 @@
 .close {
   background: transparent;
   border: none;
-  color: $text;
+  color: vars.$text;
   font-size: 18px;
   cursor: pointer;
   padding: 4px 8px;
@@ -55,20 +54,20 @@
   justify-content: center;
 
   &:hover {
-    background-color: $primary-translucent;
+    background-color: vars.$primary-translucent;
   }
 }
 
 .toggle {
   display: flex;
   align-self: flex-start;
-  background-color: $surface;
-  border: 1px solid $surface-border;
-  border-radius: $border-radius;
+  background-color: vars.$surface;
+  border: 1px solid vars.$surface-border;
+  border-radius: vars.$border-radius;
   padding: 3px;
   gap: 3px;
 
-  @media (max-width: $mobile-width) {
+  @media (max-width: vars.$mobile-width) {
     align-self: stretch;
   }
 }
@@ -77,18 +76,18 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  color: $text;
-  font-family: $sarabun;
+  color: vars.$text;
+  font-family: vars.$sarabun;
   font-size: 13px;
-  letter-spacing: $sarabun-spacing;
-  border-radius: calc(#{$border-radius} - 4px);
+  letter-spacing: vars.$sarabun-spacing;
+  border-radius: calc(#{vars.$border-radius} - 4px);
   padding: 8px 14px;
   // Tappable on mobile
   min-height: 36px;
   opacity: 0.65;
   transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 
-  @media (max-width: $mobile-width) {
+  @media (max-width: vars.$mobile-width) {
     flex: 1;
   }
 
@@ -98,8 +97,8 @@
 }
 
 .toggleOptionActive {
-  background-color: $primary-translucent;
-  color: $primary;
+  background-color: vars.$primary-translucent;
+  color: vars.$primary;
   opacity: 1;
 
   &:hover {
@@ -114,14 +113,14 @@
   // nodes; the global `* { font: inherit }` rule in index.css beats that
   // attribute, so it must be re-asserted here as a real stylesheet rule.
   :global(text) {
-    font-family: $sarabun;
+    font-family: vars.$sarabun;
   }
 }
 
 // Tooltip content is portaled outside .chartWrap by recharts, so it needs
 // its own global rule rather than relying on the wrapper above.
 :global(.recharts-tooltip-wrapper) {
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
 }
 
 .yLabel {
@@ -130,24 +129,24 @@
   left: -8px;
   transform: translateY(-50%) rotate(-90deg);
   margin: 0;
-  color: $primary;
-  font-family: $sarabun;
+  color: vars.$primary;
+  font-family: vars.$sarabun;
   font-size: 12px;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   pointer-events: none;
 
-  @media (max-width: $mobile-width) {
+  @media (max-width: vars.$mobile-width) {
     display: none;
   }
 }
 
 .empty {
   margin: 0;
-  color: $text;
-  font-family: $sarabun;
+  color: vars.$text;
+  font-family: vars.$sarabun;
   font-size: 16px;
   font-weight: 300;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   text-align: center;
   padding: 24px 0;
   opacity: 0.7;

@@ -1,5 +1,4 @@
-@import "variables";
-
+@use "variables" as vars;
 .wrapper {
   display: flex;
   flex-direction: column;
@@ -18,26 +17,26 @@
   width: 68px;
   height: 68px;
   border-radius: 50%;
-  background: $primary-translucent;
-  color: $primary;
+  background: vars.$primary-translucent;
+  color: vars.$primary;
 }
 
 .heading {
   margin: 0;
-  color: $text;
-  font-family: $sarabun;
+  color: vars.$text;
+  font-family: vars.$sarabun;
   font-size: 26px;
   font-weight: 700;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 .subtext {
   margin: 0;
-  color: rgba($text, 0.6);
-  font-family: $sarabun;
+  color: rgba(vars.$text, 0.6);
+  font-family: vars.$sarabun;
   font-size: 16px;
   line-height: 1.5;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 .toolList {
@@ -53,12 +52,12 @@
 .toolChip {
   padding: 6px 14px;
   border-radius: 999px;
-  border: 1px solid $surface-border;
-  color: rgba($text, 0.7);
-  font-family: $sarabun;
+  border: 1px solid vars.$surface-border;
+  color: rgba(vars.$text, 0.7);
+  font-family: vars.$sarabun;
   font-size: 14px;
   font-weight: 500;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 .cta {
@@ -71,20 +70,20 @@
   border: none;
   border-radius: 12px;
   cursor: pointer;
-  background: $primary;
-  color: $background;
-  font-family: $sarabun;
+  background: vars.$primary;
+  color: vars.$background;
+  font-family: vars.$sarabun;
   font-size: 16px;
   font-weight: 700;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
 
   &:active {
-    background: $primary-dark;
+    background: vars.$primary-dark;
   }
 
   @media (hover: hover) {
     &:hover {
-      background: $primary-dark;
+      background: vars.$primary-dark;
     }
   }
 }
