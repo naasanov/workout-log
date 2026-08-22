@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useState, useMemo } from 'react';
+import { ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
 import clientApi from '../api/clientApi.js';
 import useAuth from '../hooks/useAuth.js';
@@ -11,6 +11,8 @@ function BodyWeightTracker() {
   const [weight, setWeight] = useState('');
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [deleteId, setDeleteId] = useState(null);
+  // TEMP: for picking a smoothing window value, see issue #275 — delete once a value is chosen
+  const [smoothingDays, setSmoothingDays] = useState(7);
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -73,11 +75,25 @@ function BodyWeightTracker() {
 
   const submitting = addMutation.isPending;
 
-  const chartData = entries.map(e => ({
+  const rawChartData = useMemo(() => entries.map(e => ({
     weight: e.weight,
     date: format(new Date(e.date), 'MMM d'),
     rawDate: new Date(e.date).getTime(),
-  }));
+  })), [entries]);
+
+  // Centered moving average over a time window (days), not a point-count window —
+  // entries aren't evenly spaced, so an isolated point's window contains mostly itself
+  // while a dense cluster gets averaged into a flatter line. See issue #275.
+  const chartData = useMemo(() => {
+    const halfWindowMs = (smoothingDays / 2) * 24 * 60 * 60 * 1000;
+    return rawChartData.map(point => {
+      const neighbors = rawChartData.filter(
+        p => Math.abs(p.rawDate - point.rawDate) <= halfWindowMs
+      );
+      const avg = neighbors.reduce((sum, p) => sum + p.weight, 0) / neighbors.length;
+      return { ...point, smoothedWeight: avg };
+    });
+  }, [rawChartData, smoothingDays]);
 
   return (
     <section className={styles.container}>
@@ -114,7 +130,7 @@ function BodyWeightTracker() {
       ) : (
         <div className={styles.chartWrap}>
           <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }} style={{ fontFamily: 'Sarabun, sans-serif' }}>
+            <ComposedChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }} style={{ fontFamily: 'Sarabun, sans-serif' }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
               <XAxis
                 dataKey="rawDate"
@@ -142,19 +158,39 @@ function BodyWeightTracker() {
                   fontFamily: 'Sarabun, sans-serif',
                 }}
                 labelFormatter={(ms) => format(new Date(ms), 'MMM d, yyyy')}
-                formatter={(value) => [`${value} lbs`, 'Weight']}
+                formatter={(value, name) => [`${Number(value).toFixed(1)} lbs`, name === 'smoothedWeight' ? 'Trend' : 'Weight']}
               />
               <Line
                 type="monotone"
-                dataKey="weight"
+                dataKey="smoothedWeight"
                 stroke="#70EB70"
                 strokeWidth={2}
+                dot={false}
+                isAnimationActive={false}
+              />
+              <Line
+                dataKey="weight"
+                stroke="none"
                 dot={{ fill: '#70EB70', r: 4 }}
                 activeDot={{ r: 6 }}
+                isAnimationActive={false}
               />
-            </LineChart>
+            </ComposedChart>
           </ResponsiveContainer>
           <p className={styles.yLabel}>lbs</p>
+          {/* TEMP: for picking a smoothing window value, see issue #275 — delete once a value is chosen */}
+          <div className={styles.smoothingControl}>
+            <label htmlFor="smoothing-days">Smoothing: {smoothingDays} days</label>
+            <input
+              id="smoothing-days"
+              type="range"
+              min="1"
+              max="21"
+              step="1"
+              value={smoothingDays}
+              onChange={e => setSmoothingDays(Number(e.target.value))}
+            />
+          </div>
         </div>
       )}
 
