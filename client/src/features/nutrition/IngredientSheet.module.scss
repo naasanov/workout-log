@@ -1,5 +1,4 @@
-@import "../../styles/variables";
-
+@use "../../styles/variables" as vars;
 // ---------------------------------------------------------------------------
 // IngredientSheet — portal bottom sheet for editing a single ingredient.
 // z-index 1100 so it appears above MealBuilder (1000) and inline chat editors.
@@ -39,7 +38,7 @@
   max-width: 680px;
   margin: 0 auto;
   z-index: 1101;
-  background-color: $surface;
+  background-color: vars.$surface;
   border-radius: 20px 20px 0 0;
   display: flex;
   flex-direction: column;
@@ -47,7 +46,7 @@
   padding-bottom: env(safe-area-inset-bottom);
   animation: slideUp 250ms cubic-bezier(0.32, 0.72, 0, 1);
 
-  @media (min-width: #{$mobile-width + 1px}) {
+  @media (min-width: #{vars.$mobile-width + 1px}) {
     border-radius: 20px;
     max-height: 88dvh;
     top: 50%;
@@ -63,18 +62,18 @@
   align-items: center;
   gap: 8px;
   padding: 14px 16px 12px;
-  border-bottom: 1px solid rgba($surface-border, 0.4);
+  border-bottom: 1px solid rgba(vars.$surface-border, 0.4);
   flex-shrink: 0;
 }
 
 .headerTitle {
   flex: 1;
   margin: 0;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 18px;
   font-weight: 700;
-  letter-spacing: $sarabun-spacing;
-  color: $text;
+  letter-spacing: vars.$sarabun-spacing;
+  color: vars.$text;
 }
 
 .closeBtn {
@@ -82,7 +81,7 @@
   min-height: 36px;
   background: transparent;
   border: none;
-  color: rgba($text, 0.5);
+  color: rgba(vars.$text, 0.5);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -90,7 +89,7 @@
   border-radius: 8px;
 
   &:active {
-    background-color: rgba($text, 0.1);
+    background-color: rgba(vars.$text, 0.1);
   }
 }
 
@@ -98,14 +97,14 @@
 .doneBtn {
   min-height: 36px;
   padding: 6px 16px;
-  background-color: $primary;
-  color: $background;
+  background-color: vars.$primary;
+  color: vars.$background;
   border: none;
   border-radius: 10px;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 15px;
   font-weight: 600;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
 
   &:disabled {
@@ -114,7 +113,7 @@
   }
 
   &:not(:disabled):active {
-    background-color: $primary-dark;
+    background-color: vars.$primary-dark;
   }
 }
 
@@ -150,24 +149,24 @@
 // Full-width text input (name field, base size for reuse)
 .input {
   background-color: transparent;
-  color: $text;
+  color: vars.$text;
   border: none;
-  border-bottom: 2px solid $primary-border;
+  border-bottom: 2px solid vars.$primary-border;
   padding: 6px 4px;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 16px; // 16px prevents iOS auto-zoom on focus
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   width: 100%;
   box-sizing: border-box;
   min-height: 44px;
 
   &::placeholder {
-    color: rgba($text, 0.4);
+    color: rgba(vars.$text, 0.4);
   }
 
   &:focus {
     outline: none;
-    border-bottom-color: $primary;
+    border-bottom-color: vars.$primary;
   }
 }
 
@@ -175,36 +174,36 @@
 // .input but for a static <p>, not an editable field.
 .readOnlyName {
   margin: 0;
-  color: $text;
-  font-family: $sarabun;
+  color: vars.$text;
+  font-family: vars.$sarabun;
   font-size: 16px;
   font-weight: 600;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 // Smaller numeric inputs
 .inputSmall {
   background-color: transparent;
-  color: $text;
+  color: vars.$text;
   border: none;
-  border-bottom: 2px solid $primary-border;
+  border-bottom: 2px solid vars.$primary-border;
   padding: 4px 2px;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 16px; // 16px prevents iOS zoom
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   min-height: 40px;
   width: 80px;
   text-align: right;
   box-sizing: border-box;
 
   &[readonly] {
-    color: rgba($text, 0.55);
+    color: rgba(vars.$text, 0.55);
     border-bottom-style: dashed;
   }
 
   &:focus {
     outline: none;
-    border-bottom-color: $primary;
+    border-bottom-color: vars.$primary;
   }
 }
 
@@ -214,17 +213,17 @@
   min-height: 44px;
   padding: 8px;
   background-color: transparent;
-  border: 2px solid $surface-border;
+  border: 2px solid vars.$surface-border;
   border-radius: 8px;
-  color: rgba($text, 0.7);
+  color: rgba(vars.$text, 0.7);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
 
   &:active {
-    color: $primary;
-    border-color: $primary-border;
+    color: vars.$primary;
+    border-color: vars.$primary-border;
   }
 }
 
@@ -246,10 +245,10 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 11px;
-  letter-spacing: $sarabun-spacing;
-  color: rgba($text, 0.55);
+  letter-spacing: vars.$sarabun-spacing;
+  color: rgba(vars.$text, 0.55);
 }
 
 .unitSelect {
@@ -257,13 +256,13 @@
   -webkit-appearance: none;
   -moz-appearance: none;
   background-color: transparent;
-  color: $text;
+  color: vars.$text;
   border: none;
-  border-bottom: 2px solid $primary-border;
+  border-bottom: 2px solid vars.$primary-border;
   padding: 4px 24px 4px 2px;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 16px; // 16px prevents iOS zoom
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   min-height: 40px;
   min-width: 64px;
   max-width: 180px;
@@ -275,22 +274,22 @@
 
   &:focus {
     outline: none;
-    border-bottom-color: $primary;
+    border-bottom-color: vars.$primary;
   }
 
   option {
-    background-color: $surface;
-    color: $text;
+    background-color: vars.$surface;
+    color: vars.$text;
   }
 }
 
 .unitStatic {
   display: inline-block;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 16px;
-  letter-spacing: $sarabun-spacing;
-  color: rgba($text, 0.55);
-  border-bottom: 2px solid rgba($surface-border, 0.5);
+  letter-spacing: vars.$sarabun-spacing;
+  color: rgba(vars.$text, 0.55);
+  border-bottom: 2px solid rgba(vars.$surface-border, 0.5);
   padding: 4px 2px;
   min-height: 40px;
   min-width: 28px;
@@ -306,11 +305,11 @@
 }
 
 .macrosSectionLabel {
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: $sarabun-spacing;
-  color: rgba($text, 0.6);
+  letter-spacing: vars.$sarabun-spacing;
+  color: rgba(vars.$text, 0.6);
   text-transform: uppercase;
 }
 
@@ -323,10 +322,10 @@
 
 .rowHint {
   margin: 0;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 11px;
-  color: rgba($text, 0.4);
-  letter-spacing: $sarabun-spacing;
+  color: rgba(vars.$text, 0.4);
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 // #227 — dismissable notice row (barcode-not-found error). Flex row so the
@@ -341,10 +340,10 @@
   margin: 0;
   flex: 1;
   padding: 6px 0;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 11px;
-  color: $error;
-  letter-spacing: $sarabun-spacing;
+  color: vars.$error;
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 .noticeDismiss {
@@ -354,7 +353,7 @@
   margin: -10px -10px -10px 0;
   background: transparent;
   border: none;
-  color: rgba($text, 0.5);
+  color: rgba(vars.$text, 0.5);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -362,7 +361,7 @@
   border-radius: 8px;
 
   &:active {
-    background-color: rgba($text, 0.1);
+    background-color: rgba(vars.$text, 0.1);
   }
 }
 
@@ -376,8 +375,8 @@
   list-style: none;
   margin: 0;
   padding: 4px 0;
-  background-color: $surface;
-  border: 1px solid $surface-border;
+  background-color: vars.$surface;
+  border: 1px solid vars.$surface-border;
   border-radius: 10px;
   max-height: 220px;
   overflow-y: auto;
@@ -392,30 +391,30 @@
   cursor: pointer;
 
   &:active {
-    background-color: rgba($primary, 0.12);
+    background-color: rgba(vars.$primary, 0.12);
   }
 }
 
 .dropdownName {
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 15px;
-  color: $text;
-  letter-spacing: $sarabun-spacing;
+  color: vars.$text;
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 .dropdownMeta {
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 12px;
-  color: rgba($text, 0.5);
-  letter-spacing: $sarabun-spacing;
+  color: rgba(vars.$text, 0.5);
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 .dropdownHint {
   padding: 10px 14px;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 14px;
-  color: rgba($text, 0.5);
-  letter-spacing: $sarabun-spacing;
+  color: rgba(vars.$text, 0.5);
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 // Delete button — shown in edit mode at the bottom
@@ -424,21 +423,21 @@
   min-height: 44px;
   padding: 10px 20px;
   background-color: transparent;
-  color: $error;
-  border: 2px solid rgba($error, 0.4);
+  color: vars.$error;
+  border: 2px solid rgba(vars.$error, 0.4);
   border-radius: 10px;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 15px;
   font-weight: 600;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
 
   &:active {
-    background-color: rgba($error, 0.1);
-    border-color: $error;
+    background-color: rgba(vars.$error, 0.1);
+    border-color: vars.$error;
   }
 }
 
@@ -453,8 +452,8 @@
 }
 
 .card {
-  background-color: rgba($background, 0.5);
-  border: 1px solid rgba($surface-border, 0.5);
+  background-color: rgba(vars.$background, 0.5);
+  border: 1px solid rgba(vars.$surface-border, 0.5);
   border-radius: 12px;
   padding: 12px 14px;
   cursor: pointer;
@@ -465,8 +464,8 @@
   -webkit-tap-highlight-color: transparent;
 
   &:active {
-    background-color: rgba($primary, 0.07);
-    border-color: rgba($primary-border, 0.35);
+    background-color: rgba(vars.$primary, 0.07);
+    border-color: rgba(vars.$primary-border, 0.35);
   }
 }
 
@@ -482,11 +481,11 @@
 .cardName {
   align-self: stretch;
   text-align: left;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 15px;
   font-weight: 600;
-  color: $text;
-  letter-spacing: $sarabun-spacing;
+  color: vars.$text;
+  letter-spacing: vars.$sarabun-spacing;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -506,11 +505,11 @@
 }
 
 .cardCalories {
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 14px;
   font-weight: 700;
-  color: $primary;
-  letter-spacing: $sarabun-spacing;
+  color: vars.$primary;
+  letter-spacing: vars.$sarabun-spacing;
   flex-shrink: 0;
 }
 
@@ -519,10 +518,10 @@
 // flex-shrink:0 + nowrap so it can't be squeezed/broken at 320px — .cardMacros
 // already wraps .macroChips onto its own line first when space runs out.
 .cardGrams {
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 12px;
-  letter-spacing: $sarabun-spacing;
-  color: rgba($text, 0.5);
+  letter-spacing: vars.$sarabun-spacing;
+  color: rgba(vars.$text, 0.5);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -539,11 +538,11 @@
 }
 
 .chip {
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 12px;
-  letter-spacing: $sarabun-spacing;
-  color: rgba($text, 0.6);
-  background-color: rgba($text, 0.08);
+  letter-spacing: vars.$sarabun-spacing;
+  color: rgba(vars.$text, 0.6);
+  background-color: rgba(vars.$text, 0.08);
   border-radius: 5px;
   padding: 2px 7px;
   white-space: nowrap;
@@ -552,7 +551,7 @@
 .cardChevron {
   display: block; // iOS Safari SVG fix
   flex-shrink: 0;
-  color: rgba($text, 0.3);
+  color: rgba(vars.$text, 0.3);
 }
 
 // ---------------------------------------------------------------------------

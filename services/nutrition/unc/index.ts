@@ -24,6 +24,16 @@ export type UncItemRef = {
   station: string;
 };
 
+/** get_unc_menu's per-item shape: name + location metadata always; allergens/dietary/
+ *  per_serving only when explicitly requested or forced on by a filter (see getUncMenu). */
+export type UncMenuItemOut = UncItemRef & {
+  recipe_number: number;
+  name: string;
+  allergens?: string[];
+  dietary?: string[];
+  per_serving?: UncPerServing;
+};
+
 export type UncFoodResult = {
   recipe_number: number;
   name: string;
@@ -373,18 +383,29 @@ export async function searchUncFoods(
   }
 }
 
-/** Full menu, grouped location -> period -> station. Item names only unless includeNutrition. */
+/** True if `have` (an item's allergens or dietary tags) contains ANY of `wanted`, both
+ *  compared case-insensitively. Used for both the dietary (ANY-match/OR) and
+ *  exclude_allergens filters below. */
+function tagsOverlap(wanted: string[], have: string[]): boolean {
+  const haveLower = have.map((t) => t.toLowerCase());
+  return wanted.some((w) => haveLower.includes(w.toLowerCase()));
+}
+
+/** Full menu, grouped location -> period -> station. Item shape is name + location
+ *  metadata only by default; includeNutrition/includeDietary opt in per-item extras, and
+ *  the dietary/excludeAllergens filters (case-insensitive tag match, reusing the
+ *  recipe-panel-authoritative allergens/dietary already merged by ensureRecipesCached)
+ *  drop non-matching items and force those extras onto whatever survives. */
 export async function getUncMenu(opts: {
-  date?: string; mealPeriod?: string; location?: string; station?: string; includeNutrition?: boolean;
+  date?: string; mealPeriod?: string; location?: string; station?: string;
+  includeNutrition?: boolean; includeDietary?: boolean;
+  dietary?: string[]; excludeAllergens?: string[];
 }): Promise<{
   menu_date: string; horizon_date: string; not_published: boolean;
   locations: Array<{
     location_slug: string; location_name: string;
     periods: Array<UncPeriodInfo & {
-      stations: Array<{ station: string; items: Array<{
-        recipe_number: number; name: string; serving_label: string | null;
-        allergens: string[]; dietary: string[]; per_serving?: UncPerServing;
-      }> }>;
+      stations: Array<{ station: string; items: UncMenuItemOut[] }>;
     }>;
   }>;
 }> {
@@ -400,8 +421,17 @@ export async function getUncMenu(opts: {
 
     const isToday = d === todayDate();
 
+    const dietaryWanted = opts.dietary ?? [];
+    const allergensExcluded = opts.excludeAllergens ?? [];
+    const hasFilter = dietaryWanted.length > 0 || allergensExcluded.length > 0;
+    // Filtering needs each item's authoritative (recipe-panel-merged) allergens/dietary,
+    // the same data include_nutrition already fetches -- so any of these three opts
+    // triggers the same recipeMap lookup include_nutrition alone used to gate.
+    const needRecipeData = !!opts.includeNutrition || !!opts.includeDietary || hasFilter;
+    const showTags = !!opts.includeDietary || hasFilter;
+
     let recipeMap = new Map<number, RecipeCacheRow>();
-    if (opts.includeNutrition) {
+    if (needRecipeData) {
       const needed = new Set<number>();
       for (const r of dayResults.values()) {
         if (r.status === 'ok') for (const item of r.items) needed.add(item.recipe_number);
@@ -432,31 +462,45 @@ export async function getUncMenu(opts: {
       }
       if (periodGroups.size === 0) continue; // nothing matched the filters at this location
 
-      const periods = [...periodGroups.values()].map((group) => ({
-        meal_period: group.sample.meal_period,
-        label: group.sample.period_label,
-        start_time: group.sample.period_start,
-        end_time: group.sample.period_end,
-        is_open_now: isToday && timeInRange(nowTimeHHMM(), group.sample.period_start, group.sample.period_end),
-        stations: [...group.stations.entries()].map(([station, items]) => ({
-          station,
-          items: items.map((it) => {
-            const recipeRow = recipeMap.get(it.recipe_number);
-            const built: {
-              recipe_number: number; name: string; serving_label: string | null;
-              allergens: string[]; dietary: string[]; per_serving?: UncPerServing;
-            } = {
-              recipe_number: it.recipe_number,
-              name: recipeRow?.name || it.name,
-              serving_label: recipeRow?.serving_label ?? null,
-              allergens: recipeRow?.allergens ?? it.allergens,
-              dietary: recipeRow?.dietary ?? it.dietary,
-            };
-            if (opts.includeNutrition) built.per_serving = recipeRow?.per_serving ?? NULL_PER_SERVING;
-            return built;
-          }),
-        })),
-      }));
+      const periods = [...periodGroups.values()]
+        .map((group) => ({
+          meal_period: group.sample.meal_period,
+          label: group.sample.period_label,
+          start_time: group.sample.period_start,
+          end_time: group.sample.period_end,
+          is_open_now: isToday && timeInRange(nowTimeHHMM(), group.sample.period_start, group.sample.period_end),
+          stations: [...group.stations.entries()]
+            .map(([station, items]) => {
+              const built: UncMenuItemOut[] = [];
+              for (const it of items) {
+                const recipeRow = recipeMap.get(it.recipe_number);
+                const allergens = recipeRow?.allergens ?? it.allergens;
+                const dietary = recipeRow?.dietary ?? it.dietary;
+                if (dietaryWanted.length > 0 && !tagsOverlap(dietaryWanted, dietary)) continue;
+                if (allergensExcluded.length > 0 && tagsOverlap(allergensExcluded, allergens)) continue;
+
+                const out: UncMenuItemOut = {
+                  recipe_number: it.recipe_number,
+                  name: recipeRow?.name || it.name,
+                  location_slug: slug,
+                  location_name: r.location_name,
+                  menu_date: d,
+                  meal_period: it.meal_period,
+                  station: it.station,
+                };
+                if (showTags) {
+                  out.allergens = allergens;
+                  out.dietary = dietary;
+                }
+                if (opts.includeNutrition) out.per_serving = recipeRow?.per_serving ?? NULL_PER_SERVING;
+                built.push(out);
+              }
+              return { station, items: built };
+            })
+            .filter((s) => s.items.length > 0),
+        }))
+        .filter((p) => p.stations.length > 0);
+      if (periods.length === 0) continue; // filters removed every item at this location
 
       locations.push({ location_slug: slug, location_name: r.location_name, periods });
     }

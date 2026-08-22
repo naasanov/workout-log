@@ -1,5 +1,4 @@
-@import "../../styles/variables";
-
+@use "../../styles/variables" as vars;
 // Matches NutritionGoalsModal sizing/style for visual consistency
 .modalContent {
   max-width: 400px !important;
@@ -11,7 +10,7 @@
   gap: 20px;
   padding: 24px 20px 20px;
 
-  @media (max-width: $mobile-width) {
+  @media (max-width: vars.$mobile-width) {
     padding: 18px 16px 16px;
     gap: 16px;
   }
@@ -25,11 +24,11 @@
 
 .title {
   margin: 0;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 20px;
   font-weight: 700;
-  letter-spacing: $sarabun-spacing;
-  color: $text;
+  letter-spacing: vars.$sarabun-spacing;
+  color: vars.$text;
 }
 
 // ---- Form ----
@@ -46,31 +45,31 @@
 }
 
 .label {
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: $sarabun-spacing;
-  color: rgba($text, 0.6);
+  letter-spacing: vars.$sarabun-spacing;
+  color: rgba(vars.$text, 0.6);
   text-transform: uppercase;
 }
 
 // Select — matches the input style from NutritionGoalsModal (underline style)
 .select {
   background-color: transparent;
-  color: $text;
+  color: vars.$text;
   border: none;
-  border-bottom: 2px solid $primary-border;
+  border-bottom: 2px solid vars.$primary-border;
   padding: 8px 4px;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 16px;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   width: 100%;
   box-sizing: border-box;
   min-height: 44px;
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
-  // Minimal custom arrow via background image (data URI, matches $text)
+  // Minimal custom arrow via background image (data URI, matches vars.$text)
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23EBEDE9' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' fill='none' opacity='.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 4px center;
@@ -78,26 +77,26 @@
 
   &:focus {
     outline: none;
-    border-bottom-color: $primary;
+    border-bottom-color: vars.$primary;
   }
 
   // Style the options in dark context (best-effort, OS-controlled)
   option {
-    background-color: $surface;
-    color: $text;
+    background-color: vars.$surface;
+    color: vars.$text;
   }
 }
 
 // Textarea
 .textarea {
-  background-color: rgba($surface, 0.5);
-  color: $text;
-  border: 2px solid rgba($surface-border, 0.6);
+  background-color: rgba(vars.$surface, 0.5);
+  color: vars.$text;
+  border: 2px solid rgba(vars.$surface-border, 0.6);
   border-radius: 10px;
   padding: 10px 12px;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 15px;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   width: 100%;
   box-sizing: border-box;
   resize: vertical;
@@ -105,45 +104,45 @@
   line-height: 1.5;
 
   &::placeholder {
-    color: rgba($text, 0.3);
+    color: rgba(vars.$text, 0.3);
   }
 
   &:focus {
     outline: none;
-    border-color: $primary-border;
+    border-color: vars.$primary-border;
   }
 
   &.textareaError {
-    border-color: rgba($error, 0.6);
+    border-color: rgba(vars.$error, 0.6);
   }
 }
 
 // #266: live character counter under the message textarea
 .charCount {
   align-self: flex-end;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 12px;
-  letter-spacing: $sarabun-spacing;
-  color: rgba($text, 0.45);
+  letter-spacing: vars.$sarabun-spacing;
+  color: rgba(vars.$text, 0.45);
 
   &.charCountError {
-    color: $error;
+    color: vars.$error;
   }
 }
 
 .fieldError {
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 13px;
-  color: $error;
-  letter-spacing: $sarabun-spacing;
+  color: vars.$error;
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 .errorMsg {
   margin: 0;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 14px;
-  color: $error;
-  letter-spacing: $sarabun-spacing;
+  color: vars.$error;
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 // ---- Success state ----
@@ -156,11 +155,11 @@
 
 .successMsg {
   margin: 0;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 16px;
   font-weight: 600;
-  color: $primary;
-  letter-spacing: $sarabun-spacing;
+  color: vars.$primary;
+  letter-spacing: vars.$sarabun-spacing;
   text-align: center;
 }
 
@@ -175,11 +174,11 @@
 %btn-base {
   min-height: 48px;
   padding: 10px 24px;
-  border-radius: $border-radius;
-  font-family: $sarabun;
+  border-radius: vars.$border-radius;
+  font-family: vars.$sarabun;
   font-size: 16px;
   font-weight: 600;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
   border: none;
 
@@ -191,17 +190,17 @@
 
 .submitBtn {
   @extend %btn-base;
-  background-color: $primary;
-  color: $background;
+  background-color: vars.$primary;
+  color: vars.$background;
 
   &:not(:disabled):active {
-    background-color: $primary-dark;
+    background-color: vars.$primary-dark;
   }
 }
 
 .cancelBtn {
   @extend %btn-base;
   background-color: transparent;
-  color: rgba($text, 0.75);
-  border: 2px solid $surface-border;
+  color: rgba(vars.$text, 0.75);
+  border: 2px solid vars.$surface-border;
 }

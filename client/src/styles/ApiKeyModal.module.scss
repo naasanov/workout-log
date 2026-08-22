@@ -1,5 +1,4 @@
-@import "variables";
-
+@use "variables" as vars;
 // Sizing override applied to Radix Dialog.Content for this wider panel.
 // Passed as contentClassName={styles.modalContent} from ApiKeyModal.jsx.
 .modalContent {
@@ -24,17 +23,17 @@
 
 .title {
   margin: 0;
-  color: $text;
-  font-family: $sarabun;
+  color: vars.$text;
+  font-family: vars.$sarabun;
   font-size: 24px;
   font-weight: 500;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 .closeBtn {
   background: transparent;
   border: none;
-  color: $text;
+  color: vars.$text;
   font-size: 18px;
   cursor: pointer;
   padding: 4px 8px;
@@ -50,15 +49,15 @@
 
   &:hover {
     opacity: 1;
-    background-color: $primary-translucent;
+    background-color: vars.$primary-translucent;
   }
 }
 
 // --- New key reveal box ---
 
 .newKeyBox {
-  background-color: rgba($primary, 0.08);
-  border: 1px solid rgba($primary-border, 0.5);
+  background-color: rgba(vars.$primary, 0.08);
+  border: 1px solid rgba(vars.$primary-border, 0.5);
   border-radius: 10px;
   padding: 16px;
   display: flex;
@@ -68,10 +67,10 @@
 
 .newKeyWarning {
   margin: 0;
-  color: $primary;
-  font-family: $sarabun;
+  color: vars.$primary;
+  font-family: vars.$sarabun;
   font-size: 14px;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 .newKeyRow {
@@ -84,7 +83,7 @@
   flex: 1;
   font-family: 'Courier New', monospace;
   font-size: 13px;
-  color: $text;
+  color: vars.$text;
   background-color: rgba(0, 0, 0, 0.3);
   border-radius: 6px;
   padding: 6px 10px;
@@ -94,21 +93,21 @@
 
 .copyBtn {
   flex-shrink: 0;
-  background-color: $primary;
-  color: $background;
+  background-color: vars.$primary;
+  color: vars.$background;
   border: none;
   border-radius: 8px;
   padding: 6px 14px;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   // Tappable on mobile
   min-height: 44px;
 
   &:hover {
-    background-color: $primary-dark;
+    background-color: vars.$primary-dark;
   }
 }
 
@@ -122,40 +121,40 @@
 .input {
   flex: 1;
   background-color: transparent;
-  color: $text;
+  color: vars.$text;
   border: none;
-  border-bottom: 3px solid $primary-border;
+  border-bottom: 3px solid vars.$primary-border;
   padding: 4px 4px;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 16px;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
 
   &:focus {
     outline: none;
   }
 
   &::placeholder {
-    color: rgba($text, 0.4);
+    color: rgba(vars.$text, 0.4);
   }
 }
 
 .generateBtn {
   flex-shrink: 0;
-  background-color: $primary;
-  color: $background;
+  background-color: vars.$primary;
+  color: vars.$background;
   border: none;
-  border-radius: $border-radius;
+  border-radius: vars.$border-radius;
   padding: 6px 20px;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 16px;
   font-weight: 600;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
   // Tappable on mobile
   min-height: 44px;
 
   &:hover:not(:disabled) {
-    background-color: $primary-dark;
+    background-color: vars.$primary-dark;
   }
 
   &:disabled {
@@ -174,11 +173,11 @@
 
 .empty {
   margin: 0;
-  color: $text;
-  font-family: $sarabun;
+  color: vars.$text;
+  font-family: vars.$sarabun;
   font-size: 15px;
   opacity: 0.5;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 .keyItem {
@@ -188,7 +187,7 @@
   padding: 10px 12px;
   border-radius: 10px;
   background-color: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba($surface-border, 0.4);
+  border: 1px solid rgba(vars.$surface-border, 0.4);
 }
 
 .keyInfo {
@@ -198,24 +197,24 @@
 }
 
 .keyLabel {
-  color: $text;
-  font-family: $sarabun;
+  color: vars.$text;
+  font-family: vars.$sarabun;
   font-size: 15px;
   font-weight: 500;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 .keyMeta {
-  color: rgba($text, 0.7);
-  font-family: $sarabun;
+  color: rgba(vars.$text, 0.7);
+  font-family: vars.$sarabun;
   font-size: 12px;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 .deleteBtn {
   background: transparent;
   border: none;
-  color: $text;
+  color: vars.$text;
   opacity: 0.4;
   font-size: 14px;
   cursor: pointer;
@@ -231,7 +230,7 @@
 
   &:hover {
     opacity: 1;
-    background-color: rgba($error, 0.15);
-    color: $error;
+    background-color: rgba(vars.$error, 0.15);
+    color: vars.$error;
   }
 }

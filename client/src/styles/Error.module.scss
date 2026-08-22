@@ -1,8 +1,7 @@
-@import "variables";
-
+@use "variables" as vars;
 .error {
     font: {
-        family: $sarabun;
+        family: vars.$sarabun;
         size: 20px;
         weight: 500;
     }
