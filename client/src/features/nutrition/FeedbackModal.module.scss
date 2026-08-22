@@ -24,7 +24,6 @@
 
 .title {
   margin: 0;
-  font-family: vars.$sarabun;
   font-size: 20px;
   font-weight: 700;
   letter-spacing: vars.$sarabun-spacing;
@@ -45,7 +44,6 @@
 }
 
 .label {
-  font-family: vars.$sarabun;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: vars.$sarabun-spacing;
@@ -60,7 +58,6 @@
   border: none;
   border-bottom: 2px solid vars.$primary-border;
   padding: 8px 4px;
-  font-family: vars.$sarabun;
   font-size: 16px;
   letter-spacing: vars.$sarabun-spacing;
   width: 100%;
@@ -94,7 +91,6 @@
   border: 2px solid rgba(vars.$surface-border, 0.6);
   border-radius: 10px;
   padding: 10px 12px;
-  font-family: vars.$sarabun;
   font-size: 15px;
   letter-spacing: vars.$sarabun-spacing;
   width: 100%;
@@ -120,7 +116,6 @@
 // #266: live character counter under the message textarea
 .charCount {
   align-self: flex-end;
-  font-family: vars.$sarabun;
   font-size: 12px;
   letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.45);
@@ -131,7 +126,6 @@
 }
 
 .fieldError {
-  font-family: vars.$sarabun;
   font-size: 13px;
   color: vars.$error;
   letter-spacing: vars.$sarabun-spacing;
@@ -139,7 +133,6 @@
 
 .errorMsg {
   margin: 0;
-  font-family: vars.$sarabun;
   font-size: 14px;
   color: vars.$error;
   letter-spacing: vars.$sarabun-spacing;
@@ -155,7 +148,6 @@
 
 .successMsg {
   margin: 0;
-  font-family: vars.$sarabun;
   font-size: 16px;
   font-weight: 600;
   color: vars.$primary;
@@ -175,7 +167,6 @@
   min-height: 48px;
   padding: 10px 24px;
   border-radius: vars.$border-radius;
-  font-family: vars.$sarabun;
   font-size: 16px;
   font-weight: 600;
   letter-spacing: vars.$sarabun-spacing;

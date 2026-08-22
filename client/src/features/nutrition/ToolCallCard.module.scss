@@ -49,7 +49,6 @@
 // ---- Tool label ----
 // Item 7: explicit 12px, muted — clearly secondary vs chat text
 .toolName {
-  font-family: vars.$sarabun;
   font-size: 12px;
   font-weight: 500;
   letter-spacing: vars.$sarabun-spacing;
@@ -92,7 +91,6 @@
   color: vars.$error;
   font-size: 10px;
   font-weight: 700;
-  font-family: vars.$sarabun;
   line-height: 1;
 }
 
@@ -133,7 +131,6 @@
 }
 
 .sectionLabel {
-  font-family: vars.$sarabun;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 1px;
@@ -163,14 +160,12 @@
 }
 
 .jsonNull {
-  font-family: vars.$sarabun;
   font-size: 12px;
   color: rgba(vars.$text, 0.3);
 }
 
 .errorText {
   margin: 0;
-  font-family: vars.$sarabun;
   font-size: 13px;
   color: vars.$error;
   letter-spacing: vars.$sarabun-spacing;

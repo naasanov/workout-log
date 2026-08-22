@@ -48,7 +48,6 @@
 .title {
   flex: 1;
   margin: 0;
-  font-family: vars.$sarabun;
   font-size: 18px;
   font-weight: 700;
   letter-spacing: vars.$sarabun-spacing;
@@ -93,7 +92,6 @@
   background-color: transparent;
   color: vars.$text;
   border: none;
-  font-family: vars.$sarabun;
   font-size: 16px; // 16px prevents iOS zoom on focus
   letter-spacing: vars.$sarabun-spacing;
   min-height: 36px;
@@ -132,7 +130,6 @@
 }
 
 .sectionTitle {
-  font-family: vars.$sarabun;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 1.5px;
@@ -150,7 +147,6 @@
   color: vars.$primary;
   border: 1px solid rgba(vars.$primary-border, 0.7);
   border-radius: 8px;
-  font-family: vars.$sarabun;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: vars.$sarabun-spacing;
@@ -200,7 +196,6 @@
 }
 
 .foodName {
-  font-family: vars.$sarabun;
   font-size: 15px;
   font-weight: 600;
   color: vars.$text;
@@ -214,7 +209,6 @@
   border-radius: 5px;
   background-color: rgba(vars.$surface-border, 0.25);
   border: 1px solid rgba(vars.$surface-border, 0.4);
-  font-family: vars.$sarabun;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: vars.$sarabun-spacing;
@@ -224,7 +218,6 @@
 }
 
 .foodNotes {
-  font-family: vars.$sarabun;
   font-size: 12px;
   color: rgba(vars.$text, 0.45);
   letter-spacing: vars.$sarabun-spacing;
@@ -243,7 +236,6 @@
 }
 
 .macroCalories {
-  font-family: vars.$sarabun;
   font-size: 14px;
   font-weight: 700;
   color: vars.$primary;
@@ -252,7 +244,6 @@
 }
 
 .macroServingLabel {
-  font-family: vars.$sarabun;
   font-size: 12px;
   color: rgba(vars.$text, 0.4);
   letter-spacing: vars.$sarabun-spacing;
@@ -266,7 +257,6 @@
 }
 
 .chip {
-  font-family: vars.$sarabun;
   font-size: 12px;
   letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.55);
@@ -321,7 +311,6 @@
   background: transparent;
   border: none;
   color: vars.$text;
-  font-family: vars.$sarabun;
   font-size: 15px;
   letter-spacing: vars.$sarabun-spacing;
   padding: 10px 14px;
@@ -350,7 +339,6 @@
   margin: 0;
   padding: 24px 8px;
   text-align: center;
-  font-family: vars.$sarabun;
   font-size: 15px;
   color: rgba(vars.$text, 0.4);
   letter-spacing: vars.$sarabun-spacing;
@@ -359,7 +347,6 @@
 
 .emptySection {
   margin: 0;
-  font-family: vars.$sarabun;
   font-size: 14px;
   color: rgba(vars.$text, 0.35);
   letter-spacing: vars.$sarabun-spacing;

@@ -64,7 +64,6 @@
 .hint {
   margin: 0;
   color: rgba(vars.$text, 0.75);
-  font-family: vars.$sarabun;
   font-size: 15px;
   letter-spacing: vars.$sarabun-spacing;
   text-align: center;
@@ -78,7 +77,6 @@
   color: vars.$text;
   border: 2px solid vars.$surface-border;
   border-radius: vars.$border-radius;
-  font-family: vars.$sarabun;
   font-size: 16px;
   font-weight: 600;
   letter-spacing: vars.$sarabun-spacing;

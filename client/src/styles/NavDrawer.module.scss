@@ -50,7 +50,6 @@
 
 .drawerTitle {
   color: vars.$text;
-  font-family: vars.$sarabun;
   font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: vars.$sarabun-spacing;
@@ -73,7 +72,6 @@
   min-height: 44px;
   cursor: pointer;
   color: rgba(vars.$text, 0.7);
-  font-family: vars.$sarabun;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: vars.$sarabun-spacing;
@@ -142,7 +140,6 @@
   text-align: left;
   cursor: pointer;
   color: rgba(vars.$text, 0.7);
-  font-family: vars.$sarabun;
   font-size: 18px;
   font-weight: 500;
   letter-spacing: vars.$sarabun-spacing;
@@ -200,7 +197,6 @@
 
 .editTabLabel {
   color: rgba(vars.$text, 0.9);
-  font-family: vars.$sarabun;
   font-size: 17px;
   font-weight: 500;
   letter-spacing: vars.$sarabun-spacing;
@@ -306,7 +302,6 @@
 .addHeading {
   padding: 0 12px;
   color: rgba(vars.$text, 0.45);
-  font-family: vars.$sarabun;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: vars.$sarabun-spacing;

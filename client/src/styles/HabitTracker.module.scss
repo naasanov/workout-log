@@ -17,7 +17,6 @@
   color: vars.$background;
   border: none;
   border-radius: vars.$border-radius;
-  font-family: vars.$sarabun;
   font-size: 22px;
   font-weight: 700;
   letter-spacing: vars.$sarabun-spacing;
@@ -82,7 +81,6 @@
 }
 
 .dateLabel {
-  font-family: vars.$sarabun;
   font-size: 17px;
   font-weight: 500;
   letter-spacing: vars.$sarabun-spacing;
@@ -96,7 +94,6 @@
 }
 
 .countBadge {
-  font-family: vars.$sarabun;
   font-size: 22px;
   font-weight: 700;
   color: vars.$primary;
@@ -124,7 +121,6 @@
   border: 2px solid vars.$surface-border;
   border-radius: 8px;
   color: vars.$text;
-  font-family: vars.$sarabun;
   font-size: 22px;
   font-weight: 400;
   cursor: pointer;
@@ -208,7 +204,6 @@
 }
 
 .rangeLabel {
-  font-family: vars.$sarabun;
   font-size: 13px;
   letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.55);
@@ -220,7 +215,6 @@
   color: vars.$text;
   border: none;
   border-bottom: 2px solid vars.$surface-border;
-  font-family: vars.$sarabun;
   font-size: 14px;
   letter-spacing: vars.$sarabun-spacing;
   width: 70px;
@@ -240,7 +234,6 @@
 
 .rangeSep {
   color: rgba(vars.$text, 0.55);
-  font-family: vars.$sarabun;
   font-size: 14px;
 }
 
@@ -248,7 +241,6 @@
 .empty {
   margin: 0;
   color: vars.$text;
-  font-family: vars.$sarabun;
   font-size: 16px;
   font-weight: 300;
   letter-spacing: vars.$sarabun-spacing;
@@ -270,7 +262,6 @@
   border: 2px solid vars.$surface-border;
   border-radius: vars.$border-radius;
   color: vars.$text;
-  font-family: vars.$sarabun;
   font-size: 17px;
   font-weight: 600;
   letter-spacing: vars.$sarabun-spacing;
@@ -365,7 +356,6 @@
   background: none;
   border: none;
   color: vars.$text;
-  font-family: vars.$sarabun;
   font-size: 16px;
   letter-spacing: vars.$sarabun-spacing;
   text-align: left;
@@ -453,7 +443,6 @@
   background: none;
   border: none;
   color: vars.$text;
-  font-family: vars.$sarabun;
   font-size: 15px;
   letter-spacing: vars.$sarabun-spacing;
   text-align: left;
@@ -505,7 +494,6 @@
   border: none;
   border-bottom: 2px solid vars.$primary-border;
   color: vars.$text;
-  font-family: vars.$sarabun;
   font-size: 16px;
   letter-spacing: vars.$sarabun-spacing;
   padding: 4px 0;
@@ -533,7 +521,6 @@
   border: none;
   border-bottom: 2px solid vars.$surface-border;
   color: vars.$text;
-  font-family: vars.$sarabun;
   font-size: 16px;
   letter-spacing: vars.$sarabun-spacing;
   padding: 4px 0;
@@ -560,7 +547,6 @@
   color: vars.$background;
   border: none;
   border-radius: 8px;
-  font-family: vars.$sarabun;
   font-size: 14px;
   font-weight: 700;
   letter-spacing: vars.$sarabun-spacing;
@@ -623,7 +609,6 @@
   border: none;
   border-top: 1px solid rgba(vars.$surface-border, 0.5);
   color: vars.$primary;
-  font-family: vars.$sarabun;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: vars.$sarabun-spacing;
@@ -679,7 +664,6 @@
 .confirmText {
   margin: 0;
   color: vars.$text;
-  font-family: vars.$sarabun;
   font-size: 16px;
   letter-spacing: vars.$sarabun-spacing;
   line-height: 1.5;
@@ -702,7 +686,6 @@
   border: 2px solid vars.$surface-border;
   border-radius: 10px;
   color: vars.$text;
-  font-family: vars.$sarabun;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: vars.$sarabun-spacing;
@@ -721,7 +704,6 @@
   border: 2px solid vars.$error;
   border-radius: 10px;
   color: vars.$text;
-  font-family: vars.$sarabun;
   font-size: 15px;
   font-weight: 700;
   letter-spacing: vars.$sarabun-spacing;

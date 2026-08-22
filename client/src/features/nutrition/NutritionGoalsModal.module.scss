@@ -23,7 +23,6 @@
 
 .title {
   margin: 0;
-  font-family: vars.$sarabun;
   font-size: 20px;
   font-weight: 700;
   letter-spacing: vars.$sarabun-spacing;
@@ -32,7 +31,6 @@
 
 .hint {
   margin: 0;
-  font-family: vars.$sarabun;
   font-size: 13px;
   color: rgba(vars.$text, 0.45);
   letter-spacing: vars.$sarabun-spacing;
@@ -51,7 +49,6 @@
 }
 
 .label {
-  font-family: vars.$sarabun;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: vars.$sarabun-spacing;
@@ -65,7 +62,6 @@
   border: none;
   border-bottom: 2px solid vars.$primary-border;
   padding: 8px 4px;
-  font-family: vars.$sarabun;
   font-size: 16px;
   letter-spacing: vars.$sarabun-spacing;
   width: 100%;
@@ -84,7 +80,6 @@
 
 .errorMsg {
   margin: 0;
-  font-family: vars.$sarabun;
   font-size: 14px;
   color: vars.$error;
   letter-spacing: vars.$sarabun-spacing;
@@ -101,7 +96,6 @@
   min-height: 48px;
   padding: 10px 24px;
   border-radius: vars.$border-radius;
-  font-family: vars.$sarabun;
   font-size: 16px;
   font-weight: 600;
   letter-spacing: vars.$sarabun-spacing;

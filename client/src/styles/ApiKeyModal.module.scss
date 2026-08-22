@@ -24,7 +24,6 @@
 .title {
   margin: 0;
   color: vars.$text;
-  font-family: vars.$sarabun;
   font-size: 24px;
   font-weight: 500;
   letter-spacing: vars.$sarabun-spacing;
@@ -68,7 +67,6 @@
 .newKeyWarning {
   margin: 0;
   color: vars.$primary;
-  font-family: vars.$sarabun;
   font-size: 14px;
   letter-spacing: vars.$sarabun-spacing;
 }
@@ -98,7 +96,6 @@
   border: none;
   border-radius: 8px;
   padding: 6px 14px;
-  font-family: vars.$sarabun;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -125,7 +122,6 @@
   border: none;
   border-bottom: 3px solid vars.$primary-border;
   padding: 4px 4px;
-  font-family: vars.$sarabun;
   font-size: 16px;
   letter-spacing: vars.$sarabun-spacing;
 
@@ -145,7 +141,6 @@
   border: none;
   border-radius: vars.$border-radius;
   padding: 6px 20px;
-  font-family: vars.$sarabun;
   font-size: 16px;
   font-weight: 600;
   letter-spacing: vars.$sarabun-spacing;
@@ -174,7 +169,6 @@
 .empty {
   margin: 0;
   color: vars.$text;
-  font-family: vars.$sarabun;
   font-size: 15px;
   opacity: 0.5;
   letter-spacing: vars.$sarabun-spacing;
@@ -198,7 +192,6 @@
 
 .keyLabel {
   color: vars.$text;
-  font-family: vars.$sarabun;
   font-size: 15px;
   font-weight: 500;
   letter-spacing: vars.$sarabun-spacing;
@@ -206,7 +199,6 @@
 
 .keyMeta {
   color: rgba(vars.$text, 0.7);
-  font-family: vars.$sarabun;
   font-size: 12px;
   letter-spacing: vars.$sarabun-spacing;
 }

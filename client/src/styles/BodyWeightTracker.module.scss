@@ -22,7 +22,6 @@
   border: none;
   border-bottom: solid 3px vars.$primary-border;
   padding: 4px 4px;
-  font-family: vars.$sarabun;
   font-size: 16px;
   letter-spacing: vars.$sarabun-spacing;
   min-width: 120px;
@@ -46,7 +45,6 @@
   border: none;
   border-radius: vars.$border-radius;
   padding: 6px 20px;
-  font-family: vars.$sarabun;
   font-size: 16px;
   font-weight: 600;
   letter-spacing: vars.$sarabun-spacing;
@@ -74,7 +72,6 @@
   transform: translateY(-50%) rotate(-90deg);
   margin: 0;
   color: vars.$primary;
-  font-family: vars.$sarabun;
   font-size: 12px;
   letter-spacing: vars.$sarabun-spacing;
   pointer-events: none;
@@ -91,7 +88,6 @@
   gap: 12px;
   margin-top: 8px;
   color: vars.$text;
-  font-family: vars.$sarabun;
   font-size: 13px;
   letter-spacing: vars.$sarabun-spacing;
   opacity: 0.8;
@@ -106,7 +102,6 @@
 .empty {
   margin: 0 0 16px;
   color: vars.$text;
-  font-family: vars.$sarabun;
   font-size: 16px;
   font-weight: 300;
   letter-spacing: vars.$sarabun-spacing;
@@ -131,7 +126,6 @@
   padding: 6px 0;
   border-bottom: 1px solid rgba(vars.$surface-border, 0.4);
   color: vars.$text;
-  font-family: vars.$sarabun;
   font-size: 15px;
   letter-spacing: vars.$sarabun-spacing;
 
