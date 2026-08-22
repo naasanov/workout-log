@@ -1,5 +1,4 @@
-@import "../../styles/variables";
-
+@use "../../styles/variables" as vars;
 // ---- Dim overlay — shown only when the sheet is expanded ----
 .overlay {
   position: fixed;
@@ -20,7 +19,7 @@
   max-width: 680px;
   margin: 0 auto;
   z-index: 999;
-  background-color: $surface;
+  background-color: vars.$surface;
   border-radius: 20px 20px 0 0;
   display: flex;
   flex-direction: column;
@@ -80,7 +79,7 @@
   display: block;
   width: 36px;
   height: 4px;
-  background-color: rgba($surface-border, 0.6);
+  background-color: rgba(vars.$surface-border, 0.6);
   border-radius: 2px;
 }
 
@@ -106,7 +105,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 16px 10px;
-  border-bottom: 1px solid rgba($surface-border, 0.4);
+  border-bottom: 1px solid rgba(vars.$surface-border, 0.4);
   flex-shrink: 0;
   // #64/#65: steal touch events so dragging header doesn't scroll page behind
   touch-action: none;
@@ -118,11 +117,11 @@
 
 .headerTitle {
   flex: 1;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 17px;
   font-weight: 700;
-  letter-spacing: $sarabun-spacing;
-  color: $text;
+  letter-spacing: vars.$sarabun-spacing;
+  color: vars.$text;
   // Prevent text selection while dragging
   user-select: none;
   -webkit-user-select: none;
@@ -134,7 +133,7 @@
   min-height: 36px;
   background: transparent;
   border: none;
-  color: rgba($text, 0.4);
+  color: rgba(vars.$text, 0.4);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -145,8 +144,8 @@
   touch-action: auto;
 
   &:active {
-    color: $error;
-    background-color: rgba($error, 0.1);
+    color: vars.$error;
+    background-color: rgba(vars.$error, 0.1);
   }
 }
 
@@ -162,7 +161,7 @@
   min-height: 36px;
   background: transparent;
   border: none;
-  color: rgba($text, 0.5);
+  color: rgba(vars.$text, 0.5);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -171,7 +170,7 @@
   touch-action: auto;
 
   &:active {
-    background-color: rgba($text, 0.1);
+    background-color: rgba(vars.$text, 0.1);
   }
 }
 
@@ -214,10 +213,10 @@
   padding: 24px 0;
 
   p {
-    font-family: $sarabun;
+    font-family: vars.$sarabun;
     font-size: 15px;
-    color: rgba($text, 0.4);
-    letter-spacing: $sarabun-spacing;
+    color: rgba(vars.$text, 0.4);
+    letter-spacing: vars.$sarabun-spacing;
     text-align: center;
     max-width: 280px;
     line-height: 1.5;
@@ -254,12 +253,12 @@
 }
 
 .bubbleUser {
-  background-color: $primary;
+  background-color: vars.$primary;
   border-bottom-right-radius: 4px;
 }
 
 .bubbleAssistant {
-  background-color: rgba($surface-border, 0.25);
+  background-color: rgba(vars.$surface-border, 0.25);
   border-bottom-left-radius: 4px;
 }
 
@@ -271,15 +270,15 @@
   align-items: center;
   gap: 8px;
   max-width: min(80%, 500px);
-  background-color: rgba($surface-border, 0.25);
+  background-color: rgba(vars.$surface-border, 0.25);
   border-radius: 16px;
   border-bottom-left-radius: 4px;
   padding: 10px 14px;
   box-sizing: border-box;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 14px;
-  letter-spacing: $sarabun-spacing;
-  color: rgba($text, 0.6);
+  letter-spacing: vars.$sarabun-spacing;
+  color: rgba(vars.$text, 0.6);
 }
 
 // Reuses the same pulsing dot animation as .reasoningSpinner / ToolCallCard.
@@ -289,33 +288,33 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: rgba($primary, 0.7);
+  background-color: rgba(vars.$primary, 0.7);
   animation: pulse 1.2s ease-in-out infinite;
 }
 
 .bubbleText {
   margin: 0;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 15px;
   line-height: 1.5;
-  letter-spacing: $sarabun-spacing;
-  color: $text;
+  letter-spacing: vars.$sarabun-spacing;
+  color: vars.$text;
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: anywhere;
 
   .bubbleUser & {
-    color: $background;
+    color: vars.$background;
   }
 }
 
 // Markdown container in assistant bubbles
 .bubbleMarkdown {
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 15px;
   line-height: 1.5;
-  letter-spacing: $sarabun-spacing;
-  color: $text;
+  letter-spacing: vars.$sarabun-spacing;
+  color: vars.$text;
   overflow-wrap: anywhere;
   word-break: break-word;
   min-width: 0;
@@ -348,14 +347,14 @@
   code {
     font-family: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
     font-size: 13px;
-    background-color: rgba($background, 0.5);
+    background-color: rgba(vars.$background, 0.5);
     border-radius: 4px;
     padding: 1px 5px;
   }
 
   pre {
     margin: 4px 0 6px;
-    background-color: rgba($background, 0.5);
+    background-color: rgba(vars.$background, 0.5);
     border-radius: 6px;
     padding: 8px 10px;
     overflow-x: auto;
@@ -371,22 +370,22 @@
   }
 
   a {
-    color: $primary;
+    color: vars.$primary;
     text-decoration: underline;
     word-break: break-all;
   }
 
   hr {
     border: none;
-    border-top: 1px solid rgba($surface-border, 0.4);
+    border-top: 1px solid rgba(vars.$surface-border, 0.4);
     margin: 8px 0;
   }
 
   blockquote {
-    border-left: 3px solid rgba($primary-border, 0.5);
+    border-left: 3px solid rgba(vars.$primary-border, 0.5);
     margin: 4px 0 6px 0;
     padding-left: 10px;
-    color: rgba($text, 0.7);
+    color: rgba(vars.$text, 0.7);
   }
 }
 
@@ -502,19 +501,19 @@
   // #77: same comfortable tap target as ToolCallCard
   min-height: 32px;
   box-sizing: border-box;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 12px;
   font-weight: 500;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   // #77: same muted color as ToolCallCard .toolName
-  color: rgba($text, 0.45);
+  color: rgba(vars.$text, 0.45);
 }
 
 // #77: Same chevron treatment as ToolCallCard — rotates on open
 .reasoningChevron {
   display: block; // iOS Safari SVG fix
   flex-shrink: 0;
-  color: rgba($text, 0.3);
+  color: rgba(vars.$text, 0.3);
   transition: transform 0.2s ease;
 }
 
@@ -529,7 +528,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background-color: rgba($primary, 0.7);
+  background-color: rgba(vars.$primary, 0.7);
   animation: pulse 1.2s ease-in-out infinite;
 }
 
@@ -548,14 +547,14 @@
 
 .reasoningText {
   // #77: Left border accent matches ToolCallCard .body
-  border-left: 2px solid rgba($surface-border, 0.2);
+  border-left: 2px solid rgba(vars.$surface-border, 0.2);
   margin-left: 2px;
   padding: 4px 10px 8px;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 12px;
   line-height: 1.5;
-  color: rgba($text, 0.55);
-  letter-spacing: $sarabun-spacing;
+  color: rgba(vars.$text, 0.55);
+  letter-spacing: vars.$sarabun-spacing;
   overflow-wrap: anywhere;
   word-break: break-word;
   min-width: 0;
@@ -578,14 +577,14 @@
   code {
     font-family: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
     font-size: 11px;
-    background-color: rgba($background, 0.5);
+    background-color: rgba(vars.$background, 0.5);
     border-radius: 3px;
     padding: 1px 4px;
   }
 
   pre {
     margin: 2px 0 4px;
-    background-color: rgba($background, 0.5);
+    background-color: rgba(vars.$background, 0.5);
     border-radius: 5px;
     padding: 6px 8px;
     overflow-x: auto;
@@ -600,7 +599,7 @@
   }
 
   a {
-    color: $primary;
+    color: vars.$primary;
     text-decoration: underline;
     word-break: break-all;
   }
@@ -611,22 +610,22 @@
 .proposalConfirmed {
   padding: 8px 12px;
   border-radius: 10px;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 13px;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   max-width: min(80%, 400px);
 }
 
 .proposalDenied {
-  background-color: rgba($error, 0.08);
-  color: rgba($error, 0.8);
-  border: 1px solid rgba($error, 0.2);
+  background-color: rgba(vars.$error, 0.08);
+  color: rgba(vars.$error, 0.8);
+  border: 1px solid rgba(vars.$error, 0.2);
 }
 
 .proposalConfirmed {
-  background-color: rgba($primary, 0.1);
-  color: $primary;
-  border: 1px solid rgba($primary-border, 0.3);
+  background-color: rgba(vars.$primary, 0.1);
+  color: vars.$primary;
+  border: 1px solid rgba(vars.$primary-border, 0.3);
   font-weight: 600;
 }
 
@@ -642,13 +641,13 @@
   align-items: center;
   gap: 6px;
   padding: 5px 10px;
-  background-color: rgba($error, 0.06);
-  border: 1px solid rgba($error, 0.2);
+  background-color: rgba(vars.$error, 0.06);
+  border: 1px solid rgba(vars.$error, 0.2);
   border-radius: 8px;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 12px;
-  color: rgba($error, 0.75);
-  letter-spacing: $sarabun-spacing;
+  color: rgba(vars.$error, 0.75);
+  letter-spacing: vars.$sarabun-spacing;
 
   &::before {
     content: '';
@@ -656,7 +655,7 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background-color: rgba($error, 0.6);
+    background-color: rgba(vars.$error, 0.6);
     flex-shrink: 0;
   }
 }
@@ -682,7 +681,7 @@
   height: 64px;
   border-radius: 10px;
   object-fit: cover;
-  border: 2px solid rgba($surface-border, 0.5);
+  border: 2px solid rgba(vars.$surface-border, 0.5);
 }
 
 .thumbnailRemove {
@@ -692,9 +691,9 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background-color: $surface;
-  border: 1px solid rgba($surface-border, 0.6);
-  color: rgba($text, 0.7);
+  background-color: vars.$surface;
+  border: 1px solid rgba(vars.$surface-border, 0.6);
+  color: rgba(vars.$text, 0.7);
   font-size: 10px;
   cursor: pointer;
   display: flex;
@@ -708,7 +707,7 @@
   position: absolute;
   inset: 0;
   border-radius: 10px;
-  background-color: rgba($background, 0.5);
+  background-color: rgba(vars.$background, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -718,10 +717,10 @@
 .photoError {
   margin: 0;
   padding: 4px 14px;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 13px;
-  color: $error;
-  letter-spacing: $sarabun-spacing;
+  color: vars.$error;
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 // #227 — dismissable notice row (barcode-not-found / lookup-failed message).
@@ -737,10 +736,10 @@
   margin: 0;
   flex: 1;
   padding: 4px 0 4px 14px;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 13px;
-  color: $error;
-  letter-spacing: $sarabun-spacing;
+  color: vars.$error;
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 .noticeDismiss {
@@ -750,7 +749,7 @@
   margin: -10px -10px -10px 0;
   background: transparent;
   border: none;
-  color: rgba($text, 0.5);
+  color: rgba(vars.$text, 0.5);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -758,7 +757,7 @@
   border-radius: 8px;
 
   &:active {
-    background-color: rgba($text, 0.1);
+    background-color: rgba(vars.$text, 0.1);
   }
 }
 
@@ -771,7 +770,7 @@
   width: 64px;
   height: 64px;
   padding: 0;
-  border: 2px solid rgba($surface-border, 0.5);
+  border: 2px solid rgba(vars.$surface-border, 0.5);
   border-radius: 10px;
   background: none;
   cursor: pointer;
@@ -786,8 +785,8 @@
   height: 18px;
   padding: 2px;
   border-radius: 50%;
-  background-color: $primary;
-  color: $background;
+  background-color: vars.$primary;
+  color: vars.$background;
 }
 
 // ---- Redacted image marker chip ----
@@ -799,19 +798,19 @@
   align-items: center;
   gap: 6px;
   padding: 5px 10px;
-  background-color: rgba($surface-border, 0.15);
-  border: 1px solid rgba($surface-border, 0.4);
+  background-color: rgba(vars.$surface-border, 0.15);
+  border: 1px solid rgba(vars.$surface-border, 0.4);
   border-radius: 8px;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 12px;
-  color: rgba($text, 0.55);
-  letter-spacing: $sarabun-spacing;
+  color: rgba(vars.$text, 0.55);
+  letter-spacing: vars.$sarabun-spacing;
 }
 
 // Inline note appended to a barcode attachment chip's name when its photo
 // has been redacted by the same retention job.
 .imageRedactedNote {
-  color: rgba($text, 0.45);
+  color: rgba(vars.$text, 0.45);
   font-style: italic;
 }
 
@@ -823,7 +822,7 @@
   gap: 8px;
   max-width: 240px;
   padding: 6px 10px 6px 6px;
-  border: 1px solid rgba($surface-border, 0.5);
+  border: 1px solid rgba(vars.$surface-border, 0.5);
   border-radius: 12px;
   background: none;
   cursor: pointer;
@@ -846,8 +845,8 @@
   width: 40px;
   height: 40px;
   border-radius: 8px;
-  background-color: rgba($surface-border, 0.3);
-  color: $text;
+  background-color: rgba(vars.$surface-border, 0.3);
+  color: vars.$text;
   flex-shrink: 0;
 }
 
@@ -859,15 +858,15 @@
   height: 16px;
   padding: 2px;
   border-radius: 50%;
-  background-color: $primary;
-  color: $background;
+  background-color: vars.$primary;
+  color: vars.$background;
 }
 
 .barcodeAttachmentName {
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 13px;
-  letter-spacing: $sarabun-spacing;
-  color: $text;
+  letter-spacing: vars.$sarabun-spacing;
+  color: vars.$text;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -881,7 +880,7 @@
 // only needs a consistent inner padding — the sheet's padding handles the gap.
 .composerWrap {
   flex-shrink: 0;
-  border-top: 1px solid rgba($surface-border, 0.3);
+  border-top: 1px solid rgba(vars.$surface-border, 0.3);
 }
 
 // #93: Row of floating circular buttons above the textarea, left-aligned.
@@ -900,10 +899,10 @@
   flex-shrink: 0;
   width: 36px;
   height: 36px;
-  background: rgba($background, 0.5);
-  border: 1px solid rgba($surface-border, 0.6);
+  background: rgba(vars.$background, 0.5);
+  border: 1px solid rgba(vars.$surface-border, 0.6);
   border-radius: 50%;
-  color: rgba($text, 0.55);
+  color: rgba(vars.$text, 0.55);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -911,9 +910,9 @@
   padding: 0;
 
   &:active {
-    color: $primary;
-    border-color: $primary-border;
-    background-color: rgba($primary, 0.08);
+    color: vars.$primary;
+    border-color: vars.$primary-border;
+    background-color: rgba(vars.$primary, 0.08);
   }
 }
 
@@ -943,7 +942,7 @@
   // it's reset back to the plain 10px below.
   padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px) + 10px);
 
-  @media (min-width: #{$mobile-width + 1px}) {
+  @media (min-width: #{vars.$mobile-width + 1px}) {
     padding-bottom: 10px;
   }
 }
@@ -955,9 +954,9 @@
   min-width: 40px;
   min-height: 40px;
   background: transparent;
-  border: 1px solid rgba($surface-border, 0.6);
+  border: 1px solid rgba(vars.$surface-border, 0.6);
   border-radius: 10px;
-  color: rgba($text, 0.55);
+  color: rgba(vars.$text, 0.55);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -965,9 +964,9 @@
   padding: 0;
 
   &:active {
-    color: $primary;
-    border-color: $primary-border;
-    background-color: rgba($primary, 0.08);
+    color: vars.$primary;
+    border-color: vars.$primary-border;
+    background-color: rgba(vars.$primary, 0.08);
   }
 }
 
@@ -989,17 +988,17 @@
 //      line-height:24px centers a single line; multi-line growth via useAutoGrow is unaffected.
 .composerInput {
   flex: 1;
-  background-color: rgba($background, 0.4);
-  color: $text;
-  border: 1px solid rgba($surface-border, 0.6);
+  background-color: rgba(vars.$background, 0.4);
+  color: vars.$text;
+  border: 1px solid rgba(vars.$surface-border, 0.6);
   border-radius: 12px;
   // #92: vertical centering: padding 8px top/bottom, line-height 24px.
   //      Total single-line height = 8 + 24 + 8 + 2(border) = 42px ≈ 40px min-height.
   padding: 8px 12px;
-  font-family: $sarabun;
-  // #4: 16px on mobile (≤$mobile-width) to suppress iOS auto-zoom on focus
+  font-family: vars.$sarabun;
+  // #4: 16px on mobile (≤vars.$mobile-width) to suppress iOS auto-zoom on focus
   font-size: 16px;
-  letter-spacing: $sarabun-spacing;
+  letter-spacing: vars.$sarabun-spacing;
   resize: none;
   // #92: line-height matches the content area so one line of text is vertically centered
   line-height: 1.5;
@@ -1010,16 +1009,16 @@
   overflow-x: hidden;
 
   &::placeholder {
-    color: rgba($text, 0.35);
+    color: rgba(vars.$text, 0.35);
   }
 
   &:focus {
     outline: none;
-    border-color: rgba($primary-border, 0.6);
+    border-color: rgba(vars.$primary-border, 0.6);
   }
 
   // #4: On larger screens (desktop) use 15px
-  @media (min-width: #{$mobile-width + 1px}) {
+  @media (min-width: #{vars.$mobile-width + 1px}) {
     font-size: 15px;
   }
 }
@@ -1029,10 +1028,10 @@
   flex-shrink: 0;
   min-width: 40px;
   min-height: 40px;
-  background-color: $primary;
+  background-color: vars.$primary;
   border: none;
   border-radius: 10px;
-  color: $background;
+  color: vars.$background;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1046,18 +1045,18 @@
   }
 
   &:not(:disabled):active {
-    background-color: $primary-dark;
+    background-color: vars.$primary-dark;
   }
 }
 
 // #14: Stop button — same shape as send but red tint, no disabled state
 .stopBtn {
-  background-color: rgba($error, 0.15);
-  border: 1px solid rgba($error, 0.4);
-  color: $error;
+  background-color: rgba(vars.$error, 0.15);
+  border: 1px solid rgba(vars.$error, 0.4);
+  color: vars.$error;
 
   &:active {
-    background-color: rgba($error, 0.25);
+    background-color: rgba(vars.$error, 0.25);
   }
 }
 
@@ -1074,8 +1073,8 @@
   min-width: 0;
   box-sizing: border-box;
   border-radius: 10px;
-  background-color: rgba($error, 0.06);
-  border: 1px solid rgba($error, 0.25);
+  background-color: rgba(vars.$error, 0.06);
+  border: 1px solid rgba(vars.$error, 0.25);
   overflow: hidden;
 }
 
@@ -1096,24 +1095,24 @@
 .errorBubbleIcon {
   display: block; // iOS Safari SVG fix
   flex-shrink: 0;
-  color: rgba($error, 0.8);
+  color: rgba(vars.$error, 0.8);
   width: 16px;
   height: 16px;
 }
 
 .errorBubbleLabel {
   flex: 1;
-  font-family: $sarabun;
+  font-family: vars.$sarabun;
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: $sarabun-spacing;
-  color: rgba($error, 0.85);
+  letter-spacing: vars.$sarabun-spacing;
+  color: rgba(vars.$error, 0.85);
 }
 
 .errorBubbleChevron {
   display: block; // iOS Safari SVG fix
   flex-shrink: 0;
-  color: rgba($error, 0.5);
+  color: rgba(vars.$error, 0.5);
   width: 16px;
   height: 16px;
   transition: transform 0.2s ease;
@@ -1126,11 +1125,11 @@
 .errorBubbleDetail {
   margin: 0;
   padding: 6px 12px 10px;
-  border-top: 1px solid rgba($error, 0.15);
+  border-top: 1px solid rgba(vars.$error, 0.15);
   font-family: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
   font-size: 11px;
   line-height: 1.5;
-  color: rgba($error, 0.7);
+  color: rgba(vars.$error, 0.7);
   white-space: pre-wrap;
   word-break: break-all;
   overflow-x: auto;
@@ -1146,7 +1145,7 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background-color: $primary;
+  background-color: vars.$primary;
   color: #fff;
   border: none;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
@@ -1167,7 +1166,7 @@
   display: block; // iOS Safari SVG fix
   width: 16px;
   height: 16px;
-  color: $background; // #145: dark stroke on the green FAB (was inheriting the button's white)
+  color: vars.$background; // #145: dark stroke on the green FAB (was inheriting the button's white)
 }
 
 // ---- Animations ----
