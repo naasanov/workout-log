@@ -11,8 +11,6 @@ function BodyWeightTracker() {
   const [weight, setWeight] = useState('');
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [deleteId, setDeleteId] = useState(null);
-  // TEMP: for picking a smoothing window value, see issue #275 — delete once a value is chosen
-  const [smoothingDays, setSmoothingDays] = useState(7);
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -84,8 +82,9 @@ function BodyWeightTracker() {
   // Centered moving average over a time window (days), not a point-count window —
   // entries aren't evenly spaced, so an isolated point's window contains mostly itself
   // while a dense cluster gets averaged into a flatter line. See issue #275.
+  const SMOOTHING_DAYS = 21;
   const chartData = useMemo(() => {
-    const halfWindowMs = (smoothingDays / 2) * 24 * 60 * 60 * 1000;
+    const halfWindowMs = (SMOOTHING_DAYS / 2) * 24 * 60 * 60 * 1000;
     return rawChartData.map(point => {
       const neighbors = rawChartData.filter(
         p => Math.abs(p.rawDate - point.rawDate) <= halfWindowMs
@@ -93,7 +92,7 @@ function BodyWeightTracker() {
       const avg = neighbors.reduce((sum, p) => sum + p.weight, 0) / neighbors.length;
       return { ...point, smoothedWeight: avg };
     });
-  }, [rawChartData, smoothingDays]);
+  }, [rawChartData]);
 
   return (
     <section className={styles.container}>
@@ -178,19 +177,6 @@ function BodyWeightTracker() {
             </ComposedChart>
           </ResponsiveContainer>
           <p className={styles.yLabel}>lbs</p>
-          {/* TEMP: for picking a smoothing window value, see issue #275 — delete once a value is chosen */}
-          <div className={styles.smoothingControl}>
-            <label htmlFor="smoothing-days">Smoothing: {smoothingDays} days</label>
-            <input
-              id="smoothing-days"
-              type="range"
-              min="1"
-              max="21"
-              step="1"
-              value={smoothingDays}
-              onChange={e => setSmoothingDays(Number(e.target.value))}
-            />
-          </div>
         </div>
       )}
 
