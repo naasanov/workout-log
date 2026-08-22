@@ -351,7 +351,7 @@ ${summariseEntries(recent)}
          */
         get_unc_menu: tool({
           description:
-            'What is being served at UNC dining on a date, grouped by location → meal period → station. This tool is also the source of operating HOURS — every period in the result carries start_time/end_time, so it answers "when does Chase close?" just as well as "what\'s for dinner". If the user only wants hours or what\'s open (no menu items needed), prefer list_unc_locations instead — it is cheaper since it returns no menu items. Returns item NAMES by default; pass include_nutrition: true for macros, or use search_unc_foods when the user names one specific food.',
+            'What is being served at UNC dining on a date, grouped by location → meal period → station. This tool is also the source of operating HOURS — every period in the result carries start_time/end_time, so it answers "when does Chase close?" just as well as "what\'s for dinner". If the user only wants hours or what\'s open (no menu items needed), prefer list_unc_locations instead — it is cheaper since it returns no menu items. Each item returns ONLY { recipe_number, name, location_slug, location_name, meal_period, station, menu_date } by default — no allergens, dietary tags, serving_label, or nutrition. Pass include_nutrition: true to add per_serving macros, include_dietary: true to add allergens/dietary tags, or use search_unc_foods when the user names one specific food. To filter the menu itself rather than just annotate it, pass dietary (e.g. ["halal", "vegan"] — keeps items matching ANY of the given tags) and/or exclude_allergens (e.g. ["peanuts", "shellfish"] — drops items containing ANY of the given tags); both are case-insensitive, and either one automatically forces allergens/dietary onto the surviving items so you can see why they matched.',
           inputSchema: z.object({
             date: z
               .string()
@@ -371,10 +371,26 @@ ${summariseEntries(recent)}
             include_nutrition: z
               .boolean()
               .optional()
-              .describe('When true, attaches full per-serving macros (per_serving) to every item — the response gets large. Default false returns item names only.'),
+              .describe('When true, attaches full per-serving macros (per_serving) to every item — the response gets large. Default false omits it.'),
+            include_dietary: z
+              .boolean()
+              .optional()
+              .describe('When true, attaches allergens and dietary tags (allergens, dietary) to every item. Default false omits them, unless dietary or exclude_allergens is passed, which forces them on for the surviving items.'),
+            dietary: z
+              .array(z.string())
+              .optional()
+              .describe('Only keep items matching ANY of these dietary tags (case-insensitive), e.g. ["halal", "vegan"] to answer "what\'s halal today". Forces allergens/dietary onto the output.'),
+            exclude_allergens: z
+              .array(z.string())
+              .optional()
+              .describe('Drop items containing ANY of these allergen tags (case-insensitive), e.g. ["peanuts", "shellfish"]. Forces allergens/dietary onto the output.'),
           }),
-          execute: async ({ date, meal_period, location, station, include_nutrition }) =>
-            getUncMenu({ date, mealPeriod: meal_period, location, station, includeNutrition: include_nutrition }),
+          execute: async ({ date, meal_period, location, station, include_nutrition, include_dietary, dietary, exclude_allergens }) =>
+            getUncMenu({
+              date, mealPeriod: meal_period, location, station,
+              includeNutrition: include_nutrition, includeDietary: include_dietary,
+              dietary, excludeAllergens: exclude_allergens,
+            }),
         }),
 
         /** Thin wrapper over unc/index.ts's listUncLocations — cheap hours/status lookup. */
