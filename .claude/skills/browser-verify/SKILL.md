@@ -97,6 +97,16 @@ echo "VITE_API_URL=http://localhost:3000/api" > client/.env.local
 cd client && npm run dev &                                              # vite on 3001
 ```
 
+**Ports 3000/3001 are only the default, and both are frequently taken** — on
+macOS port 5000 is AirPlay Receiver (it answers with a plausible HTTP status,
+so a health check "succeeds" while your server actually died of `EADDRINUSE`
+in the background), and 3000 is often another project's container. Any free
+pair works, e.g. 5055/5056, as long as `PORT`, `FRONTEND_URL`, `VITE_API_URL`
+and the script's `apiBase`/`appBase` all agree — the server's CORS check
+demands an exact origin match. `launchAuthed({ apiBase, appBase })` takes the
+override. Always read the server log after boot rather than trusting a
+`curl` status code.
+
 Why each var is needed, all discovered by hitting the failure first:
 - `docker compose up -d` alone does **not** create any tables anymore —
   `docker-entrypoint-initdb.d` used to mount a stale subset of migrations
@@ -171,6 +181,27 @@ signup/cleanup needed; `lib/browser.mjs` defaults to it.
 
 ## DOM facts already paid for (don't rediscover these)
 
+- **Tabs are a query param, not a route.** The nutrition tracker is at
+  `/?tab=nutrition`; navigating to `/nutrition` renders the app shell with no
+  tracker in it and every selector then times out for the wrong reason.
+- **Nutrition entry rows are not clickable.** Editing an entry is behind the
+  row's three-dots `EntryMenu`: click the first `button` inside
+  `[class*=entryRow]`, then the `Edit` item. Clicking the entry name does
+  nothing and looks like a broken selector.
+- **`entryInputSchema` wants `localDate`, not `date`**, plus a top-level
+  `source` (`'manual'` for fixtures). Seeding with `date` fails validation.
+- **Seed the entry's date from the LOCAL calendar day, not
+  `toISOString()`.** The tracker defaults to the browser's local day, so a
+  UTC-derived date files the fixture on a day the UI isn't showing and the
+  entry appears to vanish.
+- **Chat-message parts render tool cards straight from the DB.** Seeding a
+  `chat_messages` row (`role='assistant'`, `parts` = a JSON array containing
+  `{"type":"tool-search_foods","state":"output-available","output":[...]}`)
+  is enough to inspect a `ToolCallCard` without an AI turn.
+- **Chat elements overlap enough to defeat Playwright actionability.**
+  Expanding a tool card via `locator.click()` fails with `_reasoningToggle_`
+  / `_messages_` "intercepts pointer events"; call the DOM `.click()` inside
+  `page.evaluate` instead.
 - `[role=dialog]` matches the **off-canvas nav drawer**, not just real
   modals. Scope with `.closest('[role=dialog]')` from an element already
   inside your target modal, never query `[role=dialog]` directly.
