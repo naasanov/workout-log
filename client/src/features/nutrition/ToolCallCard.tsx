@@ -162,18 +162,8 @@ function SourceBadge({ source }: { source: string }) {
   const color = SOURCE_BADGE_COLOR[source] ?? '#6b6b6b';
   return (
     <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        flexShrink: 0,
-        padding: '1px 6px',
-        borderRadius: 4,
-        fontSize: 10,
-        fontWeight: 600,
-        letterSpacing: '0.02em',
-        color,
-        backgroundColor: `${color}22`,
-      }}
+      className={styles.sourceBadge}
+      style={{ color, backgroundColor: `${color}22` }}
     >
       {label}
     </span>
@@ -208,13 +198,13 @@ function ResultRow({ item }: { item: ResultLike }) {
     ? [item.serving_label, availabilityLabel(item.availability)].filter(Boolean).join(' · ')
     : caloriesLabel(item);
   return (
-    <li style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+    <li className={styles.resultRow}>
+      <div className={styles.resultRowTop}>
         <SourceBadge source={isUnc ? 'unc' : (item as FoodResultLike).source} />
-        <span style={{ fontSize: 12, fontWeight: 500 }}>{item.name}</span>
+        <span className={styles.resultName}>{item.name}</span>
       </div>
       {detail && (
-        <span style={{ fontSize: 11, opacity: 0.6 }}>{detail}</span>
+        <span className={styles.resultDetail}>{detail}</span>
       )}
     </li>
   );
@@ -324,7 +314,7 @@ export default function ToolCallCard({ part }: ToolCallCardProps) {
         {isDone && resultItems && resultItems.length > 0 && (
           <div className={styles.section}>
             <span className={styles.sectionLabel}>Results</span>
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <ul className={styles.resultsList}>
               {resultItems.map((item, i) => (
                 <ResultRow key={i} item={item} />
               ))}
