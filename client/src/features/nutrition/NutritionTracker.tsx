@@ -440,6 +440,18 @@ export default function NutritionTracker() {
                 <ProgressBar value={totals.fat_g} goal={goals.fat_g} />
               </div>
             )}
+
+            {goals.fiber_g != null && (
+              <div className={styles.macroItem}>
+                <div className={styles.macroHeader}>
+                  <span className={styles.macroName}>Fiber</span>
+                  <span className={styles.macroValue}>
+                    {Math.round(totals.fiber_g)}g / {goals.fiber_g}g
+                  </span>
+                </div>
+                <ProgressBar value={totals.fiber_g} goal={goals.fiber_g} />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -481,6 +493,7 @@ export default function NutritionTracker() {
                   <span className={styles.chip}>{Math.round(entry.protein_g)}g P</span>
                   <span className={styles.chip}>{Math.round(entry.carbs_g)}g C</span>
                   <span className={styles.chip}>{Math.round(entry.fat_g)}g F</span>
+                  <span className={styles.chip}>{Math.round(entry.fiber_g ?? 0)}g Fb</span>
                 </div>
               </div>
             </div>

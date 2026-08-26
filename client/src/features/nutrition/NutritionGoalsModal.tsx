@@ -30,6 +30,7 @@ export default function NutritionGoalsModal({ open, onClose }: NutritionGoalsMod
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
+  const [fiber, setFiber] = useState('');
 
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -41,6 +42,7 @@ export default function NutritionGoalsModal({ open, onClose }: NutritionGoalsMod
     setProtein(g.protein_g != null ? String(g.protein_g) : '');
     setCarbs(g.carbs_g != null ? String(g.carbs_g) : '');
     setFat(g.fat_g != null ? String(g.fat_g) : '');
+    setFiber(g.fiber_g != null ? String(g.fiber_g) : '');
     setSaveError(null);
   }, [open, goalsQuery.data]);
 
@@ -51,6 +53,7 @@ export default function NutritionGoalsModal({ open, onClose }: NutritionGoalsMod
       protein_g: parseGoalValue(protein),
       carbs_g: parseGoalValue(carbs),
       fat_g: parseGoalValue(fat),
+      fiber_g: parseGoalValue(fiber),
     };
     try {
       await putGoals.mutateAsync(goals);
@@ -146,6 +149,23 @@ export default function NutritionGoalsModal({ open, onClose }: NutritionGoalsMod
               placeholder="e.g. 70"
               value={fat}
               onChange={e => setFat(e.target.value)}
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="goal-fiber">
+              Fiber (g)
+            </label>
+            <input
+              id="goal-fiber"
+              className={styles.input}
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="1"
+              placeholder="e.g. 30"
+              value={fiber}
+              onChange={e => setFiber(e.target.value)}
             />
           </div>
         </div>
