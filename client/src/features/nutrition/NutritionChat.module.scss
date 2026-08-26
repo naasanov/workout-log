@@ -61,7 +61,11 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  padding: 8px 0 6px;
+  // #283: 44px min-height (Apple HIG touch target) so the handle is reliably
+  // grabbable; touch-action:none over that whole area (not just the 4px pill)
+  // claims more of the swipe from iOS's home-indicator gesture.
+  min-height: 44px;
+  padding: 18px 0 22px;
   background: transparent;
   border: none;
   cursor: grab;
@@ -916,18 +920,10 @@
   gap: 6px;
   padding: 4px 12px 10px;
 
-  // #268 — flush-to-edge (just the 10px above + .sheet's own safe-area
-  // padding, which is 0 on a device that reports a zero inset) put the
-  // composer's tap target right where an upward swipe near the bottom edge
-  // is grabbed by the OS home-gesture/back-swipe instead of the button, so
-  // reopening the composer after it auto-hid could dismiss the app instead.
-  // `env(safe-area-inset-bottom)` is added again here (on top of .sheet's
-  // own) because the fixed constant is what actually fixes a *zero*-inset
-  // phone; keeping env() alongside it means a notched phone still scales
-  // correctly rather than relying on the constant alone. Mobile-only —
-  // desktop pointer input doesn't have this gesture-collision problem, so
-  // it's reset back to the plain 10px below.
-  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px) + 10px);
+  // #268 — flush to the bottom of the sheet, clear of the home indicator via
+  // `env(safe-area-inset-bottom)` (0 on a zero-inset device, where the plain
+  // 10px base still applies). Mobile-only; desktop resets it below.
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
 
   @media (min-width: #{vars.$mobile-width + 1px}) {
     padding-bottom: 10px;

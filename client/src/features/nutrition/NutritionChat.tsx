@@ -291,7 +291,14 @@ function stripCitationTokens(text: string): string {
     // Also strip bare "turn0search1"-style tokens with no leading "cite" that
     // sometimes leak straight into the rendered text, e.g. "turn0search1",
     // "turn1view1", "turn0news2" (optionally preceded by a stray space).
-    .replace(/ ?\bturn\d+[a-z]+\d+\b/gi, '');
+    // Matches a run of one or more such tokens as a single unit (#281): back-to-back
+    // tokens like "turn3view2turn1view1" have no word boundary at the seam between
+    // them, so a \b-anchored match only catches the first one and leaves the rest.
+    .replace(/ ?(?:turn\d+[a-z]+\d+)+/gi, '')
+    // Collapse any double spaces left behind by a removed token and trim
+    // trailing whitespace so the sentence doesn't end with a dangling space.
+    .replace(/ {2,}/g, ' ')
+    .replace(/\s+$/, '');
 }
 
 // ---------------------------------------------------------------------------
