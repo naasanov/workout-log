@@ -21,6 +21,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
 } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import BarcodeScanner from './BarcodeScanner';
@@ -67,14 +68,78 @@ interface SearchDropdownProps {
   onSelect: (food: FoodSearchResult) => void;
 }
 
+// #284 — a tap must be told apart from the start of a scroll drag: commit
+// selection on release only if the pointer stayed within this radius and
+// the press was short, otherwise treat it as a scroll.
+const TAP_SLOP_PX = 9;
+const TAP_MAX_MS = 500;
+
+interface PendingPress {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  startScrollTop: number;
+  startTime: number;
+  food: FoodSearchResult;
+}
+
 function SearchDropdown({ query, onSelect }: SearchDropdownProps) {
   const debouncedQuery = useDebounce(query, 300);
   const { data: results = [], isFetching } = useFoodSearch(debouncedQuery);
+  const listRef = useRef<HTMLUListElement>(null);
+  const pressRef = useRef<PendingPress | null>(null);
 
   if (!query.trim() || (results.length === 0 && !isFetching)) return null;
 
+  function handlePointerDown(e: React.PointerEvent<HTMLLIElement>, food: FoodSearchResult) {
+    // Stops the name input's onBlur from closing the dropdown before a
+    // selection lands. Selection itself is deferred to pointerup below.
+    e.preventDefault();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Pointer capture isn't available in every environment; the tap/scroll
+      // logic below still works without it, just less robustly mid-drag.
+    }
+    pressRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startScrollTop: listRef.current?.scrollTop ?? 0,
+      startTime: Date.now(),
+      food,
+    };
+  }
+
+  function handlePointerMove(e: React.PointerEvent<HTMLLIElement>) {
+    const press = pressRef.current;
+    if (!press || e.pointerId !== press.pointerId || !listRef.current) return;
+    const dx = e.clientX - press.startX;
+    const dy = e.clientY - press.startY;
+    // preventDefault() on pointerdown suppresses the browser's native scroll
+    // gesture for this touch, so once the drag passes the tap threshold the
+    // list has to be scrolled by hand to keep scrolling working at all.
+    if (Math.abs(dx) > TAP_SLOP_PX || Math.abs(dy) > TAP_SLOP_PX) {
+      listRef.current.scrollTop = press.startScrollTop - dy;
+    }
+  }
+
+  function handlePointerUp(e: React.PointerEvent<HTMLLIElement>) {
+    const press = pressRef.current;
+    pressRef.current = null;
+    if (!press || e.pointerId !== press.pointerId) return;
+    const dist = Math.hypot(e.clientX - press.startX, e.clientY - press.startY);
+    if (dist < TAP_SLOP_PX && Date.now() - press.startTime < TAP_MAX_MS) {
+      onSelect(press.food);
+    }
+  }
+
+  function handlePointerCancel(e: React.PointerEvent<HTMLLIElement>) {
+    if (pressRef.current?.pointerId === e.pointerId) pressRef.current = null;
+  }
+
   return (
-    <ul className={styles.dropdown} role="listbox">
+    <ul className={styles.dropdown} role="listbox" ref={listRef}>
       {isFetching && <li className={styles.dropdownHint}>Searching…</li>}
       {!isFetching && results.length === 0 && (
         <li className={styles.dropdownHint}>No results</li>
@@ -85,9 +150,16 @@ function SearchDropdown({ query, onSelect }: SearchDropdownProps) {
           className={styles.dropdownItem}
           role="option"
           aria-selected={false}
-          onPointerDown={e => {
-            e.preventDefault();
-            onSelect(food);
+          tabIndex={0}
+          onPointerDown={e => handlePointerDown(e, food)}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerCancel}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onSelect(food);
+            }
           }}
         >
           <span className={styles.dropdownName}>{food.name}</span>
@@ -724,32 +796,42 @@ export function IngredientCardList({ rows, onEditRow }: IngredientCardListProps)
           aria-label={`Edit ${row.name || 'ingredient'}`}
         >
           <div className={styles.cardContent}>
-            <span className={styles.cardName}>
-              {row.name || <span style={{ opacity: 0.4 }}>Untitled ingredient</span>}
-            </span>
-            <div className={styles.cardMacros}>
-              <span className={styles.cardCalories}>
-                {Math.round(row.calories)} kcal
+            {/* #286 — deterministic two-row layout: row 1 is name (truncating)
+                against kcal + grams, row 2 is the macro chips. This shape is
+                identical at every viewport width, so nothing wraps between a
+                wide and narrow card — only the name itself ever truncates. */}
+            <div className={styles.cardTopRow}>
+              <span className={styles.cardName}>
+                {row.name || <span style={{ opacity: 0.4 }}>Untitled ingredient</span>}
               </span>
-              {/* #259 — row.grams is null for a serving-basis row (e.g. UNC
-                  dining items priced per serving, not per weight — see the
-                  basis comments in ingredientMath.ts). Rendering `0g` there
-                  would read as "0g of food" rather than "not applicable", so
-                  mirror EntryEditor's Totals treatment: fall back to the
-                  serving amount, then to an em dash. Don't "simplify" this
-                  back to `round2(row.grams)}g`. */}
-              <span className={styles.cardGrams}>
-                {row.grams != null
-                  ? `${round2(row.grams)}g`
-                  : row.quantity > 0
-                    ? `${round2(row.quantity)} ${row.unitLabel || 'serving'}`
-                    : '—'}
+              <span className={styles.cardStats}>
+                <span className={styles.cardCalories}>
+                  {Math.round(row.calories)} kcal
+                </span>
+                {/* #259 — row.grams is null for a serving-basis row (e.g. UNC
+                    dining items priced per serving, not per weight — see the
+                    basis comments in ingredientMath.ts). Rendering `0g` there
+                    would read as "0g of food" rather than "not applicable", so
+                    mirror EntryEditor's Totals treatment: fall back to the
+                    serving amount, then to an em dash. Don't "simplify" this
+                    back to `round2(row.grams)}g`. */}
+                <span className={styles.cardGrams}>
+                  {row.grams != null
+                    ? `${round2(row.grams)}g`
+                    : row.quantity > 0
+                      ? `${round2(row.quantity)} ${row.unitLabel || 'serving'}`
+                      : '—'}
+                </span>
               </span>
-              <div className={styles.macroChips}>
-                <span className={styles.chip}>P {round2(row.protein_g)}g</span>
-                <span className={styles.chip}>C {round2(row.carbs_g)}g</span>
-                <span className={styles.chip}>F {round2(row.fat_g)}g</span>
-              </div>
+            </div>
+            <div className={styles.macroChips}>
+              <span className={styles.chip}>P {round2(row.protein_g)}g</span>
+              <span className={styles.chip}>C {round2(row.carbs_g)}g</span>
+              <span className={styles.chip}>F {round2(row.fat_g)}g</span>
+              {/* #285 — always visible (Fb 0g when null/zero), the point of the
+                  new layout is a stable four-chip row rather than one that
+                  reflows depending on which macros are present. */}
+              <span className={styles.chip}>Fb {round2(row.fiber_g ?? 0)}g</span>
             </div>
           </div>
           <ChevronRight
