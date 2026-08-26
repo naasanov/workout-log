@@ -378,9 +378,15 @@
   gap: 2px;
   padding: 10px 14px;
   cursor: pointer;
+  touch-action: none; // #284: scrolling is driven manually to discriminate tap from drag
 
   &:active {
     background-color: rgba(vars.$primary, 0.12);
+  }
+
+  &:focus-visible {
+    outline: 2px solid vars.$primary;
+    outline-offset: -2px;
   }
 }
 
@@ -459,12 +465,21 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 5px;
+  align-items: stretch;
+  gap: 6px;
+}
+
+// #286: row 1 — name (truncating) against kcal + grams. Structurally
+// identical at every width: only .cardName ever truncates, nothing wraps.
+.cardTopRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .cardName {
-  align-self: stretch;
+  flex: 1;
+  min-width: 0;
   text-align: left;
   font-size: 15px;
   font-weight: 600;
@@ -475,17 +490,12 @@
   text-overflow: ellipsis;
 }
 
-.cardMacros {
-  // #180: without align-self:stretch this flex item (a child of the column
-  // .cardContent) only shrinks to fit its content width — same as .cardName
-  // needs it above — leaving .macroChips no spare row width for its own
-  // margin-left:auto to push into, so the chips never actually reach the
-  // right edge.
-  align-self: stretch;
+// kcal + grams, pinned to the right of row 1.
+.cardStats {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .cardCalories {
@@ -497,9 +507,7 @@
 }
 
 // #259: total grams (or serving amount for a null-grams serving row),
-// alongside kcal. Muted vs. .cardCalories so kcal stays the visual anchor;
-// flex-shrink:0 + nowrap so it can't be squeezed/broken at 320px — .cardMacros
-// already wraps .macroChips onto its own line first when space runs out.
+// alongside kcal. Muted vs. .cardCalories so kcal stays the visual anchor.
 .cardGrams {
   font-size: 12px;
   letter-spacing: vars.$sarabun-spacing;
@@ -508,24 +516,20 @@
   flex-shrink: 0;
 }
 
+// #286: row 2 — all four macro chips, left-aligned, full width, always on
+// their own row regardless of viewport (no wrap-dependent reflow).
 .macroChips {
   display: flex;
   gap: 4px;
-  flex-wrap: wrap;
-  // #153: push the P/C/F chips to the right edge of the card, keeping kcal
-  // (and the title above it) left-aligned. Still wraps onto its own line on
-  // very narrow widths without overflowing, since it stays within .cardMacros.
-  margin-left: auto;
-  justify-content: flex-end;
 }
 
 .chip {
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.6);
   background-color: rgba(vars.$text, 0.08);
   border-radius: 5px;
-  padding: 2px 7px;
+  padding: 2px 6px;
   white-space: nowrap;
 }
 
