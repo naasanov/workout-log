@@ -21,7 +21,6 @@ import {
   useState,
   useEffect,
   useCallback,
-  useRef,
 } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import BarcodeScanner from './BarcodeScanner';
@@ -68,78 +67,14 @@ interface SearchDropdownProps {
   onSelect: (food: FoodSearchResult) => void;
 }
 
-// #284 — a tap must be told apart from the start of a scroll drag: commit
-// selection on release only if the pointer stayed within this radius and
-// the press was short, otherwise treat it as a scroll.
-const TAP_SLOP_PX = 9;
-const TAP_MAX_MS = 500;
-
-interface PendingPress {
-  pointerId: number;
-  startX: number;
-  startY: number;
-  startScrollTop: number;
-  startTime: number;
-  food: FoodSearchResult;
-}
-
 function SearchDropdown({ query, onSelect }: SearchDropdownProps) {
   const debouncedQuery = useDebounce(query, 300);
   const { data: results = [], isFetching } = useFoodSearch(debouncedQuery);
-  const listRef = useRef<HTMLUListElement>(null);
-  const pressRef = useRef<PendingPress | null>(null);
 
   if (!query.trim() || (results.length === 0 && !isFetching)) return null;
 
-  function handlePointerDown(e: React.PointerEvent<HTMLLIElement>, food: FoodSearchResult) {
-    // Stops the name input's onBlur from closing the dropdown before a
-    // selection lands. Selection itself is deferred to pointerup below.
-    e.preventDefault();
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {
-      // Pointer capture isn't available in every environment; the tap/scroll
-      // logic below still works without it, just less robustly mid-drag.
-    }
-    pressRef.current = {
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      startScrollTop: listRef.current?.scrollTop ?? 0,
-      startTime: Date.now(),
-      food,
-    };
-  }
-
-  function handlePointerMove(e: React.PointerEvent<HTMLLIElement>) {
-    const press = pressRef.current;
-    if (!press || e.pointerId !== press.pointerId || !listRef.current) return;
-    const dx = e.clientX - press.startX;
-    const dy = e.clientY - press.startY;
-    // preventDefault() on pointerdown suppresses the browser's native scroll
-    // gesture for this touch, so once the drag passes the tap threshold the
-    // list has to be scrolled by hand to keep scrolling working at all.
-    if (Math.abs(dx) > TAP_SLOP_PX || Math.abs(dy) > TAP_SLOP_PX) {
-      listRef.current.scrollTop = press.startScrollTop - dy;
-    }
-  }
-
-  function handlePointerUp(e: React.PointerEvent<HTMLLIElement>) {
-    const press = pressRef.current;
-    pressRef.current = null;
-    if (!press || e.pointerId !== press.pointerId) return;
-    const dist = Math.hypot(e.clientX - press.startX, e.clientY - press.startY);
-    if (dist < TAP_SLOP_PX && Date.now() - press.startTime < TAP_MAX_MS) {
-      onSelect(press.food);
-    }
-  }
-
-  function handlePointerCancel(e: React.PointerEvent<HTMLLIElement>) {
-    if (pressRef.current?.pointerId === e.pointerId) pressRef.current = null;
-  }
-
   return (
-    <ul className={styles.dropdown} role="listbox" ref={listRef}>
+    <ul className={styles.dropdown} role="listbox">
       {isFetching && <li className={styles.dropdownHint}>Searching…</li>}
       {!isFetching && results.length === 0 && (
         <li className={styles.dropdownHint}>No results</li>
@@ -151,10 +86,13 @@ function SearchDropdown({ query, onSelect }: SearchDropdownProps) {
           role="option"
           aria-selected={false}
           tabIndex={0}
-          onPointerDown={e => handlePointerDown(e, food)}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerCancel}
+          // #284 — click fires on a real tap but never at the end of a scroll
+          // drag, so the browser discriminates the two and native momentum
+          // scrolling stays intact. mousedown is prevented so the name input
+          // keeps focus; its 150ms blur delay keeps the dropdown mounted long
+          // enough for the click to land.
+          onMouseDown={e => e.preventDefault()}
+          onClick={() => onSelect(food)}
           onKeyDown={e => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();

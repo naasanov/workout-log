@@ -378,7 +378,6 @@
   gap: 2px;
   padding: 10px 14px;
   cursor: pointer;
-  touch-action: none; // #284: scrolling is driven manually to discriminate tap from drag
 
   &:active {
     background-color: rgba(vars.$primary, 0.12);
