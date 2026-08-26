@@ -3,7 +3,7 @@
 //
 // CONTRACT (signatures fixed in design; S1 fills in the bodies):
 //   - searchFoods: query USDA FDC foods/search (api key from process.env.USDA_FDC_API_KEY,
-//     dataType=Foundation,SR Legacy,Survey (FNDDS), pageSize=5), map the best matches to
+//     dataType=Foundation,SR Legacy,Survey (FNDDS),Branded, pageSize=25), map the best matches to
 //     FoodSearchResult via a lightweight token-overlap scorer (normalize, Dice/Jaccard,
 //     bonus for Foundation/SR Legacy, penalty for very long descriptions); fall back to an
 //     OFF text search if FDC returns nothing. Extract per-100g macros by nutrient number
@@ -16,11 +16,32 @@ import { searchCustomFoods } from './store';
 
 const USER_AGENT = 'WorkoutLogApp/1.0 (nutrition tracker; contact: admin@example.com)';
 
+// Matches scripts that are never usable as an English food name (Cyrillic, Arabic,
+// Devanagari, CJK, Hangul, Thai). Used to drop OFF results with no English name at all.
+const NON_LATIN_SCRIPT = /[Ѐ-ӿ؀-ۿऀ-ॿ぀-ヿ一-鿿가-힯฀-๿]/;
+
 // In-memory cache: source_ref → FoodSearchResult
 const cache = new Map<string, FoodSearchResult>();
 
 // In-memory cache for portions: "source:ref" → FoodPortion[]
 const portionsCache = new Map<string, FoodPortion[]>();
+
+let warnedMissingUsdaKey = false;
+
+/** Resolve the USDA FDC api key, warning once (module lifetime) if it falls back
+ *  to the shared DEMO_KEY, which USDA rate-limits to 30 requests/hour/IP (#282). */
+function getUsdaApiKey(): string {
+  const key = process.env.USDA_FDC_API_KEY;
+  if (key) return key;
+  if (!warnedMissingUsdaKey) {
+    warnedMissingUsdaKey = true;
+    console.warn(
+      '[nutrition/providers] USDA_FDC_API_KEY is unset; falling back to DEMO_KEY ' +
+        '(rate-limited to 30 requests/hour/IP by USDA).',
+    );
+  }
+  return 'DEMO_KEY';
+}
 
 /** Normalize a string to a set of lowercase tokens. */
 export function tokenize(str: string): Set<string> {
@@ -47,8 +68,10 @@ export function diceScore(a: Set<string>, b: Set<string>): number {
 function scoreResult(name: string, queryTokens: Set<string>, dataType?: string): number {
   const nameTokens = tokenize(name);
   let score = diceScore(queryTokens, nameTokens);
-  // bonus for preferred data types
+  // bonus for preferred data types; Branded ranks below Foundation/SR Legacy/FNDDS
+  // so a generic query like "apple" still prefers the plain fruit over a branded product (#282)
   if (dataType === 'Foundation' || dataType === 'SR Legacy') score += 0.1;
+  else if (dataType === 'Branded') score -= 0.1;
   // penalty for very long descriptions (likely composite or branded)
   if (name.length > 80) score -= 0.1;
   return score;
@@ -111,25 +134,38 @@ function mapUsdaFood(food: any, queryTokens: Set<string>): FoodSearchResult | nu
   }
 }
 
-/** OFF text search fallback. */
+/** OFF text search fallback. Requests English-locale/US-country results and prefers
+ *  the English product name, since OFF is French-origin and a bare query otherwise
+ *  surfaces French-language products (#284). */
 async function searchOFF(query: string): Promise<FoodSearchResult[]> {
   try {
     const url =
       `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}` +
-      `&search_simple=1&action=process&json=1&page_size=5&fields=product_name,nutriments,serving_quantity`;
+      `&search_simple=1&action=process&json=1&page_size=5&lc=en&cc=us` +
+      `&fields=product_name,product_name_en,nutriments,serving_quantity,countries_tags`;
     const resp = await fetch(url, {
       headers: { 'User-Agent': USER_AGENT },
       signal: AbortSignal.timeout(8000),
     });
-    if (!resp.ok) return [];
+    if (!resp.ok) {
+      console.warn(`[nutrition/providers] OFF search returned ${resp.status} for query "${query}"`);
+      return [];
+    }
     const data: any = await resp.json();
     const products: any[] = data.products ?? [];
-    const results: FoodSearchResult[] = [];
+    // Pair each mapped result with whether it's explicitly US/English-tagged, so those
+    // can be sorted ahead of the rest while keeping OFF's own relevance order otherwise.
+    const candidates: Array<{ result: FoodSearchResult; isUsTagged: boolean }> = [];
 
     for (const p of products) {
       try {
-        const name: string = p.product_name ?? '';
+        const nameEn: string = (p.product_name_en ?? '').trim();
+        const nameRaw: string = (p.product_name ?? '').trim();
+        const name = nameEn || nameRaw;
         if (!name) continue;
+        // No English name available: skip if the raw name isn't even Latin-script text.
+        if (!nameEn && NON_LATIN_SCRIPT.test(nameRaw)) continue;
+
         const n = p.nutriments ?? {};
         const calories = n['energy-kcal_100g'] ?? n['energy_100g'];
         if (calories === undefined || calories === null) continue;
@@ -151,33 +187,52 @@ async function searchOFF(query: string): Promise<FoodSearchResult[]> {
           serving_grams: p.serving_quantity ? Number(p.serving_quantity) : null,
         };
         cache.set(String(sourceRef), result);
-        results.push(result);
+        const countriesTags: string[] = Array.isArray(p.countries_tags) ? p.countries_tags : [];
+        candidates.push({ result, isUsTagged: countriesTags.includes('en:united-states') });
       } catch {
         // skip bad product
       }
     }
-    return results;
-  } catch {
+    candidates.sort((a, b) => Number(b.isUsTagged) - Number(a.isUsTagged));
+    return candidates.map((c) => c.result);
+  } catch (err) {
+    console.warn(`[nutrition/providers] OFF search failed for query "${query}":`, err);
     return [];
   }
 }
 
-/** One USDA FDC search attempt → mapped + ranked results (empty on any failure). */
+/** Result of one USDA FDC search attempt. rateLimited is set on a 429 so the caller
+ *  can skip straight to the OFF fallback instead of burning quota on a retry (#282). */
+type UsdaSearchOutcome = { results: FoodSearchResult[]; rateLimited: boolean };
+
+/** One USDA FDC search attempt → mapped + ranked results (empty on any failure).
+ *  Includes Branded so restaurant/branded-only items (e.g. hibachi sauce) aren't
+ *  dropped just because they're absent from the curated Foundation/SR Legacy/FNDDS sets. */
 async function searchUsdaOnce(
   query: string,
   apiKey: string,
   queryTokens: Set<string>,
-): Promise<FoodSearchResult[]> {
+): Promise<UsdaSearchOutcome> {
   try {
     const url =
       `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(apiKey)}` +
       `&query=${encodeURIComponent(query)}` +
-      `&dataType=Foundation,SR%20Legacy,Survey%20(FNDDS)&pageSize=10`;
+      `&dataType=Foundation,SR%20Legacy,Survey%20(FNDDS),Branded&pageSize=25`;
     const resp = await fetch(url, {
       headers: { 'User-Agent': USER_AGENT },
       signal: AbortSignal.timeout(8000),
     });
-    if (!resp.ok) return [];
+    if (!resp.ok) {
+      if (resp.status === 429) {
+        console.warn(
+          `[nutrition/providers] USDA FDC search rate-limited (429) for query "${query}"; ` +
+            'falling back to OFF instead of retrying.',
+        );
+        return { results: [], rateLimited: true };
+      }
+      console.warn(`[nutrition/providers] USDA FDC search returned ${resp.status} for query "${query}"`);
+      return { results: [], rateLimited: false };
+    }
     const data: any = await resp.json();
     const foods: any[] = data.foods ?? [];
     const mapped: Array<{ result: FoodSearchResult; score: number }> = [];
@@ -187,24 +242,27 @@ async function searchUsdaOnce(
       mapped.push({ result, score: scoreResult(result.name, queryTokens, food.dataType) });
     }
     mapped.sort((a, b) => b.score - a.score);
-    return mapped.slice(0, 5).map((m) => m.result);
-  } catch {
-    return [];
+    return { results: mapped.slice(0, 5).map((m) => m.result), rateLimited: false };
+  } catch (err) {
+    console.warn(`[nutrition/providers] USDA FDC search failed for query "${query}":`, err);
+    return { results: [], rateLimited: false };
   }
 }
 
 /** USDA + OFF text search → ranked candidate foods with per-100g macros. */
 export async function searchFoods(query: string): Promise<FoodSearchResult[]> {
-  const apiKey = process.env.USDA_FDC_API_KEY ?? 'DEMO_KEY';
+  const apiKey = getUsdaApiKey();
   const queryTokens = tokenize(query);
 
-  // USDA FDC search is intermittently flaky/rate-limited — retry once on empty
+  // USDA FDC search is intermittently flaky — retry once on a genuinely empty response
   // before falling back to Open Food Facts (which is weak for generic whole foods).
-  let results = await searchUsdaOnce(query, apiKey, queryTokens);
-  if (results.length === 0) {
+  // A 429 skips the retry entirely, since retrying would just burn the remaining quota.
+  let outcome = await searchUsdaOnce(query, apiKey, queryTokens);
+  if (outcome.results.length === 0 && !outcome.rateLimited) {
     await new Promise((r) => setTimeout(r, 250));
-    results = await searchUsdaOnce(query, apiKey, queryTokens);
+    outcome = await searchUsdaOnce(query, apiKey, queryTokens);
   }
+  let results = outcome.results;
   if (results.length === 0) {
     results = await searchOFF(query);
   }
@@ -225,13 +283,18 @@ export async function getPortions(source: 'usda' | 'off', ref: string): Promise<
 
   // USDA: fetch the full food detail record
   try {
-    const apiKey = process.env.USDA_FDC_API_KEY ?? 'DEMO_KEY';
+    const apiKey = getUsdaApiKey();
     const url = `https://api.nal.usda.gov/fdc/v1/food/${encodeURIComponent(ref)}?api_key=${encodeURIComponent(apiKey)}`;
     const resp = await fetch(url, {
       headers: { 'User-Agent': USER_AGENT },
       signal: AbortSignal.timeout(8000),
     });
     if (!resp.ok) {
+      if (resp.status === 429) {
+        console.warn(`[nutrition/providers] USDA FDC portions rate-limited (429) for fdcId ${ref}`);
+      } else {
+        console.warn(`[nutrition/providers] USDA FDC portions request returned ${resp.status} for fdcId ${ref}`);
+      }
       portionsCache.set(cacheKey, []);
       return [];
     }
@@ -294,7 +357,8 @@ export async function getPortions(source: 'usda' | 'off', ref: string): Promise<
 
     portionsCache.set(cacheKey, result);
     return result;
-  } catch {
+  } catch (err) {
+    console.warn(`[nutrition/providers] USDA FDC portions request failed for fdcId ${ref}:`, err);
     portionsCache.set(cacheKey, []);
     return [];
   }
