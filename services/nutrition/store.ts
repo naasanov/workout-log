@@ -329,13 +329,13 @@ export async function deleteEntry(userUuid: string, id: number): Promise<boolean
 /** Read goals (returns an all-null object if none set). */
 export async function getGoals(userUuid: string): Promise<Goals> {
   const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT calories, protein_g, carbs_g, fat_g
+    `SELECT calories, protein_g, carbs_g, fat_g, fiber_g
      FROM nutrition_goals
      WHERE user_uuid = UUID_TO_BIN(?)`,
     [userUuid],
   );
   if (rows.length === 0) {
-    return { calories: null, protein_g: null, carbs_g: null, fat_g: null };
+    return { calories: null, protein_g: null, carbs_g: null, fat_g: null, fiber_g: null };
   }
   const row = rows[0];
   return {
@@ -343,25 +343,28 @@ export async function getGoals(userUuid: string): Promise<Goals> {
     protein_g: row.protein_g ?? null,
     carbs_g: row.carbs_g ?? null,
     fat_g: row.fat_g ?? null,
+    fiber_g: row.fiber_g ?? null,
   };
 }
 
 /** Upsert goals by user_uuid; returns the stored goals. */
 export async function putGoals(userUuid: string, goals: Goals): Promise<Goals> {
   await pool.query(
-    `INSERT INTO nutrition_goals (user_uuid, calories, protein_g, carbs_g, fat_g)
-     VALUES (UUID_TO_BIN(?), ?, ?, ?, ?)
+    `INSERT INTO nutrition_goals (user_uuid, calories, protein_g, carbs_g, fat_g, fiber_g)
+     VALUES (UUID_TO_BIN(?), ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
        calories = VALUES(calories),
        protein_g = VALUES(protein_g),
        carbs_g = VALUES(carbs_g),
-       fat_g = VALUES(fat_g)`,
+       fat_g = VALUES(fat_g),
+       fiber_g = VALUES(fiber_g)`,
     [
       userUuid,
       goals.calories ?? null,
       goals.protein_g ?? null,
       goals.carbs_g ?? null,
       goals.fat_g ?? null,
+      goals.fiber_g ?? null,
     ],
   );
   return getGoals(userUuid);

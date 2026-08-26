@@ -433,20 +433,28 @@
   flex-shrink: 0;
 }
 
-// #101: kcal on left, P/C/F chips pushed right
+// #101: kcal on left, macro chips pushed right.
+// #285: min-width: 0 overrides the flex item's default content-based min
+// width, which otherwise forces this row wider than the card once a fourth chip is added.
 .macroChips {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 5px;
+  min-width: 0;
 }
 
-// Sub-container for the three macro chips so they stay grouped on the right
+// Sub-container for the macro chips so they stay grouped on the right.
+// Wraps onto its own line (right-aligned) rather than overflowing when kcal
+// + all chips don't fit on one line at narrow widths.
 .macroChipsGroup {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 5px;
-  flex-shrink: 0;
+  min-width: 0;
 }
 
 .chip {

@@ -108,6 +108,7 @@ export const goalsSchema = z.object({
   protein_g: z.number().nonnegative().nullable().optional(),
   carbs_g: z.number().nonnegative().nullable().optional(),
   fat_g: z.number().nonnegative().nullable().optional(),
+  fiber_g: z.number().nonnegative().nullable().optional(),
 });
 
 export const foodSearchResultSchema = z

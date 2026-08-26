@@ -172,6 +172,7 @@ export interface Goals {
   protein_g?: number | null;
   carbs_g?: number | null;
   fat_g?: number | null;
+  fiber_g?: number | null;
 }
 
 // ---- EntryEditor props contract (S2 implements the component) ----
