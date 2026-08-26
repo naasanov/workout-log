@@ -291,7 +291,17 @@ function stripCitationTokens(text: string): string {
     // Also strip bare "turn0search1"-style tokens with no leading "cite" that
     // sometimes leak straight into the rendered text, e.g. "turn0search1",
     // "turn1view1", "turn0news2" (optionally preceded by a stray space).
-    .replace(/ ?\bturn\d+[a-z]+\d+\b/gi, '');
+    // Matches a run of one or more such tokens as a single unit (#281): back-to-back
+    // tokens like "turn3view2turn1view1" have no word boundary at the seam between
+    // them, so a \b-anchored match only catches the first one and leaves the rest.
+    // Eats one optional space on each side, putting a single space back only
+    // when the run sat between two words, so no double space is left behind.
+    .replace(/ ?(?:turn\d+[a-z]+\d+)+ ?/gi, m =>
+      m.startsWith(' ') && m.endsWith(' ') ? ' ' : '')
+    // Trailing whitespace only. A global multi-space collapse here would flatten
+    // nested list indentation, markdown hard breaks, and indented code blocks in
+    // the assistant's markdown before ReactMarkdown ever parses it.
+    .replace(/\s+$/, '');
 }
 
 // ---------------------------------------------------------------------------
