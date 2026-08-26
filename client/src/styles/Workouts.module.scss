@@ -22,11 +22,6 @@
 
   margin-bottom: 0.5rem;
   padding: 0;
-  // min-height: 78px;
-  @media (min-width: vars.$mobile-width) {
-    // padding: 17px 32px;
-    // max-height: 65px;
-  }
   border-radius: vars.$border-radius;
 
   letter-spacing: vars.$sarabun-spacing;
@@ -36,6 +31,11 @@
     family: "Sarabun", sans-serif;
     weight: 500;
     size: 26px;
+  }
+  // min-height: 78px;
+  @media (min-width: vars.$mobile-width) {
+    // padding: 17px 32px;
+    // max-height: 65px;
   }
 }
 
