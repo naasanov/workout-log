@@ -294,10 +294,13 @@ function stripCitationTokens(text: string): string {
     // Matches a run of one or more such tokens as a single unit (#281): back-to-back
     // tokens like "turn3view2turn1view1" have no word boundary at the seam between
     // them, so a \b-anchored match only catches the first one and leaves the rest.
-    .replace(/ ?(?:turn\d+[a-z]+\d+)+/gi, '')
-    // Collapse any double spaces left behind by a removed token and trim
-    // trailing whitespace so the sentence doesn't end with a dangling space.
-    .replace(/ {2,}/g, ' ')
+    // Eats one optional space on each side, putting a single space back only
+    // when the run sat between two words, so no double space is left behind.
+    .replace(/ ?(?:turn\d+[a-z]+\d+)+ ?/gi, m =>
+      m.startsWith(' ') && m.endsWith(' ') ? ' ' : '')
+    // Trailing whitespace only. A global multi-space collapse here would flatten
+    // nested list indentation, markdown hard breaks, and indented code blocks in
+    // the assistant's markdown before ReactMarkdown ever parses it.
     .replace(/\s+$/, '');
 }
 
