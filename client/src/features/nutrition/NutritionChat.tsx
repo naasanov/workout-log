@@ -46,7 +46,7 @@ import ToolCallCard, { friendlyToolName } from './ToolCallCard';
 import ConfirmModal from '../../components/ConfirmModal';
 import type { EntryInput, EntryEditorMode, ProposeEntryArgs, ProposeCustomFoodArgs, CustomFoodInput, BarcodeAttachmentData, ImageRedactedData } from './types';
 import styles from './NutritionChat.module.scss';
-import { ChevronDown, Trash2, Camera, ScanBarcode, Square, Send, Images, AlertCircle, ChevronRight, MessageSquare, ImageOff, X } from 'lucide-react';
+import { ChevronDown, Trash2, Camera, ScanBarcode, Square, Send, Images, AlertCircle, ChevronRight, MessageSquare, ImageOff, X, RefreshCw } from 'lucide-react';
 import useIsMobile from '../../hooks/useIsMobile';
 
 // ---------------------------------------------------------------------------
@@ -1367,6 +1367,28 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     if (!pollingActive) setWatchdogFired(false);
   }, [pollingActive]);
 
+  // #297: Manual reconnect — the header refresh button runs the exact same
+  // recovery as the watchdog, for a user who doesn't want to wait out
+  // STALL_THRESHOLD_MS or has no browser refresh (bookmarked mobile PWA).
+  // `reconnectInFlightRef` blocks overlapping calls from repeat taps.
+  const reconnectInFlightRef = useRef(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+
+  const handleManualReconnect = useCallback(() => {
+    if (reconnectInFlightRef.current) return;
+    reconnectInFlightRef.current = true;
+    setIsReconnecting(true);
+    setWatchdogFired(true);
+    stop(); // aborts a hung fetch; isDisconnectError() swallows the resulting AbortError
+    const date = selectedDate;
+    fetchAndApplyTranscript(date)
+      .then(applied => evaluateDangling(date, applied))
+      .finally(() => {
+        reconnectInFlightRef.current = false;
+        setIsReconnecting(false);
+      });
+  }, [selectedDate, stop, fetchAndApplyTranscript, evaluateDangling]);
+
   // #154: Clear disconnect-style errors so they don't linger in useChat state
   // once the ErrorBubble is suppressed above (the transcript poll/refetch is
   // what actually recovers the assistant reply, not this error).
@@ -1871,6 +1893,24 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
               title="Clear today's chat"
             >
               <Trash2 className={styles.clearIcon} size={16} aria-hidden="true" />
+            </button>
+
+            {/* #297: Manual escape hatch — re-runs the watchdog's recovery on demand,
+                for a user who doesn't want to wait or has no browser refresh handy. */}
+            <button
+              type="button"
+              className={styles.reconnectBtn}
+              onClick={(e) => { e.stopPropagation(); handleManualReconnect(); }}
+              onPointerDown={(e) => e.stopPropagation()}
+              disabled={isReconnecting}
+              aria-label="Reconnect"
+              title="Reconnect to the assistant"
+            >
+              <RefreshCw
+                className={`${styles.reconnectIcon} ${isReconnecting ? styles.reconnectIconSpinning : ''}`}
+                size={16}
+                aria-hidden="true"
+              />
             </button>
 
             <button
