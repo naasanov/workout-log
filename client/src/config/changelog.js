@@ -4,6 +4,18 @@
 
 export const CHANGELOG = [
   {
+    date: '2026-08-30',
+    title: 'Food search reliability, feedback screenshots, and this changelog',
+    items: [
+      'Food search now returns real results far more often instead of quietly falling back to a weaker source',
+      'Search results that share a name are no longer listed three times over, and store-brand foods now show the brand',
+      'You can attach screenshots to feedback',
+      'Added a reconnect button to the nutrition chat for when a reply stops mid-stream',
+      'Added this What’s New list',
+      'The app loads faster on repeat visits',
+    ],
+  },
+  {
     date: '2026-08-26',
     title: 'Nutrition chat and food search improvements',
     items: [

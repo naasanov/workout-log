@@ -244,9 +244,9 @@
 
   // Accessibility: 38px is under the 44px WCAG 2.5.5 / HIG tap-target
   // minimum. Expand only the invisible hit area, not the painted circle, so
-  // the header's icon row doesn't shift. .headerRight's 8px gap keeps this
-  // 44px hit area clear of .feedbackBtn's own (already 44px) box — verified
-  // no overlap.
+  // the header's icon row doesn't shift. At the mobile 4px .headerRight gap
+  // adjacent 44px hit areas overlap by 2px, accepted so the wordmark keeps
+  // the width it has left at 320px.
   &::after {
     content: '';
     position: absolute;
