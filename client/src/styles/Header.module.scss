@@ -141,6 +141,40 @@
   display: block;
 }
 
+// #295: Changelog ("what's new") icon button in the header
+.changelogBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: rgba(vars.$text, 0.55);
+  // Ensure tap target is at least 44px on mobile
+  min-width: 44px;
+  min-height: 44px;
+
+  &:active {
+    background-color: rgba(vars.$primary, 0.1);
+    color: vars.$primary;
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      background-color: rgba(vars.$primary, 0.08);
+      color: vars.$primary;
+    }
+  }
+}
+
+.changelogIcon {
+  // iOS Safari SVG fix: block on a flex child
+  display: block;
+}
+
 .authLinks {
   display: flex;
   align-items: baseline;

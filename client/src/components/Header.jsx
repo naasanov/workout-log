@@ -4,9 +4,10 @@ import { Link } from "react-router-dom";
 import { useUser } from "../context/UserProvider";
 import AccountMenu from "./AccountMenu";
 import FeedbackModal from "../features/nutrition/FeedbackModal";
+import ChangelogModal from "./ChangelogModal";
 import NavDrawer from "./NavDrawer";
 import MountainLogo from "./MountainLogo";
-import { MessageSquare, Menu } from 'lucide-react';
+import { MessageSquare, Sparkles, Menu } from 'lucide-react';
 
 /**
  * Header.
@@ -25,6 +26,7 @@ function Header({
 }) {
   const { user } = useUser();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [changelogOpen, setChangelogOpen] = useState(false);
   const [internalOpen, setInternalOpen] = useState(false);
   const [internalEditMode, setInternalEditMode] = useState(false);
 
@@ -74,6 +76,17 @@ function Header({
             </button>
           )}
 
+          {/* #295: Changelog icon button — a static client-side list with no
+              request behind it, so unlike feedback it's shown when signed out too. */}
+          <button
+            className={styles.changelogBtn}
+            onClick={() => setChangelogOpen(true)}
+            aria-label="What's new"
+            title="What's new"
+          >
+            <Sparkles className={styles.changelogIcon} size={16} aria-hidden="true" />
+          </button>
+
           <div className={styles.authLinks}>
             {user == null
               ? (
@@ -92,6 +105,12 @@ function Header({
       <FeedbackModal
         open={feedbackOpen}
         onClose={() => setFeedbackOpen(false)}
+      />
+
+      {/* #295: ChangelogModal mounted globally at app level via Header */}
+      <ChangelogModal
+        open={changelogOpen}
+        onClose={() => setChangelogOpen(false)}
       />
 
       {/* #143: Left slide-out navigation drawer */}

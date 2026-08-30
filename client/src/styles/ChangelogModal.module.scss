@@ -1,0 +1,87 @@
+@use "variables" as vars;
+
+.modalContent {
+  max-width: 420px !important;
+}
+
+.modal {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 20px 20px;
+
+  @media (max-width: vars.$mobile-width) {
+    padding: 18px 16px 16px;
+    gap: 14px;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: vars.$sarabun-spacing;
+  color: vars.$text;
+}
+
+.emptyState {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(vars.$text, 0.6);
+  letter-spacing: vars.$sarabun-spacing;
+}
+
+// Scrollable entry list, capped so the modal itself doesn't grow past the viewport
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.entry {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  &:not(:last-child) {
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(vars.$surface-border, 0.5);
+  }
+}
+
+.entryDate {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: vars.$sarabun-spacing;
+  text-transform: uppercase;
+  color: rgba(vars.$text, 0.5);
+}
+
+.entryTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: vars.$sarabun-spacing;
+  color: vars.$primary;
+}
+
+.entryItems {
+  margin: 2px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  line-height: 1.4;
+  letter-spacing: vars.$sarabun-spacing;
+  color: vars.$text;
+}
