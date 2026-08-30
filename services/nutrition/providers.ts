@@ -53,6 +53,16 @@ export function tokenize(str: string): Set<string> {
   return new Set(tokens);
 }
 
+/** Normalize a name for dedupe comparison: same normalization as tokenize() but
+ *  joined back into one string, so "APPLE", "Apple", and "apple" compare equal. */
+function normalizeForDedupe(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /** Dice coefficient between two token sets. */
 export function diceScore(a: Set<string>, b: Set<string>): number {
   if (a.size === 0 && b.size === 0) return 1;
@@ -96,7 +106,7 @@ function extractNutrients(nutrients: Array<{ nutrientId?: number; value?: number
 /** Map USDA food item to FoodSearchResult. Returns null if essential macros missing. */
 function mapUsdaFood(food: any, queryTokens: Set<string>): FoodSearchResult | null {
   try {
-    const name: string = food.description ?? '';
+    const originalName: string = food.description ?? '';
     const nutrients: Array<{ nutrientId?: number; value?: number }> = food.foodNutrients ?? [];
     const nm = extractNutrients(nutrients);
 
@@ -109,6 +119,21 @@ function mapUsdaFood(food: any, queryTokens: Set<string>): FoodSearchResult | nu
     const fat = nm[1004] ?? 0;
 
     const sourceRef = String(food.fdcId);
+
+    // Branded USDA entries often share a generic description (every store's apple
+    // is literally "APPLE"), so suffix the brand to keep otherwise-identical rows
+    // distinct. Skip when the brand is already in the description (avoids stutter
+    // like "MOTTS APPLE (Mott's)"). Prefer brandOwner, fall back to brandName.
+    let name = originalName;
+    if (food.dataType === 'Branded') {
+      const brand = [food.brandOwner, food.brandName]
+        .map((b: unknown) => (typeof b === 'string' ? b.trim() : ''))
+        .find((b: string) => b.length > 0);
+      if (brand && !originalName.toLowerCase().includes(brand.toLowerCase())) {
+        name = `${originalName} (${brand})`;
+      }
+    }
+
     const result: FoodSearchResult = {
       name,
       source: 'usda',
@@ -239,10 +264,26 @@ async function searchUsdaOnce(
     for (const food of foods) {
       const result = mapUsdaFood(food, queryTokens);
       if (!result) continue;
-      mapped.push({ result, score: scoreResult(result.name, queryTokens, food.dataType) });
+      // Score against the raw USDA description, not the brand-suffixed display
+      // name, so brand tokens don't skew the Dice coefficient.
+      mapped.push({ result, score: scoreResult(food.description ?? '', queryTokens, food.dataType) });
     }
     mapped.sort((a, b) => b.score - a.score);
-    return { results: mapped.slice(0, 5).map((m) => m.result), rateLimited: false };
+
+    // Collapse results whose display name normalizes the same (e.g. several
+    // unbranded/duplicate USDA entries all named "APPLE"), keeping the highest
+    // scoring one per name. Runs before slice(5) so 5 distinct foods survive
+    // instead of the slice being padded with duplicates of the same food.
+    const seenNames = new Set<string>();
+    const deduped: Array<{ result: FoodSearchResult; score: number }> = [];
+    for (const m of mapped) {
+      const key = normalizeForDedupe(m.result.name);
+      if (seenNames.has(key)) continue;
+      seenNames.add(key);
+      deduped.push(m);
+    }
+
+    return { results: deduped.slice(0, 5).map((m) => m.result), rateLimited: false };
   } catch (err) {
     console.warn(`[nutrition/providers] USDA FDC search failed for query "${query}":`, err);
     return { results: [], rateLimited: false };

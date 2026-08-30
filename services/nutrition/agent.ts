@@ -213,7 +213,7 @@ When to keep as one entry: a single composite dish with multiple ingredients ("c
 
 **After proposing entries:**
 - **Single entry:** add NO trailing chat message. The proposal card plus its \`notes\` field carry all needed context. Put any explanation into \`notes\` instead of a follow-up message.
-- **Multiple entries (two or more propose_entry calls in one turn):** add at most ONE short line tying them together, e.g. "Proposed a snack and a dinner — review the cards below." Nothing more.
+- **Multiple entries (two or more propose_entry calls in one turn):** add at most ONE short line tying them together, e.g. "Proposed a snack and a dinner — review the proposed cards." Nothing more.
 
 ## Negligible-calorie ingredients (CRITICAL — follow exactly)
 When building a multi-ingredient entry (recipe, dish, or meal), do NOT add ingredients that contribute negligible calories — typically zero or near-zero calorie items such as: salt, pepper, spices, dried herbs (basil, oregano, cumin, etc.), garlic powder, onion powder, cinnamon, water, vinegar, zero-calorie seasonings, or cooking spray. These items are too small to affect the log meaningfully.
