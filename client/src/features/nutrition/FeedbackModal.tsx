@@ -12,6 +12,9 @@
  * submit. The draft is plain React state (via react-hook-form's internal
  * state), so it survives close/reopen within the page session but starts
  * clean on a full reload — no localStorage involved, per product decision.
+ *
+ * #296: picked attachments follow the same #218 rule — they're plain React
+ * state that only clears after a successful submit, never on close.
  */
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -36,10 +39,60 @@ const OTHER_TOOL = 'other';
 // common "too long" case is caught client-side and never round-trips.
 const MESSAGE_MAX_LENGTH = 4000;
 
+// #296: mirrors the server's attachment cap (routes/feedback.ts).
+const MAX_ATTACHMENTS = 3;
+const ATTACHMENT_MAX_EDGE = 1024;
+const ATTACHMENT_JPEG_QUALITY = 0.8;
+
 interface FeedbackForm {
   category: FeedbackCategory;
   tool: string;
   message: string;
+}
+
+interface AttachmentDraft {
+  id: string;
+  previewUrl: string;
+  dataUrl: string | null;
+  error: string | null;
+}
+
+/**
+ * Downscale an image file to a max-1024px JPEG data URL client-side, the
+ * same shape the chat photo picker sends (see NutritionChat.tsx). Kept as a
+ * local copy here since that helper isn't exported.
+ */
+async function downscaleImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+
+      let { width, height } = img;
+      if (width > ATTACHMENT_MAX_EDGE || height > ATTACHMENT_MAX_EDGE) {
+        const ratio = Math.min(ATTACHMENT_MAX_EDGE / width, ATTACHMENT_MAX_EDGE / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('Canvas not available')); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', ATTACHMENT_JPEG_QUALITY));
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Image load failed'));
+    };
+
+    img.src = objectUrl;
+  });
 }
 
 export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
@@ -86,23 +139,101 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTab]);
 
+  // #296: picked attachments, keyed by a local id. `dataUrl` fills in once
+  // the downscale finishes; `previewUrl` (an object URL) renders immediately
+  // so the thumbnail doesn't wait on that. Survives close per #218 — see
+  // handleClose below, which never touches this.
+  const [attachments, setAttachments] = useState<AttachmentDraft[]>([]);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function clearAttachments() {
+    setAttachments((prev) => {
+      prev.forEach((a) => URL.revokeObjectURL(a.previewUrl));
+      return [];
+    });
+  }
+
+  async function handleFilesPicked(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setAttachmentError(null);
+
+    const room = MAX_ATTACHMENTS - attachments.length;
+    const picked = Array.from(files).slice(0, room);
+    if (files.length > room) {
+      setAttachmentError(`You can attach up to ${MAX_ATTACHMENTS} images.`);
+    }
+
+    const drafts: AttachmentDraft[] = picked.map((file) => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      previewUrl: URL.createObjectURL(file),
+      dataUrl: null,
+      error: null,
+    }));
+    setAttachments((prev) => [...prev, ...drafts]);
+
+    await Promise.all(picked.map(async (file, i) => {
+      const draft = drafts[i];
+      try {
+        const dataUrl = await downscaleImage(file);
+        setAttachments((prev) => prev.map((a) => (a.id === draft.id ? { ...a, dataUrl } : a)));
+      } catch {
+        setAttachments((prev) => prev.map((a) => (
+          a.id === draft.id ? { ...a, error: 'Failed to process this image.' } : a
+        )));
+      }
+    }));
+  }
+
+  // Blocks submit while any picked image is still being downscaled, so a
+  // fast tap on Send can't race ahead of it and submit without that image.
+  const attachmentsProcessing = attachments.some((a) => a.dataUrl == null && a.error == null);
+
+  function removeAttachment(id: string) {
+    setAttachments((prev) => {
+      const target = prev.find((a) => a.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((a) => a.id !== id);
+    });
+  }
+
+  // Revoke any outstanding object URLs when the modal unmounts entirely
+  // (it's mounted app-wide, so this only fires on full app teardown). Reads
+  // through a ref so the cleanup sees the latest attachments, not a stale
+  // closure from mount time.
+  const attachmentsRef = useRef(attachments);
+  attachmentsRef.current = attachments;
+  useEffect(() => () => {
+    attachmentsRef.current.forEach((a) => URL.revokeObjectURL(a.previewUrl));
+  }, []);
+
   // #218: close (Cancel / backdrop / Esc) leaves the draft untouched — only
   // the transient success/error UI state is reset. `reset()` is reserved for
-  // the post-submit path below.
+  // the post-submit path below. Picked attachments follow the same rule.
   function handleClose() {
     setSubmitted(false);
     setSubmitError(null);
+    setAttachmentError(null);
     onClose();
   }
 
   async function onSubmit(data: FeedbackForm) {
     setSubmitError(null);
     try {
-      await submitFeedback({ category: data.category, tool: data.tool, message: data.message });
+      const attachmentDataUrls = attachments
+        .map((a) => a.dataUrl)
+        .filter((url): url is string => url != null);
+      await submitFeedback({
+        category: data.category,
+        tool: data.tool,
+        message: data.message,
+        attachments: attachmentDataUrls.length > 0 ? attachmentDataUrls : undefined,
+      });
       setSubmitted(true);
       // Auto-close after 2s, clearing the draft since submission succeeded
       setTimeout(() => {
         reset({ category: 'idea', tool: currentTab, message: '' });
+        clearAttachments();
         handleClose();
       }, 2000);
     } catch (err: unknown) {
@@ -196,6 +327,57 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
               )}
             </div>
 
+            {/* #296: image attachments — file picker + thumbnail previews */}
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="fb-attachments">
+                Attachments (optional)
+              </label>
+              <input
+                id="fb-attachments"
+                ref={fileInputRef}
+                className={styles.fileInput}
+                type="file"
+                accept="image/*"
+                multiple
+                disabled={attachments.length >= MAX_ATTACHMENTS}
+                onChange={(e) => {
+                  handleFilesPicked(e.target.files);
+                  e.target.value = '';
+                }}
+              />
+              {attachments.length > 0 && (
+                <div className={styles.thumbnailRow}>
+                  {attachments.map((a) => (
+                    <div key={a.id} className={styles.thumbnail}>
+                      <img src={a.previewUrl} alt="Attachment preview" />
+                      {a.dataUrl == null && !a.error && (
+                        <span className={styles.thumbnailStatus}>...</span>
+                      )}
+                      {a.error && (
+                        <span className={styles.thumbnailStatus}>!</span>
+                      )}
+                      <button
+                        type="button"
+                        className={styles.thumbnailRemove}
+                        aria-label="Remove attachment"
+                        onClick={() => removeAttachment(a.id)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {attachments.some((a) => a.error) && (
+                <span className={styles.fieldError}>
+                  One or more images couldn&apos;t be processed and won&apos;t be sent.
+                </span>
+              )}
+              {attachmentError && (
+                <span className={styles.fieldError}>{attachmentError}</span>
+              )}
+            </div>
+
             {submitError && (
               <p className={styles.errorMsg}>{submitError}</p>
             )}
@@ -212,9 +394,9 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
               <button
                 className={styles.submitBtn}
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || attachmentsProcessing}
               >
-                {isSubmitting ? 'Sending…' : 'Send'}
+                {isSubmitting ? 'Sending…' : attachmentsProcessing ? 'Processing…' : 'Send'}
               </button>
             </div>
           </form>
