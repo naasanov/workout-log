@@ -159,6 +159,42 @@
   height: 16px;
 }
 
+// #297: Manual reconnect button — same touch target as .clearBtn/.closeBtn
+// so it works as a real tap target on a bookmarked mobile home-screen site.
+.reconnectBtn {
+  min-width: 36px;
+  min-height: 36px;
+  background: transparent;
+  border: none;
+  color: rgba(vars.$text, 0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 0;
+  touch-action: auto;
+
+  &:active {
+    color: vars.$primary;
+    background-color: rgba(vars.$primary, 0.1);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.reconnectIcon {
+  display: block; // iOS Safari SVG fix
+}
+
+// Spins while a reconnect fetch is in flight, so a repeated tap reads as
+// "already working" instead of visually inert.
+.reconnectIconSpinning {
+  animation: spin 0.8s linear infinite;
+}
+
 .closeBtn {
   min-width: 36px;
   min-height: 36px;
@@ -1159,4 +1195,9 @@
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.25; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
