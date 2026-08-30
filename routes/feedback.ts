@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { randomBytes } from 'crypto';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { authenticateToken } from './auth';
 import { User } from '../types';
@@ -7,6 +8,20 @@ import pool from '../database';
 
 const router = Router();
 router.use(authenticateToken);
+
+// #296: up to 3 image attachments, sent as data URLs and capped at ~5MB
+// decoded each — comfortably under the 10mb express.json body limit for 3
+// downscaled (max-1024px) client-side JPEGs.
+const MAX_ATTACHMENTS = 3;
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+const DATA_URL_RE = /^data:image\/(png|jpeg|webp);base64,/;
+
+/** Approximate decoded byte length of a base64 data URL's payload. */
+function decodedByteLength(dataUrl: string): number {
+  const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
+  const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+  return Math.floor((base64.length * 3) / 4) - padding;
+}
 
 const feedbackSchema = z.object({
   category: z.enum(['bug', 'idea', 'ui', 'other']).optional(),
@@ -19,6 +34,19 @@ const feedbackSchema = z.object({
   message: z.string()
     .min(1, 'Please add a message.')
     .max(4000, 'Message is too long — please keep it under 4000 characters.'),
+  // #296: same explicit-message convention as above — parsed.error.issues[0]
+  // is returned verbatim in the 400 body and shown to the user.
+  attachments: z
+    .array(
+      z.string()
+        .refine((val) => DATA_URL_RE.test(val), 'Attachments must be a PNG, JPEG, or WEBP image.')
+        .refine(
+          (val) => decodedByteLength(val) <= MAX_ATTACHMENT_BYTES,
+          'Each attachment must be smaller than 5MB.',
+        ),
+    )
+    .max(MAX_ATTACHMENTS, 'You can attach up to 3 images.')
+    .optional(),
 });
 
 type FeedbackBody = z.infer<typeof feedbackSchema>;
@@ -28,10 +56,88 @@ function getGithubRepo(): string {
   return process.env.GITHUB_REPO ?? 'naasanov/workout-log';
 }
 
+/** Extract the full mime type, file extension, and base64 payload from a validated attachment data URL. */
+function parseDataUrl(dataUrl: string): { mimeType: string; ext: string; base64: string } {
+  const match = dataUrl.match(/^data:image\/(png|jpeg|webp);base64,([\s\S]+)$/);
+  if (!match) throw new Error('Invalid attachment data URL');
+  const [, subtype, base64] = match;
+  return { mimeType: `image/${subtype}`, ext: subtype === 'jpeg' ? 'jpg' : subtype, base64 };
+}
+
+const FEEDBACK_ASSETS_BRANCH = 'feedback-assets';
+
+/**
+ * Create the feedback-assets branch off master's current head, if it doesn't
+ * already exist. GitHub returns 422 when the ref is already there — treated
+ * as success so concurrent/repeat calls are safe.
+ */
+async function ensureFeedbackAssetsBranch(repo: string, token: string): Promise<void> {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+  };
+
+  const refRes = await fetch(`https://api.github.com/repos/${repo}/git/ref/heads/master`, {
+    headers,
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!refRes.ok) throw new Error(`Failed to read master ref: ${refRes.status}`);
+  const refData = (await refRes.json()) as { object: { sha: string } };
+
+  const createRes = await fetch(`https://api.github.com/repos/${repo}/git/refs`, {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ref: `refs/heads/${FEEDBACK_ASSETS_BRANCH}`, sha: refData.object.sha }),
+    signal: AbortSignal.timeout(8000),
+  });
+  // 422 = "Reference already exists" — another submission raced us to it.
+  if (createRes.ok || createRes.status === 422) return;
+  throw new Error(`Failed to create ${FEEDBACK_ASSETS_BRANCH} branch: ${createRes.status}`);
+}
+
+/**
+ * Commit one attachment into the feedback-assets branch via the Contents API
+ * and return its raw.githubusercontent.com URL. Throws on any failure —
+ * callers must catch per-attachment and continue.
+ */
+async function uploadAttachment(repo: string, token: string, dataUrl: string): Promise<string> {
+  const { ext, base64 } = parseDataUrl(dataUrl);
+  const day = new Date().toISOString().slice(0, 10);
+  const filename = `attachments/${day}-${randomBytes(8).toString('hex')}.${ext}`;
+
+  await ensureFeedbackAssetsBranch(repo, token);
+
+  const putRes = await fetch(
+    `https://api.github.com/repos/${repo}/contents/${filename}?branch=${FEEDBACK_ASSETS_BRANCH}`,
+    {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+      body: JSON.stringify({
+        message: `feedback attachment ${filename}`,
+        content: base64,
+        branch: FEEDBACK_ASSETS_BRANCH,
+      }),
+      signal: AbortSignal.timeout(15000),
+    },
+  );
+  if (!putRes.ok) throw new Error(`Failed to upload attachment: ${putRes.status}`);
+
+  return `https://raw.githubusercontent.com/${repo}/${FEEDBACK_ASSETS_BRANCH}/${filename}`;
+}
+
+type AttachmentRow = { id: number; dataUrl: string };
+
 /** Create a GitHub issue for the submitted feedback. Best-effort — never throws. */
 async function createGithubIssue(
   body: FeedbackBody,
   submitterEmail: string,
+  attachmentRows: AttachmentRow[],
 ): Promise<void> {
   const token = process.env.GITHUB_TOKEN;
   if (!token) return;
@@ -43,11 +149,37 @@ async function createGithubIssue(
     const tool = body.tool ?? 'other';
     const title = `[${categoryLabel}][${tool}] ${excerpt}${body.message.length > 60 ? '...' : ''}`;
 
+    // Upload attachments (if any) and turn them into markdown image links.
+    // A failed upload is noted in the issue body rather than aborting —
+    // the feedback row and its attachment bytes are already saved in the DB.
+    let attachmentSection = '';
+    if (attachmentRows.length > 0) {
+      const links: string[] = [];
+      let failures = 0;
+      for (const row of attachmentRows) {
+        try {
+          const url = await uploadAttachment(repo, token, row.dataUrl);
+          links.push(`![screenshot](${url})`);
+          pool.query(
+            `UPDATE feedback_attachments SET github_url = ? WHERE id = ?`,
+            [url, row.id],
+          ).catch((err) => console.error('[feedback] failed to record attachment url:', err));
+        } catch (err) {
+          failures += 1;
+          console.error('[feedback] attachment upload failed:', err);
+        }
+      }
+      if (links.length > 0) attachmentSection += `\n\n${links.join('\n\n')}`;
+      if (failures > 0) {
+        attachmentSection += `\n\n_(${failures} attachment${failures > 1 ? 's' : ''} failed to upload)_`;
+      }
+    }
+
     const issueBody =
       `**Category:** ${categoryLabel}\n` +
       `**Tool:** ${tool}\n` +
       `**Submitted by:** ${submitterEmail}\n\n` +
-      `---\n\n${body.message}`;
+      `---\n\n${body.message}${attachmentSection}`;
 
     await fetch(`https://api.github.com/repos/${repo}/issues`, {
       method: 'POST',
@@ -80,17 +212,35 @@ router.post('/', async (req, res): Promise<any> => {
       .json({ message: parsed.error.issues[0]?.message ?? 'Invalid request body' });
   }
 
-  const { category, tool, message } = parsed.data;
+  const { category, tool, message, attachments } = parsed.data;
 
   // Always insert into the DB (record + fallback)
+  let feedbackId: number;
   try {
-    await pool.query<ResultSetHeader>(
+    const [result] = await pool.query<ResultSetHeader>(
       `INSERT INTO feedback (user_uuid, category, tool, message) VALUES (UUID_TO_BIN(?), ?, ?, ?)`,
       [uuid, category ?? null, tool ?? null, message],
     );
+    feedbackId = result.insertId;
   } catch (err) {
     console.error('[feedback] DB insert failed:', err);
     return res.status(500).json({ message: 'Failed to save feedback' });
+  }
+
+  // Persist attachment bytes alongside the feedback row. Best-effort: a
+  // failed insert here doesn't undo the already-saved feedback message.
+  const attachmentRows: AttachmentRow[] = [];
+  for (const dataUrl of attachments ?? []) {
+    try {
+      const { mimeType, base64 } = parseDataUrl(dataUrl);
+      const [result] = await pool.query<ResultSetHeader>(
+        `INSERT INTO feedback_attachments (feedback_id, mime_type, image_data) VALUES (?, ?, ?)`,
+        [feedbackId, mimeType, Buffer.from(base64, 'base64')],
+      );
+      attachmentRows.push({ id: result.insertId, dataUrl });
+    } catch (err) {
+      console.error('[feedback] attachment insert failed:', err);
+    }
   }
 
   // Lookup submitter email for the GitHub issue body (best-effort)
@@ -106,7 +256,7 @@ router.post('/', async (req, res): Promise<any> => {
   }
 
   // Fire-and-forget GitHub issue creation
-  createGithubIssue(parsed.data, submitterEmail).catch(() => {});
+  createGithubIssue(parsed.data, submitterEmail, attachmentRows).catch(() => {});
 
   return res.status(200).json({ message: 'Feedback received. Thank you!' });
 });
