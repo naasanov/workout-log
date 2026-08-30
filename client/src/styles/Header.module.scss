@@ -63,8 +63,11 @@
 
   // #192: tighten header padding on mobile — the 2.5rem side padding is a
   // big part of what squeezes the auth pills into wrapping on narrow screens.
+  // #295: also tighten the gap between hamburger/logo/headerRight now that a
+  // second icon button shares the row with the auth pills.
   @media (max-width: vars.$mobile-width) {
     padding: 1.25rem 1rem;
+    gap: 8px;
   }
 }
 
@@ -97,7 +100,7 @@
   }
 }
 
-// #60: Right side wrapper — feedback icon + auth links
+// #60: Right side wrapper — feedback icon + changelog icon + auth links
 .headerRight {
   display: flex;
   align-items: center;
@@ -105,57 +108,42 @@
   // #192: never let this cluster get flex-shrunk below its content width —
   // the logo (flex: 1, min-width: 0) should yield space instead.
   flex-shrink: 0;
-}
 
-// #60: Feedback icon button in the header
-.feedbackBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  background: transparent;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  color: rgba(vars.$text, 0.55);
-  // Ensure tap target is at least 44px on mobile
-  min-width: 44px;
-  min-height: 44px;
-
-  &:active {
-    background-color: rgba(vars.$primary, 0.1);
-    color: vars.$primary;
-  }
-
-  @media (hover: hover) {
-    &:hover {
-      background-color: rgba(vars.$primary, 0.08);
-      color: vars.$primary;
-    }
+  // #295: tighter gap on mobile now that up to two icon buttons sit here
+  // alongside the auth pills.
+  @media (max-width: vars.$mobile-width) {
+    gap: 4px;
   }
 }
 
-.feedbackIcon {
-  // iOS Safari SVG fix: block on a flex child
-  display: block;
-}
-
-// #295: Changelog ("what's new") icon button in the header
+// #60/#295: Feedback and changelog icon buttons in the header. Sized like
+// .accountBtn below: a compact 38px visible circle, with the 44px WCAG tap
+// target restored via the invisible ::after box rather than inflating the
+// button itself — the two icons now share headerRight with auth links, so
+// keeping their visual footprint small matters more on narrow screens.
+.feedbackBtn,
 .changelogBtn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   background: transparent;
   border: none;
   border-radius: 50%;
   cursor: pointer;
   color: rgba(vars.$text, 0.55);
-  // Ensure tap target is at least 44px on mobile
-  min-width: 44px;
-  min-height: 44px;
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
+  }
 
   &:active {
     background-color: rgba(vars.$primary, 0.1);
@@ -170,6 +158,7 @@
   }
 }
 
+.feedbackIcon,
 .changelogIcon {
   // iOS Safari SVG fix: block on a flex child
   display: block;
