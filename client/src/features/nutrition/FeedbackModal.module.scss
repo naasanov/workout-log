@@ -131,6 +131,107 @@
   letter-spacing: vars.$sarabun-spacing;
 }
 
+// ---- Attachments (#296) ----
+// Native file input styled as a full-width tappable control, matching the
+// underline treatment of .select above.
+.fileInput {
+  background-color: transparent;
+  color: vars.$text;
+  border: none;
+  border-bottom: 2px solid vars.$primary-border;
+  padding: 10px 4px;
+  font-size: 14px;
+  letter-spacing: vars.$sarabun-spacing;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &::file-selector-button {
+    min-height: 36px;
+    margin-right: 12px;
+    padding: 8px 14px;
+    border: none;
+    border-radius: vars.$border-radius;
+    background-color: vars.$primary;
+    color: vars.$background;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: vars.$sarabun-spacing;
+    cursor: pointer;
+  }
+}
+
+.thumbnailRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.thumbnail {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid rgba(vars.$surface-border, 0.6);
+  flex-shrink: 0;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.thumbnailStatus {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+// Real tap target (44px) via an invisible hit-area extension, positioned so
+// the visible badge sits in the thumbnail's corner.
+.thumbnailRemove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background-color: vars.$error;
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  // Extend the actual hit area to ~44px without growing the visible badge.
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -11px;
+  }
+}
+
 .errorMsg {
   margin: 0;
   font-size: 14px;
