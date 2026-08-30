@@ -300,6 +300,17 @@ signup/cleanup needed; `lib/browser.mjs` defaults to it.
   argument is silently ignored and the predicate's parameter arrives
   `undefined` — which surfaces as a confusing timeout rather than an error.
   Close over the value or inline it in the predicate body.
+- **The chat sheet's drag handle has no `onClick`.** `[aria-label="Expand AI
+  chat"]` is a `role=button` div wired only to pointer events (the drag
+  gesture) and an Enter/Space `onKeyDown`. A synthetic `.click()` or
+  Playwright `.click()` therefore does nothing at all, the sheet never
+  expands, and every selector for something inside the expanded header (the
+  #297 Reconnect button, Clear, Collapse) times out looking like a wrong
+  selector. Focus it and press Enter instead.
+- **`page.mouse.click(x, y)` at an element's center is the right tool when
+  the question is "can a user actually hit this".** `el.click()` bypasses hit
+  testing and will succeed on an element something else covers, which is
+  exactly the bug class the header buttons keep producing.
 - The API routes require an `Authorization: Bearer <accessToken>` header —
   the refresh-token cookie alone (which is all the *browser* needs, since the
   React app exchanges it for an access token on load) is **not** accepted by
