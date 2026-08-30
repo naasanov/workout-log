@@ -230,6 +230,54 @@ async function searchOFF(query: string): Promise<FoodSearchResult[]> {
  *  can skip straight to the OFF fallback instead of burning quota on a retry (#282). */
 type UsdaSearchOutcome = { results: FoodSearchResult[]; rateLimited: boolean };
 
+// USDA rejects a `dataType` list containing `Survey (FNDDS)` with an nginx-level
+// HTTP 400 roughly 60-90% of the time, so it is queried on its own connection and
+// its failures cost only FNDDS coverage instead of the whole search. Measured:
+// `Foundation,SR Legacy,Branded` succeeded 10/10, the four-value list 4/10.
+const USDA_STABLE_DATATYPES = 'Foundation,SR%20Legacy,Branded';
+const USDA_SURVEY_DATATYPE = 'Survey%20(FNDDS)';
+
+/** Result of one USDA FDC fetch. `rateLimited` is set on a 429; `foods` is empty on
+ *  any failure, so a caller merging several fetches degrades rather than throwing. */
+type UsdaFetchOutcome = { foods: any[]; rateLimited: boolean };
+
+/** One USDA FDC request for a single `dataType` list → its raw `foods` array. */
+async function fetchUsdaFoods(
+  query: string,
+  apiKey: string,
+  dataType: string,
+): Promise<UsdaFetchOutcome> {
+  try {
+    const url =
+      `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(apiKey)}` +
+      `&query=${encodeURIComponent(query)}` +
+      `&dataType=${dataType}&pageSize=25`;
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': USER_AGENT },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!resp.ok) {
+      if (resp.status === 429) {
+        console.warn(
+          `[nutrition/providers] USDA FDC search rate-limited (429) for query "${query}" ` +
+            `(dataType=${dataType}); falling back instead of retrying.`,
+        );
+        return { foods: [], rateLimited: true };
+      }
+      console.warn(
+        `[nutrition/providers] USDA FDC search returned ${resp.status} for query "${query}" ` +
+          `(dataType=${dataType})`,
+      );
+      return { foods: [], rateLimited: false };
+    }
+    const data: any = await resp.json();
+    return { foods: data.foods ?? [], rateLimited: false };
+  } catch (err) {
+    console.warn(`[nutrition/providers] USDA FDC search failed for query "${query}":`, err);
+    return { foods: [], rateLimited: false };
+  }
+}
+
 /** One USDA FDC search attempt → mapped + ranked results (empty on any failure).
  *  Includes Branded so restaurant/branded-only items (e.g. hibachi sauce) aren't
  *  dropped just because they're absent from the curated Foundation/SR Legacy/FNDDS sets. */
@@ -239,27 +287,14 @@ async function searchUsdaOnce(
   queryTokens: Set<string>,
 ): Promise<UsdaSearchOutcome> {
   try {
-    const url =
-      `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(apiKey)}` +
-      `&query=${encodeURIComponent(query)}` +
-      `&dataType=Foundation,SR%20Legacy,Survey%20(FNDDS),Branded&pageSize=25`;
-    const resp = await fetch(url, {
-      headers: { 'User-Agent': USER_AGENT },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!resp.ok) {
-      if (resp.status === 429) {
-        console.warn(
-          `[nutrition/providers] USDA FDC search rate-limited (429) for query "${query}"; ` +
-            'falling back to OFF instead of retrying.',
-        );
-        return { results: [], rateLimited: true };
-      }
-      console.warn(`[nutrition/providers] USDA FDC search returned ${resp.status} for query "${query}"`);
-      return { results: [], rateLimited: false };
+    const [stable, survey] = await Promise.all([
+      fetchUsdaFoods(query, apiKey, USDA_STABLE_DATATYPES),
+      fetchUsdaFoods(query, apiKey, USDA_SURVEY_DATATYPE),
+    ]);
+    const foods: any[] = [...stable.foods, ...survey.foods];
+    if (foods.length === 0) {
+      return { results: [], rateLimited: stable.rateLimited || survey.rateLimited };
     }
-    const data: any = await resp.json();
-    const foods: any[] = data.foods ?? [];
     const mapped: Array<{ result: FoodSearchResult; score: number }> = [];
     for (const food of foods) {
       const result = mapUsdaFood(food, queryTokens);
@@ -295,8 +330,9 @@ export async function searchFoods(query: string): Promise<FoodSearchResult[]> {
   const apiKey = getUsdaApiKey();
   const queryTokens = tokenize(query);
 
-  // USDA FDC search is intermittently flaky — retry once on a genuinely empty response
-  // before falling back to Open Food Facts (which is weak for generic whole foods).
+  // USDA FDC search is still occasionally flaky per-request, so retry once on a
+  // genuinely empty response before falling back to Open Food Facts (which is weak
+  // for generic whole foods).
   // A 429 skips the retry entirely, since retrying would just burn the remaining quota.
   let outcome = await searchUsdaOnce(query, apiKey, queryTokens);
   if (outcome.results.length === 0 && !outcome.rateLimited) {
