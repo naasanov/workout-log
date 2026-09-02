@@ -20,14 +20,17 @@ type ValidateRefreshTokenResult =
 
 // #312: kept in one place so the refresh cookie's attributes never drift between call sites
 const REFRESH_TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-function refreshCookieOptions() {
+function refreshCookieAttributes() {
   return {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: "lax" as const,
-    path: "/",
-    maxAge: REFRESH_TOKEN_MAX_AGE_MS
+    path: "/"
   };
+}
+
+function refreshCookieOptions() {
+  return { ...refreshCookieAttributes(), maxAge: REFRESH_TOKEN_MAX_AGE_MS };
 }
 
 const validateRefreshToken = async (refreshToken: string, res: Response): Promise<ValidateRefreshTokenResult> => {
@@ -254,12 +257,9 @@ router.delete('/logout', async (req, res): Promise<any> => {
     return res.status(404).json({ message: "Refresh token not found" });
   }
 
-  res.clearCookie('refreshToken', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: "strict",
-    path: "/",
-  })
+  // #312: clearCookie only removes a cookie whose attributes match the ones it
+  // was set with, so this shares refreshCookieOptions' attributes exactly.
+  res.clearCookie('refreshToken', refreshCookieAttributes())
 
   res.status(200).json({ message: "Successfully logged out" });
 })
