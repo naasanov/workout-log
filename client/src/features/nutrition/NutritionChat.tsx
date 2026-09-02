@@ -1374,9 +1374,22 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   const reconnectInFlightRef = useRef(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
 
+  // #311: the spin must complete a whole rotation or it reads as a stray
+  // flicker instead of an in-progress action. This matches the 1s
+  // .reconnectIconSpinning duration below, so "one rotation" and "the
+  // minimum visible time" are the same number.
+  const RECONNECT_MIN_SPIN_MS = 1000;
+  const reconnectStartRef = useRef(0);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    return () => clearTimeout(reconnectTimeoutRef.current);
+  }, []);
+
   const handleManualReconnect = useCallback(() => {
     if (reconnectInFlightRef.current) return;
     reconnectInFlightRef.current = true;
+    reconnectStartRef.current = Date.now();
     setIsReconnecting(true);
     setWatchdogFired(true);
     stop(); // aborts a hung fetch; isDisconnectError() swallows the resulting AbortError
@@ -1384,8 +1397,19 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
     fetchAndApplyTranscript(date)
       .then(applied => evaluateDangling(date, applied))
       .finally(() => {
-        reconnectInFlightRef.current = false;
-        setIsReconnecting(false);
+        // #311: the guard releases with the spinner, not the fetch, so a
+        // repeat tap during the deferred remainder is still ignored.
+        const elapsed = Date.now() - reconnectStartRef.current;
+        const remaining = RECONNECT_MIN_SPIN_MS - elapsed;
+        const clear = () => {
+          reconnectInFlightRef.current = false;
+          setIsReconnecting(false);
+        };
+        if (remaining > 0) {
+          reconnectTimeoutRef.current = setTimeout(clear, remaining);
+        } else {
+          clear();
+        }
       });
   }, [selectedDate, stop, fetchAndApplyTranscript, evaluateDangling]);
 
