@@ -23,10 +23,10 @@ function getNowLocalTime() {
   return `${h}:${min}`;
 }
 
-// Render tally marks as SVG groups of 5 (4 vertical + 1 diagonal slash)
+// Render tally marks as SVG groups of 5 (4 vertical + 1 diagonal slash).
+// #309: always renders (even at count 0) so the row keeps a reserved height;
+// aria-hidden suppresses the empty state from screen readers.
 function TallyMarks({ count }) {
-  if (count === 0) return null;
-
   const fullGroups = Math.floor(count / 5);
   const remainder = count % 5;
 
@@ -40,7 +40,11 @@ function TallyMarks({ count }) {
   }
 
   return (
-    <span className={styles.tallyWrap} aria-label={`${count} tally marks`}>
+    <span
+      className={styles.tallyWrap}
+      aria-label={count > 0 ? `${count} tally marks` : undefined}
+      aria-hidden={count === 0 ? 'true' : undefined}
+    >
       {groups.map(group => (
         <svg
           key={group.key}
@@ -170,11 +174,11 @@ function HabitRow({ row, isToday, onIncrement, onDecrement, onRangeChange }) {
         </div>
       </div>
 
-      {row.count > 0 && (
-        <div className={styles.tallyRow}>
-          <TallyMarks count={row.count} />
-        </div>
-      )}
+      {/* #309: rendered unconditionally (min-height reserved in CSS) so the
+          card's height doesn't snap when the first tally is added. */}
+      <div className={styles.tallyRow}>
+        <TallyMarks count={row.count} />
+      </div>
 
       {(hasRange || isToday) && (
         <div className={styles.rangeRow}>
