@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "agents are always allowed to run gh pr merge <num> --squash --delete-branch"
+    ]
+  }
+}

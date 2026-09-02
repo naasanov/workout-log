@@ -136,7 +136,7 @@ function rowFromProposedIngredient(ing: ProposeIngredient): EditorRow {
 }
 
 // ---------------------------------------------------------------------------
-// #313: localStorage draft — 'manual-add' only.
+// #313: localStorage draft, 'manual-add' only.
 // 'manual-edit' already has a persisted entry to fall back on and 'proposal'
 // is regenerable from the agent, so neither is drafted here: a stale draft
 // silently overriding either would be a worse bug than the one this fixes.
@@ -164,7 +164,7 @@ const INGREDIENT_SOURCES: IngredientSource[] = ['usda', 'off', 'manual', 'custom
 
 // Rebuilds one IngredientInput from parsed JSON. The stored value may be
 // corrupt or from an older shape, so every field is type-checked before use
-// rather than trusting the cast — a malformed row would otherwise crash render.
+// rather than trusting the cast, since a malformed row would crash render.
 function validateDraftIngredient(x: unknown): IngredientInput | null {
   if (typeof x !== 'object' || x === null) return null;
   const r = x as Record<string, unknown>;
@@ -196,7 +196,7 @@ function validateDraftIngredient(x: unknown): IngredientInput | null {
 
 // Reads and validates the draft for `date`. Returns null for anything
 // missing, expired, malformed, or pristine (no real content) so callers
-// never special-case "nothing to restore" — try/catch keeps a broken
+// never special-case "nothing to restore". try/catch keeps a broken
 // localStorage (Safari private mode, corrupt JSON) from breaking the editor.
 function loadDraft(date: string): RestoredDraft | null {
   try {
@@ -258,7 +258,7 @@ function writeDraft(date: string, contentJson: string | null) {
     const stored: StoredEntryDraft = { savedAt: Date.now(), ...content };
     localStorage.setItem(draftKey(date), JSON.stringify(stored));
   } catch {
-    // Best-effort only — a full or blocked localStorage must never break the editor.
+    // Best-effort only: a full or blocked localStorage must never break the editor.
   }
 }
 
@@ -271,7 +271,7 @@ function clearDraft(date: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Debounce hook (used for draft autosave, #313) — same local pattern as
+// Debounce hook (used for draft autosave, #313), the same local pattern as
 // MealBuilder.tsx / IngredientSheet.tsx.
 // ---------------------------------------------------------------------------
 function useDebounce<T>(value: T, delay: number): T {
@@ -337,7 +337,7 @@ export default function EntryEditor({
   const date = mode.date;
   const isManualAdd = mode.kind === 'manual-add';
 
-  // #313: read the manual-add draft (if any) once per mount — the lazy
+  // #313: read the manual-add draft (if any) once per mount. The lazy
   // initializers below all read from this single computed value so a
   // restored draft's meal/name/rows land together, not piecemeal.
   const [initialDraft] = useState<RestoredDraft | null>(() =>
@@ -400,7 +400,7 @@ export default function EntryEditor({
       setEntryName(mode.entry.name);
       setRows(mode.entry.ingredients.map(rowFromStoredIngredient));
     } else if (mode.kind === 'manual-add') {
-      // #313: re-check for a draft on reopen, not just on first mount — the
+      // #313: re-check for a draft on reopen, not just on first mount. The
       // draft written while this editor was previously closed is exactly
       // what the reporter wants back.
       const restored = loadDraft(mode.date);
@@ -425,7 +425,7 @@ export default function EntryEditor({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, inline, modeKind]);
 
-  // #313: debounced draft autosave — manual-add only. Writes ~500ms after the
+  // #313: debounced draft autosave, manual-add only. Writes ~500ms after the
   // last edit so we don't hit localStorage on every keystroke. The debounced
   // value is a content string, so an unchanged form settles; a pristine form
   // serializes to null, which clears the key instead of writing.
@@ -552,7 +552,7 @@ export default function EntryEditor({
     }
   }
 
-  // #313: explicit discard — clears the draft, unlike onClose (backdrop click,
+  // #313: explicit discard that clears the draft, unlike onClose (backdrop click,
   // Esc, the modal's X) which leaves it in place for the reporter's exact case.
   function handleCancel() {
     if (isManualAdd) clearDraft(date);

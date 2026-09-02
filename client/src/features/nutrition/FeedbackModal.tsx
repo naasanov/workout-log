@@ -289,7 +289,7 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
               )}
             </div>
 
-            {/* #296/#308: image attachments — a plus button (matching the
+            {/* #296/#308: image attachments. A plus button (matching the
                 add-ingredient plus) opens the hidden file picker, thumbnails
                 render the same as chat attachment previews. */}
             <div className={styles.field}>
