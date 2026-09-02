@@ -276,3 +276,19 @@ export async function submitFeedback(input: {
     throw new Error(serverMessage || 'Failed to send feedback. Please try again.');
   }
 }
+
+/**
+ * Issue numbers from the signed-in user's own feedback submissions that made
+ * it to a GitHub issue. Powers the "you submitted this" badge in
+ * ChangelogModal. Resolves to [] on any failure (signed out, network
+ * hiccup) rather than throwing, since that modal renders unbadged instead
+ * of showing an error.
+ */
+export async function fetchMySubmittedIssueNumbers(): Promise<number[]> {
+  try {
+    const res = await clientApi.get('/feedback/my-issues');
+    return Array.isArray(res.data) ? res.data : [];
+  } catch {
+    return [];
+  }
+}

@@ -85,3 +85,21 @@
   letter-spacing: vars.$sarabun-spacing;
   color: vars.$text;
 }
+
+// Small, quiet marker on a bullet the signed-in viewer reported. Real text
+// (not a bare dot) so it reads correctly for screen readers too.
+.submittedBadge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.6;
+  letter-spacing: vars.$sarabun-spacing;
+  text-transform: uppercase;
+  color: vars.$primary;
+  background: rgba(vars.$primary, 0.14);
+  border-radius: 8px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
