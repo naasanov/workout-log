@@ -19,6 +19,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useSearchParams } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 import Modal from '../../components/Modal.jsx';
 import { submitFeedback } from './api';
 import { TABS, TAB_LABELS, DEFAULT_ORDER, VALID_TABS } from '../../config/tabs';
@@ -327,15 +328,28 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
               )}
             </div>
 
-            {/* #296: image attachments — file picker + thumbnail previews */}
+            {/* #296/#308: image attachments — a plus button (matching the
+                add-ingredient plus) opens the hidden file picker, thumbnails
+                render the same as chat attachment previews. */}
             <div className={styles.field}>
-              <label className={styles.label} htmlFor="fb-attachments">
-                Attachments (optional)
-              </label>
+              <div className={styles.attachmentsHeaderRow}>
+                <label className={styles.label} htmlFor="fb-attachments">
+                  Attachments (optional)
+                </label>
+                <button
+                  type="button"
+                  className={styles.addAttachmentBtn}
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={attachments.length >= MAX_ATTACHMENTS}
+                  aria-label="Add attachment"
+                >
+                  <Plus size={16} aria-hidden="true" style={{ display: 'block' }} />
+                </button>
+              </div>
               <input
                 id="fb-attachments"
                 ref={fileInputRef}
-                className={styles.fileInput}
+                className={styles.visuallyHidden}
                 type="file"
                 accept="image/*"
                 multiple
@@ -346,24 +360,24 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
                 }}
               />
               {attachments.length > 0 && (
-                <div className={styles.thumbnailRow}>
+                <div className={styles.thumbnails}>
                   {attachments.map((a) => (
-                    <div key={a.id} className={styles.thumbnail}>
-                      <img src={a.previewUrl} alt="Attachment preview" />
-                      {a.dataUrl == null && !a.error && (
-                        <span className={styles.thumbnailStatus}>...</span>
-                      )}
-                      {a.error && (
-                        <span className={styles.thumbnailStatus}>!</span>
-                      )}
+                    <div key={a.id} className={styles.thumbnailWrap}>
+                      <img src={a.previewUrl} alt="Attachment preview" className={styles.thumbnail} />
                       <button
                         type="button"
                         className={styles.thumbnailRemove}
                         aria-label="Remove attachment"
                         onClick={() => removeAttachment(a.id)}
                       >
-                        ×
+                        ✕
                       </button>
+                      {a.dataUrl == null && !a.error && (
+                        <span className={styles.thumbnailProcessing}>...</span>
+                      )}
+                      {a.error && (
+                        <span className={styles.thumbnailErrorBadge}>!</span>
+                      )}
                     </div>
                   ))}
                 </div>
