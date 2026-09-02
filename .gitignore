@@ -49,3 +49,7 @@ node_modules
 /*.png
 /*.jpg
 /ISSUE_PLAN.md
+
+# Local-only: per-user Claude Code settings and a scratch asset.
+/.claude/settings.json
+/mountain-svgrepo-com.svg
