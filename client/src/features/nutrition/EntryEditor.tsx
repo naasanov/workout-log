@@ -11,6 +11,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useMemo,
 } from 'react';
 import Modal from '../../components/Modal.jsx';
 import { useCreateEntry, useUpdateEntry } from './api';
@@ -228,19 +229,33 @@ function loadDraft(date: string): RestoredDraft | null {
 // Writes the current form state as a draft, or clears it when the form is
 // still pristine (an untitled entry with no named ingredients) so an
 // immediately-closed editor never leaves a confusing empty draft behind.
-function saveDraft(date: string, meal: Meal, entryName: string, rows: EditorRow[]) {
+// Serializes the draft's CONTENT only, with no timestamp. The result is a
+// plain string, so an unchanged form yields an identical value and the
+// autosave debounce below settles instead of re-arming on object identity.
+function serializeDraftContent(meal: Meal, entryName: string, rows: EditorRow[]): string | null {
   try {
     const isEmpty = !entryName.trim() && rows.every(r => !r.name.trim());
-    if (isEmpty) {
-      localStorage.removeItem(draftKey(date));
-      return;
-    }
-    const stored: StoredEntryDraft = {
-      savedAt: Date.now(),
+    if (isEmpty) return null;
+    return JSON.stringify({
       meal,
       entryName,
       ingredients: rows.map(r => ingredientInputFromRow(r)),
-    };
+    });
+  } catch {
+    return null;
+  }
+}
+
+// Stamps `savedAt` at write time, keeping it out of the serialized content so
+// it can't make an otherwise-identical draft look changed.
+function writeDraft(date: string, contentJson: string | null) {
+  try {
+    if (contentJson === null) {
+      localStorage.removeItem(draftKey(date));
+      return;
+    }
+    const content = JSON.parse(contentJson) as Omit<StoredEntryDraft, 'savedAt'>;
+    const stored: StoredEntryDraft = { savedAt: Date.now(), ...content };
     localStorage.setItem(draftKey(date), JSON.stringify(stored));
   } catch {
     // Best-effort only — a full or blocked localStorage must never break the editor.
@@ -411,14 +426,18 @@ export default function EntryEditor({
   }, [open, inline, modeKind]);
 
   // #313: debounced draft autosave — manual-add only. Writes ~500ms after the
-  // last edit so we don't hit localStorage on every keystroke; saveDraft
-  // itself clears the key instead of writing when the form is pristine.
-  const draftSnapshot = isManualAdd ? { meal, entryName, rows } : null;
-  const debouncedDraftSnapshot = useDebounce(draftSnapshot, 500);
+  // last edit so we don't hit localStorage on every keystroke. The debounced
+  // value is a content string, so an unchanged form settles; a pristine form
+  // serializes to null, which clears the key instead of writing.
+  const draftContent = useMemo(
+    () => (isManualAdd ? serializeDraftContent(meal, entryName, rows) : null),
+    [isManualAdd, meal, entryName, rows],
+  );
+  const debouncedDraftContent = useDebounce(draftContent, 500);
   useEffect(() => {
-    if (!isManualAdd || !debouncedDraftSnapshot) return;
-    saveDraft(date, debouncedDraftSnapshot.meal, debouncedDraftSnapshot.entryName, debouncedDraftSnapshot.rows);
-  }, [debouncedDraftSnapshot, isManualAdd, date]);
+    if (!isManualAdd) return;
+    writeDraft(date, debouncedDraftContent);
+  }, [debouncedDraftContent, isManualAdd, date]);
 
   // ----- Row helpers -----
   const removeRow = useCallback((key: number) => {
