@@ -178,6 +178,9 @@
   flex-wrap: wrap;
   gap: 4px;
   align-items: center;
+  // #309: matches .tallyGroup's height so the row (and thus the card) is the
+  // same height at count 0 as it is once the first tally mark renders.
+  min-height: 24px;
 }
 
 .tallyWrap {
