@@ -11,8 +11,27 @@ const { DUPLICATE_ERROR } = SqlError;
 dotenv.config();
 const router = Router();
 
-const validateRefreshToken = async (refreshToken: string): Promise<[status: number, json: Object]> => {
-  if (!refreshToken) return [401, { message: "Refresh token required" }]
+// #312: machine-readable reasons let callers tell "no session" apart from "server broke"
+type AuthFailureReason = 'no_cookie' | 'unknown_token' | 'expired' | 'invalid_signature' | 'server_error';
+
+type ValidateRefreshTokenResult =
+  | { ok: true; accessToken: string }
+  | { ok: false; reason: AuthFailureReason; message: string };
+
+// #312: kept in one place so the refresh cookie's attributes never drift between call sites
+const REFRESH_TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+function refreshCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: REFRESH_TOKEN_MAX_AGE_MS
+  };
+}
+
+const validateRefreshToken = async (refreshToken: string, res: Response): Promise<ValidateRefreshTokenResult> => {
+  if (!refreshToken) return { ok: false, reason: 'no_cookie', message: "Refresh token required" };
 
   let result: RowDataPacket;
   try {
@@ -21,45 +40,69 @@ const validateRefreshToken = async (refreshToken: string): Promise<[status: numb
       WHERE token = ?
     `, [refreshToken])
   } catch (error) {
-    const [status, message] = handleSqlError(error) as [number, string];
-    return [status, { message }]
+    handleSqlError(error);
+    return { ok: false, reason: 'server_error', message: "Internal Server Error" };
   }
 
   if (!result) {
-    return [401, { message: "Unauthorized refresh token" }];
-  }
-  else if (new Date(result.expires_at) < new Date()) {
-    return [401, { message: "Refresh token expired" }];
+    return { ok: false, reason: 'unknown_token', message: "Unauthorized refresh token" };
   }
 
+  const expiresAt = new Date(result.expires_at);
+  if (expiresAt < new Date()) {
+    return { ok: false, reason: 'expired', message: "Refresh token expired" };
+  }
+
+  let user: User;
   try {
-    const user = await new Promise<User>((resolve, reject) => {
-      jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET!, (err, user) => {
-        if (err) return reject(new Error("Forbidden refresh token. Did not pass verfication"));
-        else resolve(user as User);
+    user = await new Promise<User>((resolve, reject) => {
+      jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET!, (err, decoded) => {
+        if (err) return reject(err);
+        else resolve(decoded as User);
       })
     })
-    const { uuid } = user as User;
-    const accessToken = generateAccessToken({ uuid });
-    return [201, {
-      message: "Successfully created access token",
-      data: { accessToken }
-    }]
-  } catch (error) {
-    if (error instanceof Error) return [403, { message: error.message }];
-    else throw error;
+  } catch {
+    return { ok: false, reason: 'invalid_signature', message: "Forbidden refresh token. Did not pass verfication" };
   }
+
+  // #312: extend a healthy session's window, throttled to at most one write per user per day
+  const extensionThreshold = new Date(Date.now() + 6 * 24 * 60 * 60 * 1000);
+  if (expiresAt < extensionThreshold) {
+    try {
+      await pool.query<ResultSetHeader>(`
+        UPDATE tokens SET expires_at = DATE_ADD(NOW(), INTERVAL 7 DAY)
+        WHERE token = ?
+      `, [refreshToken])
+      res.cookie("refreshToken", refreshToken, refreshCookieOptions());
+    } catch (error) {
+      // an extension failure shouldn't fail an otherwise-valid refresh
+      handleSqlError(error);
+    }
+  }
+
+  const { uuid } = user;
+  const accessToken = generateAccessToken({ uuid });
+  return { ok: true, accessToken };
 }
 
 router.get('/logged-in', async (req, res): Promise<any> => {
   const refreshToken: string = req.cookies?.refreshToken;
-  const [status, json] = await validateRefreshToken(refreshToken);
-  if (status >= 400) {
-    res.status(200).json({ ...json, data: { signedIn: false } })
+  const result = await validateRefreshToken(refreshToken, res);
+
+  if (result.ok) {
+    return res.status(200).json({
+      message: "Refresh token validated. User is logged in",
+      reason: 'ok',
+      data: { signedIn: true }
+    });
   }
-  else {
-    res.status(200).json({ message: "Refresh token validated. User is logged in", data: { signedIn: true } })
+
+  // #312: a server_error is not the same as a signed-out user, so it must not say signedIn: false
+  if (result.reason === 'server_error') {
+    return res.status(503).json({ message: result.message, reason: result.reason });
   }
+
+  res.status(200).json({ message: result.message, reason: result.reason, data: { signedIn: false } });
 })
 
 router.post('/login', async (req, res): Promise<any> => {
@@ -106,13 +149,7 @@ router.post('/login', async (req, res): Promise<any> => {
     return handleSqlError(error, res);
   }
 
-  res.cookie("refreshToken", refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: "lax",
-    path: "/",
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-  })
+  res.cookie("refreshToken", refreshToken, refreshCookieOptions())
 
   res.status(201).json({
     message: "Logged in successfully",
@@ -162,13 +199,7 @@ router.post('/signup', async (req, res): Promise<any> => {
     return handleSqlError(error, res);
   }
 
-  res.cookie("refreshToken", refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: "lax",
-    path: "/",
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-  })
+  res.cookie("refreshToken", refreshToken, refreshCookieOptions())
 
   res.status(201).json({
     message: "User successfully created",
@@ -185,8 +216,22 @@ router.post('/signup', async (req, res): Promise<any> => {
 
 router.post('/token', async (req, res): Promise<any> => {
   const refreshToken: string = req.cookies?.refreshToken;
-  const [status, json] = await validateRefreshToken(refreshToken);
-  res.status(status).json(json);
+  const result = await validateRefreshToken(refreshToken, res);
+
+  if (result.ok) {
+    return res.status(201).json({
+      message: "Successfully created access token",
+      data: { accessToken: result.accessToken }
+    });
+  }
+
+  // #312: a server_error is a 5xx, never the 401/403 used for genuine auth failures
+  if (result.reason === 'server_error') {
+    return res.status(503).json({ message: result.message, reason: result.reason });
+  }
+
+  const status = result.reason === 'invalid_signature' ? 403 : 401;
+  res.status(status).json({ message: result.message, reason: result.reason });
 })
 
 router.delete('/logout', async (req, res): Promise<any> => {
