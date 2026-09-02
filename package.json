@@ -11,6 +11,7 @@
     "seed:dev": "node scripts/seedDev.js",
     "db:setup": "npm run migrate && npm run seed:dev",
     "redact-chat-images": "node scripts/redactOldChatImages.js",
+    "backfill-feedback-issue-numbers": "node scripts/backfillFeedbackIssueNumbers.js",
     "test": "node --test scripts/*.test.js",
     "heroku-postbuild": "npm run build && cd client && npm install && npm run build"
   },

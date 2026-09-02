@@ -5,6 +5,7 @@ import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { authenticateToken } from './auth';
 import { User } from '../types';
 import pool from '../database';
+import handleSqlError from '../utils/handleSqlError';
 
 const router = Router();
 router.use(authenticateToken);
@@ -133,8 +134,13 @@ async function uploadAttachment(repo: string, token: string, dataUrl: string): P
 
 type AttachmentRow = { id: number; dataUrl: string };
 
-/** Create a GitHub issue for the submitted feedback. Best-effort — never throws. */
+/**
+ * Create a GitHub issue for the submitted feedback and record its issue
+ * number on the feedback row. Best-effort — never throws; a GitHub or DB
+ * failure here must not affect the already-saved feedback submission.
+ */
 async function createGithubIssue(
+  feedbackId: number,
   body: FeedbackBody,
   submitterEmail: string,
   attachmentRows: AttachmentRow[],
@@ -181,7 +187,7 @@ async function createGithubIssue(
       `**Submitted by:** ${submitterEmail}\n\n` +
       `---\n\n${body.message}${attachmentSection}`;
 
-    await fetch(`https://api.github.com/repos/${repo}/issues`, {
+    const issueRes = await fetch(`https://api.github.com/repos/${repo}/issues`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -196,6 +202,22 @@ async function createGithubIssue(
       }),
       signal: AbortSignal.timeout(8000),
     });
+
+    if (!issueRes.ok) {
+      console.error(`[feedback] issue creation failed: ${issueRes.status}`);
+      return;
+    }
+
+    const issueData = (await issueRes.json()) as { number?: number };
+    if (typeof issueData.number !== 'number') {
+      console.error('[feedback] issue creation response had no number');
+      return;
+    }
+
+    await pool.query(
+      `UPDATE feedback SET issue_number = ? WHERE id = ?`,
+      [issueData.number, feedbackId],
+    );
   } catch (err) {
     console.error('[feedback] GitHub issue creation failed:', err);
   }
@@ -256,9 +278,29 @@ router.post('/', async (req, res): Promise<any> => {
   }
 
   // Fire-and-forget GitHub issue creation
-  createGithubIssue(parsed.data, submitterEmail, attachmentRows).catch(() => {});
+  createGithubIssue(feedbackId, parsed.data, submitterEmail, attachmentRows).catch(() => {});
 
   return res.status(200).json({ message: 'Feedback received. Thank you!' });
+});
+
+/**
+ * GET /my-issues — the signed-in user's own feedback submissions that made
+ * it to a GitHub issue, as a plain array of issue numbers. Used to badge
+ * changelog bullets the user reported; deliberately minimal (no messages,
+ * no other users' rows).
+ */
+router.get('/my-issues', async (req, res): Promise<any> => {
+  const { uuid }: User = res.locals.user;
+
+  try {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT issue_number FROM feedback WHERE user_uuid = UUID_TO_BIN(?) AND issue_number IS NOT NULL`,
+      [uuid],
+    );
+    return res.status(200).json(rows.map((row) => row.issue_number as number));
+  } catch (error) {
+    return handleSqlError(error, res);
+  }
 });
 
 export default router;
