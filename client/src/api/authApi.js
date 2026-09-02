@@ -40,6 +40,8 @@ async function logout() {
   sessionStorage.removeItem("accessToken");
 }
 
+// #312: only a 200 response is definitive. Axios throws for a 5xx or network
+// error, which callers should treat as transient and retry, not "signed out".
 async function isLoggedIn() {
   const res = await authApi.get('/auth/logged-in');
   return res.data.data.signedIn;
