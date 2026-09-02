@@ -13,21 +13,25 @@ import { MessageSquare, ScrollText, Menu } from 'lucide-react';
 // #314: localStorage key for the last changelog date the user has seen.
 const LAST_SEEN_CHANGELOG_KEY = 'peak.lastSeenChangelogDate';
 
-// #314: reads the last-seen changelog date, seeding it to the latest date on
-// a first visit so brand-new users never see an unread badge. Falls back to
-// "no badge" if localStorage throws (Safari private mode, blocked storage).
-function readLastSeenChangelogDate() {
+// #314: true when a changelog entry is newer than the last one the user
+// opened. A first visit seeds the stored date instead of badging, and any
+// storage failure reads as "nothing unread" rather than breaking the header.
+function hasUnseenChangelog() {
+  if (LATEST_CHANGELOG_DATE == null) return false;
   try {
     const stored = localStorage.getItem(LAST_SEEN_CHANGELOG_KEY);
-    if (stored != null) return stored;
-    localStorage.setItem(LAST_SEEN_CHANGELOG_KEY, LATEST_CHANGELOG_DATE);
-    return LATEST_CHANGELOG_DATE;
+    if (stored == null) {
+      localStorage.setItem(LAST_SEEN_CHANGELOG_KEY, LATEST_CHANGELOG_DATE);
+      return false;
+    }
+    return stored < LATEST_CHANGELOG_DATE;
   } catch (_) {
-    return LATEST_CHANGELOG_DATE;
+    return false;
   }
 }
 
-function writeLastSeenChangelogDate() {
+function markChangelogSeen() {
+  if (LATEST_CHANGELOG_DATE == null) return;
   try {
     localStorage.setItem(LAST_SEEN_CHANGELOG_KEY, LATEST_CHANGELOG_DATE);
   } catch (_) {
@@ -56,13 +60,11 @@ function Header({
   const [internalOpen, setInternalOpen] = useState(false);
   const [internalEditMode, setInternalEditMode] = useState(false);
   // #314: lazy init so localStorage is only read once, on mount.
-  const [hasUnreadChangelog, setHasUnreadChangelog] = useState(
-    () => readLastSeenChangelogDate() < LATEST_CHANGELOG_DATE
-  );
+  const [hasUnreadChangelog, setHasUnreadChangelog] = useState(hasUnseenChangelog);
 
   const openChangelog = () => {
     setChangelogOpen(true);
-    writeLastSeenChangelogDate();
+    markChangelogSeen();
     setHasUnreadChangelog(false);
   };
 
