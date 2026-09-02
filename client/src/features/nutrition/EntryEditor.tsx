@@ -18,13 +18,14 @@ import type {
   EntryEditorProps,
   Meal,
   IngredientInput,
+  IngredientSource,
   EntryInput,
   FoodPortion,
   ProposeIngredient,
 } from './types';
 import { MEALS, MEAL_LABELS } from './types';
 import styles from './EntryEditor.module.scss';
-import { Plus } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import IngredientSheet, { IngredientCardList } from './IngredientSheet';
 import {
   GRAMS_UNIT,
@@ -134,6 +135,140 @@ function rowFromProposedIngredient(ing: ProposeIngredient): EditorRow {
 }
 
 // ---------------------------------------------------------------------------
+// #313: localStorage draft — 'manual-add' only.
+// 'manual-edit' already has a persisted entry to fall back on and 'proposal'
+// is regenerable from the agent, so neither is drafted here: a stale draft
+// silently overriding either would be a worse bug than the one this fixes.
+// ---------------------------------------------------------------------------
+const DRAFT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+function draftKey(date: string): string {
+  return `peak.entryDraft.manual-add.${date}`;
+}
+
+interface StoredEntryDraft {
+  savedAt: number;
+  meal: Meal;
+  entryName: string;
+  ingredients: IngredientInput[];
+}
+
+interface RestoredDraft {
+  meal: Meal;
+  entryName: string;
+  rows: EditorRow[];
+}
+
+const INGREDIENT_SOURCES: IngredientSource[] = ['usda', 'off', 'manual', 'custom', 'unc'];
+
+// Rebuilds one IngredientInput from parsed JSON. The stored value may be
+// corrupt or from an older shape, so every field is type-checked before use
+// rather than trusting the cast — a malformed row would otherwise crash render.
+function validateDraftIngredient(x: unknown): IngredientInput | null {
+  if (typeof x !== 'object' || x === null) return null;
+  const r = x as Record<string, unknown>;
+  if (typeof r.name !== 'string') return null;
+  if (r.grams !== null && typeof r.grams !== 'number') return null;
+  if (typeof r.source !== 'string' || !INGREDIENT_SOURCES.includes(r.source as IngredientSource)) return null;
+  if (
+    typeof r.calories !== 'number' ||
+    typeof r.protein_g !== 'number' ||
+    typeof r.carbs_g !== 'number' ||
+    typeof r.fat_g !== 'number'
+  ) return null;
+  return {
+    name: r.name,
+    grams: (r.grams as number | null) ?? null,
+    source: r.source as IngredientSource,
+    source_ref: typeof r.source_ref === 'string' ? r.source_ref : null,
+    calories: r.calories,
+    protein_g: r.protein_g,
+    carbs_g: r.carbs_g,
+    fat_g: r.fat_g,
+    fiber_g: typeof r.fiber_g === 'number' ? r.fiber_g : null,
+    sugar_g: typeof r.sugar_g === 'number' ? r.sugar_g : null,
+    sodium_mg: typeof r.sodium_mg === 'number' ? r.sodium_mg : null,
+    serving_qty: typeof r.serving_qty === 'number' ? r.serving_qty : null,
+    serving_label: typeof r.serving_label === 'string' ? r.serving_label : null,
+  };
+}
+
+// Reads and validates the draft for `date`. Returns null for anything
+// missing, expired, malformed, or pristine (no real content) so callers
+// never special-case "nothing to restore" — try/catch keeps a broken
+// localStorage (Safari private mode, corrupt JSON) from breaking the editor.
+function loadDraft(date: string): RestoredDraft | null {
+  try {
+    const raw = localStorage.getItem(draftKey(date));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    const p = parsed as Record<string, unknown>;
+    if (typeof p.savedAt !== 'number' || Date.now() - p.savedAt > DRAFT_MAX_AGE_MS) return null;
+    if (typeof p.meal !== 'string' || !MEALS.includes(p.meal as Meal)) return null;
+    if (typeof p.entryName !== 'string') return null;
+    if (!Array.isArray(p.ingredients)) return null;
+    const validated = p.ingredients.map(validateDraftIngredient);
+    if (validated.some(v => v === null)) return null;
+    const ingredients = validated as IngredientInput[];
+
+    const isEmpty = !p.entryName.trim() && ingredients.every(i => !i.name.trim());
+    if (isEmpty) return null;
+
+    return {
+      meal: p.meal as Meal,
+      entryName: p.entryName,
+      rows: ingredients.length > 0 ? ingredients.map(rowFromStoredIngredient) : [emptyRow()],
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Writes the current form state as a draft, or clears it when the form is
+// still pristine (an untitled entry with no named ingredients) so an
+// immediately-closed editor never leaves a confusing empty draft behind.
+function saveDraft(date: string, meal: Meal, entryName: string, rows: EditorRow[]) {
+  try {
+    const isEmpty = !entryName.trim() && rows.every(r => !r.name.trim());
+    if (isEmpty) {
+      localStorage.removeItem(draftKey(date));
+      return;
+    }
+    const stored: StoredEntryDraft = {
+      savedAt: Date.now(),
+      meal,
+      entryName,
+      ingredients: rows.map(r => ingredientInputFromRow(r)),
+    };
+    localStorage.setItem(draftKey(date), JSON.stringify(stored));
+  } catch {
+    // Best-effort only — a full or blocked localStorage must never break the editor.
+  }
+}
+
+function clearDraft(date: string) {
+  try {
+    localStorage.removeItem(draftKey(date));
+  } catch {
+    // ignore
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Debounce hook (used for draft autosave, #313) — same local pattern as
+// MealBuilder.tsx / IngredientSheet.tsx.
+// ---------------------------------------------------------------------------
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
+
+// ---------------------------------------------------------------------------
 // Totals bar
 // ---------------------------------------------------------------------------
 interface TotalsProps {
@@ -185,12 +320,20 @@ export default function EntryEditor({
 }: EntryEditorProps) {
   const isEdit = mode.kind === 'manual-edit';
   const date = mode.date;
+  const isManualAdd = mode.kind === 'manual-add';
+
+  // #313: read the manual-add draft (if any) once per mount — the lazy
+  // initializers below all read from this single computed value so a
+  // restored draft's meal/name/rows land together, not piecemeal.
+  const [initialDraft] = useState<RestoredDraft | null>(() =>
+    isManualAdd ? loadDraft(date) : null,
+  );
 
   // ----- Meal selector -----
   const [meal, setMeal] = useState<Meal>(() => {
     if (mode.kind === 'manual-edit') return mode.entry.meal;
     // #200: default new manually-created foods to Snack / Other instead of Breakfast.
-    if (mode.kind === 'manual-add') return mode.defaultMeal ?? 'snack';
+    if (mode.kind === 'manual-add') return initialDraft?.meal ?? mode.defaultMeal ?? 'snack';
     return mode.proposal.meal;
   });
 
@@ -198,6 +341,7 @@ export default function EntryEditor({
   const [entryName, setEntryName] = useState<string>(() => {
     if (mode.kind === 'manual-edit') return mode.entry.name;
     if (mode.kind === 'proposal') return mode.proposal.name;
+    if (mode.kind === 'manual-add') return initialDraft?.entryName ?? '';
     return '';
   });
 
@@ -210,8 +354,12 @@ export default function EntryEditor({
       // #10: pre-select serving unit/quantity from ProposeIngredient
       return mode.proposal.ingredients.map(rowFromProposedIngredient);
     }
+    if (mode.kind === 'manual-add' && initialDraft) return initialDraft.rows;
     return [emptyRow()];
   });
+
+  // #313: shown as a small dismissible note when a draft was restored.
+  const [draftRestored, setDraftRestored] = useState<boolean>(() => initialDraft !== null);
 
   // ----- Ingredient sheet state -----
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -237,10 +385,21 @@ export default function EntryEditor({
       setEntryName(mode.entry.name);
       setRows(mode.entry.ingredients.map(rowFromStoredIngredient));
     } else if (mode.kind === 'manual-add') {
-      // #200: default new manually-created foods to Snack / Other instead of Breakfast.
-      setMeal(mode.defaultMeal ?? 'snack');
-      setEntryName('');
-      setRows([emptyRow()]);
+      // #313: re-check for a draft on reopen, not just on first mount — the
+      // draft written while this editor was previously closed is exactly
+      // what the reporter wants back.
+      const restored = loadDraft(mode.date);
+      if (restored) {
+        setMeal(restored.meal);
+        setEntryName(restored.entryName);
+        setRows(restored.rows);
+      } else {
+        // #200: default new manually-created foods to Snack / Other instead of Breakfast.
+        setMeal(mode.defaultMeal ?? 'snack');
+        setEntryName('');
+        setRows([emptyRow()]);
+      }
+      setDraftRestored(restored !== null);
     } else if (mode.kind === 'proposal') {
       setMeal(mode.proposal.meal);
       setEntryName(mode.proposal.name);
@@ -250,6 +409,16 @@ export default function EntryEditor({
     setSaveError(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, inline, modeKind]);
+
+  // #313: debounced draft autosave — manual-add only. Writes ~500ms after the
+  // last edit so we don't hit localStorage on every keystroke; saveDraft
+  // itself clears the key instead of writing when the form is pristine.
+  const draftSnapshot = isManualAdd ? { meal, entryName, rows } : null;
+  const debouncedDraftSnapshot = useDebounce(draftSnapshot, 500);
+  useEffect(() => {
+    if (!isManualAdd || !debouncedDraftSnapshot) return;
+    saveDraft(date, debouncedDraftSnapshot.meal, debouncedDraftSnapshot.entryName, debouncedDraftSnapshot.rows);
+  }, [debouncedDraftSnapshot, isManualAdd, date]);
 
   // ----- Row helpers -----
   const removeRow = useCallback((key: number) => {
@@ -353,12 +522,22 @@ export default function EntryEditor({
       } else {
         await createMutation.mutateAsync(input);
       }
+      // #313: the entry is now persisted server-side, so the local draft
+      // (if any) would only ever be stale from here on.
+      if (isManualAdd) clearDraft(date);
       onClose();
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : 'Failed to save. Please try again.';
       setSaveError(msg);
     }
+  }
+
+  // #313: explicit discard — clears the draft, unlike onClose (backdrop click,
+  // Esc, the modal's X) which leaves it in place for the reporter's exact case.
+  function handleCancel() {
+    if (isManualAdd) clearDraft(date);
+    onClose();
   }
 
   // ----- Proposal confirm: resolve serving-aware UI rows to plain IngredientInput -----
@@ -402,6 +581,21 @@ export default function EntryEditor({
       <div className={styles.header}>
         <h2 className={styles.title}>{titleMap[modeKind]}</h2>
       </div>
+
+      {/* #313: dismissible note when a manual-add draft was restored on open */}
+      {isManualAdd && draftRestored && (
+        <div className={styles.draftRestoredNote}>
+          <span>Restored your unsaved entry</span>
+          <button
+            type="button"
+            className={styles.draftRestoredDismiss}
+            onClick={() => setDraftRestored(false)}
+            aria-label="Dismiss"
+          >
+            <X size={14} aria-hidden="true" style={{ display: 'block' }} />
+          </button>
+        </div>
+      )}
 
       {/* Meal selector */}
       <div className={styles.mealSelector} role="group" aria-label="Meal">
@@ -489,7 +683,7 @@ export default function EntryEditor({
             <button
               type="button"
               className={styles.cancelBtn}
-              onClick={onClose}
+              onClick={handleCancel}
               disabled={isPending}
             >
               Cancel

@@ -463,6 +463,40 @@
   letter-spacing: vars.$sarabun-spacing;
 }
 
+// #313: dismissible note shown when a manual-add draft was restored on open.
+// Same typography as .errorMsg but neutral, since it's informational, not an error.
+.draftRestoredNote {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: rgba(vars.$text, 0.65);
+  letter-spacing: vars.$sarabun-spacing;
+  background-color: rgba(vars.$surface-border, 0.15);
+  border-radius: 8px;
+}
+
+.draftRestoredDismiss {
+  flex-shrink: 0;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: rgba(vars.$text, 0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    color: vars.$text;
+  }
+}
+
 // AI proposal notes — shown conditionally only when the LLM supplies non-obvious
 // context (e.g. why odd decimal grams were chosen). Styled as a subtle aside.
 .proposalNotes {
