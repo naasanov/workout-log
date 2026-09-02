@@ -1,7 +1,7 @@
 /**
  * ChangelogModal — "What's new" list, opened from the header icon button.
  * Renders the hand-curated CHANGELOG config as a scrollable list of dated
- * entries. No fetch, no unread tracking — it only shows content when opened.
+ * entries. No fetch here; unread tracking lives in Header, which owns the button.
  */
 import { format } from 'date-fns';
 import Modal from './Modal.jsx';

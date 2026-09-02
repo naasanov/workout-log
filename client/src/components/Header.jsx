@@ -7,7 +7,37 @@ import FeedbackModal from "../features/nutrition/FeedbackModal";
 import ChangelogModal from "./ChangelogModal";
 import NavDrawer from "./NavDrawer";
 import MountainLogo from "./MountainLogo";
-import { MessageSquare, Sparkles, Menu } from 'lucide-react';
+import { LATEST_CHANGELOG_DATE } from "../config/changelog";
+import { MessageSquare, ScrollText, Menu } from 'lucide-react';
+
+// #314: localStorage key for the last changelog date the user has seen.
+const LAST_SEEN_CHANGELOG_KEY = 'peak.lastSeenChangelogDate';
+
+// #314: true when a changelog entry is newer than the last one the user
+// opened. A first visit seeds the stored date instead of badging, and any
+// storage failure reads as "nothing unread" rather than breaking the header.
+function hasUnseenChangelog() {
+  if (LATEST_CHANGELOG_DATE == null) return false;
+  try {
+    const stored = localStorage.getItem(LAST_SEEN_CHANGELOG_KEY);
+    if (stored == null) {
+      localStorage.setItem(LAST_SEEN_CHANGELOG_KEY, LATEST_CHANGELOG_DATE);
+      return false;
+    }
+    return stored < LATEST_CHANGELOG_DATE;
+  } catch (_) {
+    return false;
+  }
+}
+
+function markChangelogSeen() {
+  if (LATEST_CHANGELOG_DATE == null) return;
+  try {
+    localStorage.setItem(LAST_SEEN_CHANGELOG_KEY, LATEST_CHANGELOG_DATE);
+  } catch (_) {
+    // Best-effort; nothing to do if storage is unavailable.
+  }
+}
 
 /**
  * Header.
@@ -29,6 +59,14 @@ function Header({
   const [changelogOpen, setChangelogOpen] = useState(false);
   const [internalOpen, setInternalOpen] = useState(false);
   const [internalEditMode, setInternalEditMode] = useState(false);
+  // #314: lazy init so localStorage is only read once, on mount.
+  const [hasUnreadChangelog, setHasUnreadChangelog] = useState(hasUnseenChangelog);
+
+  const openChangelog = () => {
+    setChangelogOpen(true);
+    markChangelogSeen();
+    setHasUnreadChangelog(false);
+  };
 
   const isControlled = controlledOpen !== undefined;
   const drawerOpen = isControlled ? controlledOpen : internalOpen;
@@ -80,22 +118,32 @@ function Header({
               request behind it, so unlike feedback it's shown when signed out too. */}
           <button
             className={styles.changelogBtn}
-            onClick={() => setChangelogOpen(true)}
-            aria-label="What's new"
+            onClick={openChangelog}
+            aria-label={hasUnreadChangelog ? "What's new (unread updates)" : "What's new"}
             title="What's new"
           >
-            <Sparkles className={styles.changelogIcon} size={16} aria-hidden="true" />
+            <ScrollText className={styles.changelogIcon} size={16} aria-hidden="true" />
+            {/* #314: unread dot, decorative only; state is on aria-label above. */}
+            {hasUnreadChangelog && (
+              <span className={styles.changelogBadge} aria-hidden="true" />
+            )}
           </button>
 
+          {/* #312: `undefined` is "auth check still running", which is a
+              distinct state from `null` (definitively signed out). Rendering
+              the auth links for it makes a slow or retrying check look like a
+              logout, so the slot stays empty until the answer is definitive. */}
           <div className={styles.authLinks}>
-            {user == null
-              ? (
-                <>
-                  <Link to="/sign-up" className={styles.transparentButton}>Sign Up</Link>
-                  <Link to="/sign-in" className={styles.solidButton}>Sign In</Link>
-                </>
-              )
-              : <AccountMenu />
+            {user === undefined
+              ? null
+              : user === null
+                ? (
+                  <>
+                    <Link to="/sign-up" className={styles.transparentButton}>Sign Up</Link>
+                    <Link to="/sign-in" className={styles.solidButton}>Sign In</Link>
+                  </>
+                )
+                : <AccountMenu />
             }
           </div>
         </div>
