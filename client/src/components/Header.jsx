@@ -129,15 +129,21 @@ function Header({
             )}
           </button>
 
+          {/* #312: `undefined` is "auth check still running", which is a
+              distinct state from `null` (definitively signed out). Rendering
+              the auth links for it makes a slow or retrying check look like a
+              logout, so the slot stays empty until the answer is definitive. */}
           <div className={styles.authLinks}>
-            {user == null
-              ? (
-                <>
-                  <Link to="/sign-up" className={styles.transparentButton}>Sign Up</Link>
-                  <Link to="/sign-in" className={styles.solidButton}>Sign In</Link>
-                </>
-              )
-              : <AccountMenu />
+            {user === undefined
+              ? null
+              : user === null
+                ? (
+                  <>
+                    <Link to="/sign-up" className={styles.transparentButton}>Sign Up</Link>
+                    <Link to="/sign-in" className={styles.solidButton}>Sign In</Link>
+                  </>
+                )
+                : <AccountMenu />
             }
           </div>
         </div>
