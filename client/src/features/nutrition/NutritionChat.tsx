@@ -1004,6 +1004,11 @@ interface NutritionChatProps {
 const PEEK_HEIGHT = 0;
 const EXPANDED_HEIGHT_VH = 88; // dvh
 
+// #311: the reconnect spin must complete a whole rotation or it reads as a
+// stray flicker instead of an in-progress action. Matches the 1s
+// .reconnectIconSpinning duration, so one rotation and the minimum are equal.
+const RECONNECT_MIN_SPIN_MS = 1000;
+
 export default function NutritionChat({ open, onClose, selectedDate }: NutritionChatProps) {
   // #15: Load from localStorage as fast cache; DB will override on mount.
   const initialMessages = loadMessagesForDate(selectedDate);
@@ -1374,11 +1379,6 @@ export default function NutritionChat({ open, onClose, selectedDate }: Nutrition
   const reconnectInFlightRef = useRef(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
 
-  // #311: the spin must complete a whole rotation or it reads as a stray
-  // flicker instead of an in-progress action. This matches the 1s
-  // .reconnectIconSpinning duration below, so "one rotation" and "the
-  // minimum visible time" are the same number.
-  const RECONNECT_MIN_SPIN_MS = 1000;
   const reconnectStartRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
