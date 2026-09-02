@@ -22,6 +22,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import Modal from '../../components/Modal.jsx';
 import { submitFeedback } from './api';
+import { downscaleImage } from './imageDownscale';
 import { TABS, TAB_LABELS, DEFAULT_ORDER, VALID_TABS } from '../../config/tabs';
 import styles from './FeedbackModal.module.scss';
 
@@ -42,8 +43,6 @@ const MESSAGE_MAX_LENGTH = 4000;
 
 // #296: mirrors the server's attachment cap (routes/feedback.ts).
 const MAX_ATTACHMENTS = 3;
-const ATTACHMENT_MAX_EDGE = 1024;
-const ATTACHMENT_JPEG_QUALITY = 0.8;
 
 interface FeedbackForm {
   category: FeedbackCategory;
@@ -56,44 +55,6 @@ interface AttachmentDraft {
   previewUrl: string;
   dataUrl: string | null;
   error: string | null;
-}
-
-/**
- * Downscale an image file to a max-1024px JPEG data URL client-side, the
- * same shape the chat photo picker sends (see NutritionChat.tsx). Kept as a
- * local copy here since that helper isn't exported.
- */
-async function downscaleImage(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const objectUrl = URL.createObjectURL(file);
-
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-
-      let { width, height } = img;
-      if (width > ATTACHMENT_MAX_EDGE || height > ATTACHMENT_MAX_EDGE) {
-        const ratio = Math.min(ATTACHMENT_MAX_EDGE / width, ATTACHMENT_MAX_EDGE / height);
-        width = Math.round(width * ratio);
-        height = Math.round(height * ratio);
-      }
-
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) { reject(new Error('Canvas not available')); return; }
-      ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', ATTACHMENT_JPEG_QUALITY));
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error('Image load failed'));
-    };
-
-    img.src = objectUrl;
-  });
 }
 
 export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {

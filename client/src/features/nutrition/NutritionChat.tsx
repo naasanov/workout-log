@@ -38,6 +38,7 @@ import type { FileUIPart, UIMessage, ToolUIPart, DynamicToolUIPart } from 'ai';
 import ReactMarkdown from 'react-markdown';
 import { useCreateEntry, useCreateCustomFood, fetchTranscript, clearTranscript, lookupBarcode, fetchResolutions, saveResolution } from './api';
 import type { StoredChatMessage, ProposalResolution } from './api';
+import { downscaleImage } from './imageDownscale';
 import EntryEditor from './EntryEditor';
 import MealBuilder from './MealBuilder';
 import BarcodeScanner from './BarcodeScanner';
@@ -71,45 +72,6 @@ async function getAccessToken(): Promise<string> {
   token = data.data.accessToken as string;
   sessionStorage.setItem('accessToken', token);
   return token;
-}
-
-// ---------------------------------------------------------------------------
-// Image downscaler — canvas → JPEG data URL, max 1024px, quality 0.8
-// ---------------------------------------------------------------------------
-const MAX_EDGE = 1024;
-const JPEG_QUALITY = 0.8;
-
-async function downscaleImage(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const objectUrl = URL.createObjectURL(file);
-
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-
-      let { width, height } = img;
-      if (width > MAX_EDGE || height > MAX_EDGE) {
-        const ratio = Math.min(MAX_EDGE / width, MAX_EDGE / height);
-        width = Math.round(width * ratio);
-        height = Math.round(height * ratio);
-      }
-
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) { reject(new Error('Canvas not available')); return; }
-      ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', JPEG_QUALITY));
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error('Image load failed'));
-    };
-
-    img.src = objectUrl;
-  });
 }
 
 // ---------------------------------------------------------------------------
