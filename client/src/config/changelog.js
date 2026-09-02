@@ -82,3 +82,7 @@ export const CHANGELOG = [
     ],
   },
 ];
+
+// #314: date of the newest entry, used to detect unread changes. CHANGELOG
+// is newest-first, so this is just the first entry's date.
+export const LATEST_CHANGELOG_DATE = CHANGELOG[0].date;

@@ -164,6 +164,19 @@
   display: block;
 }
 
+// #314: small unread-changelog dot, positioned against .changelogBtn's
+// existing `position: relative` from the shared rule above.
+.changelogBadge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: vars.$primary;
+  pointer-events: none;
+}
+
 .authLinks {
   display: flex;
   align-items: baseline;
