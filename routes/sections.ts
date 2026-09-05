@@ -11,6 +11,10 @@ import { User } from '../types';
 const router = Router();
 router.use(authenticateToken);
 
+// Sections are the top-level owned resource, so every route below scopes its
+// query by user_uuid directly rather than through a join. Handlers report a
+// 404 rather than a 403 for another user's section to keep ids unenumerable.
+
 // POST
 router.post('/', async (req, res): Promise<any> => {
     const { uuid }: User = res.locals.user;
@@ -84,15 +88,16 @@ router.get('/user', async (req, res): Promise<any> => {
 // GET one
 router.get('/section/:sectionId', async (req, res): Promise<any> => {
     const sectionId = req.params.sectionId;
-    if (!validateId(sectionId)) return;
-    
+    if (!validateId(sectionId, res)) return;
+
+    const { uuid }: User = res.locals.user;
     let data: RowDataPacket;
     try {
         [[data]] = await pool.query<RowDataPacket[]>(`
             SELECT section_id as id, label
             FROM sections
-            WHERE section_id = ?
-        `, [sectionId]);
+            WHERE section_id = ? AND user_uuid = UUID_TO_BIN(?)
+        `, [sectionId, uuid]);
     }
     catch (error) {
         return handleSqlError(error, res);
@@ -122,13 +127,14 @@ router.patch('/:sectionId', async (req, res): Promise<any> => {
     }
     if (!validateSection(req.body, res)) return;
 
+    const { uuid }: User = res.locals.user;
     let data: ResultSetHeader;
     try {
         [data] = await pool.query<ResultSetHeader>(`
             UPDATE sections
             SET ?
-            WHERE section_id = ?
-            `, [req.body, sectionId]
+            WHERE section_id = ? AND user_uuid = UUID_TO_BIN(?)
+            `, [req.body, sectionId, uuid]
         )
     } catch (error) {
         return handleSqlError(error, res, {
@@ -148,12 +154,13 @@ router.delete('/:sectionId', async (req, res): Promise<any> => {
     const sectionId = req.params.sectionId;
     if (!validateId(sectionId, res)) return;
 
+    const { uuid }: User = res.locals.user;
     let data: ResultSetHeader;
     try {
         [data] = await pool.query<ResultSetHeader>(`
             DELETE FROM sections
-            WHERE section_id = ?
-            `, [sectionId]
+            WHERE section_id = ? AND user_uuid = UUID_TO_BIN(?)
+            `, [sectionId, uuid]
         )
     } catch (error) {
         return handleSqlError(error, res, {
