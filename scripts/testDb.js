@@ -97,11 +97,13 @@ async function ensureSchemaExists() {
 // keep control, but never at the cost of pointing this at dev or production.
 function assertTestSchema() {
   applyTestEnv();
+  // A trailing suffix is allowed so concurrent runs can each take their own
+  // schema (workout_log_test_habits and so on) without truncating each other.
   const name = process.env.DB_NAME;
-  if (!name || !name.endsWith('_test')) {
+  if (!name || !/_test(_|$)/.test(name)) {
     throw new Error(
       `Refusing to run destructive test setup against DB_NAME="${name}". ` +
-        'The test schema name must end in "_test".',
+        'The test schema name must contain "_test".',
     );
   }
 }
