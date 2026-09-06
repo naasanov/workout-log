@@ -1,6 +1,6 @@
 // Per-account feature flags — currently just UNC dining (migrations/018_unc_dining.sql).
-// Flags are read on every nutrition-chat turn (services/nutrition/agent.ts) to decide
-// which tools to register, so a lookup failure must degrade to "feature off" rather
+// Flags are read on every chat turn (services/agent/index.ts) to decide which
+// tools to register, so a lookup failure must degrade to "feature off" rather
 // than breaking chat — never throw out of getUserFlags.
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import pool from '../database';
