@@ -402,14 +402,26 @@ test('nutrition routes + store', async (t) => {
     assert.deepEqual(fetched.data, goals);
   });
 
-  await t.test('PUT /goals is a full replace, not a merge (omitted fields become null)', async () => {
-    // Pinning current behavior: a caller who sends only `calories` a second
-    // time silently wipes protein/carbs/fat/fiber, since putGoals always
-    // writes every column (missing fields coerced via `?? null`).
+  await t.test('PUT /goals merges: an absent field leaves the stored value unchanged', async () => {
     const user = await createUser();
     await put(baseUrl, user, '/goals', { calories: 2000, protein_g: 150, carbs_g: 250, fat_g: 70, fiber_g: 30 });
-    const { body } = await put(baseUrl, user, '/goals', { calories: 1800 });
-    assert.deepEqual(body.data, { calories: 1800, protein_g: null, carbs_g: null, fat_g: null, fiber_g: null });
+    const { status, body } = await put(baseUrl, user, '/goals', { calories: 1800 });
+    assert.equal(status, 200);
+    assert.deepEqual(body.data, { calories: 1800, protein_g: 150, carbs_g: 250, fat_g: 70, fiber_g: 30 });
+
+    const { body: fetched } = await get(baseUrl, user, '/goals');
+    assert.deepEqual(fetched.data, { calories: 1800, protein_g: 150, carbs_g: 250, fat_g: 70, fiber_g: 30 });
+  });
+
+  await t.test('PUT /goals clears a field when it is explicitly set to null', async () => {
+    const user = await createUser();
+    await put(baseUrl, user, '/goals', { calories: 2000, protein_g: 150, carbs_g: 250, fat_g: 70, fiber_g: 30 });
+    const { status, body } = await put(baseUrl, user, '/goals', { protein_g: null });
+    assert.equal(status, 200);
+    assert.deepEqual(body.data, { calories: 2000, protein_g: null, carbs_g: 250, fat_g: 70, fiber_g: 30 });
+
+    const { body: fetched } = await get(baseUrl, user, '/goals');
+    assert.deepEqual(fetched.data, { calories: 2000, protein_g: null, carbs_g: 250, fat_g: 70, fiber_g: 30 });
   });
 
   // ---- Custom Foods ----
