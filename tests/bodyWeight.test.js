@@ -25,8 +25,9 @@ async function post(baseUrl, user, body) {
   return { status: res.status, body: await res.json() };
 }
 
-async function get(baseUrl, user) {
-  const res = await fetch(`${baseUrl}/api/body-weight`, { headers: user.authHeader() });
+async function get(baseUrl, user, query) {
+  const qs = query ? `?${new URLSearchParams(query).toString()}` : '';
+  const res = await fetch(`${baseUrl}/api/body-weight${qs}`, { headers: user.authHeader() });
   return { status: res.status, body: await res.json() };
 }
 
@@ -211,6 +212,79 @@ test('bodyWeight routes', async (t) => {
     const { status, body } = await del(baseUrl, user, 0);
     assert.equal(status, 400);
     assert.equal(body.message, 'Request parameter id must be a positive integer');
+  });
+
+  await t.test('GET / with both from and to returns only entries within the inclusive range', async () => {
+    const user = await db.createTestUser();
+    await post(baseUrl, user, { weight: 100, date: '2024-01-01' });
+    await post(baseUrl, user, { weight: 110, date: '2024-01-05' });
+    await post(baseUrl, user, { weight: 120, date: '2024-01-10' });
+
+    const { status, body } = await get(baseUrl, user, { from: '2024-01-02', to: '2024-01-08' });
+    assert.equal(status, 200);
+    assert.deepEqual(body.data.map((row) => row.weight), [110]);
+  });
+
+  await t.test('GET / from/to boundaries are inclusive', async () => {
+    const user = await db.createTestUser();
+    await post(baseUrl, user, { weight: 100, date: '2024-01-01' });
+    await post(baseUrl, user, { weight: 110, date: '2024-01-05' });
+    await post(baseUrl, user, { weight: 120, date: '2024-01-10' });
+
+    const { status, body } = await get(baseUrl, user, { from: '2024-01-01', to: '2024-01-10' });
+    assert.equal(status, 200);
+    assert.deepEqual(body.data.map((row) => row.weight), [100, 110, 120]);
+  });
+
+  await t.test('GET / with only from returns entries on or after that date', async () => {
+    const user = await db.createTestUser();
+    await post(baseUrl, user, { weight: 100, date: '2024-01-01' });
+    await post(baseUrl, user, { weight: 110, date: '2024-01-05' });
+
+    const { status, body } = await get(baseUrl, user, { from: '2024-01-05' });
+    assert.equal(status, 200);
+    assert.deepEqual(body.data.map((row) => row.weight), [110]);
+  });
+
+  await t.test('GET / with only to returns entries on or before that date', async () => {
+    const user = await db.createTestUser();
+    await post(baseUrl, user, { weight: 100, date: '2024-01-01' });
+    await post(baseUrl, user, { weight: 110, date: '2024-01-05' });
+
+    const { status, body } = await get(baseUrl, user, { to: '2024-01-01' });
+    assert.equal(status, 200);
+    assert.deepEqual(body.data.map((row) => row.weight), [100]);
+  });
+
+  await t.test('GET / with a bare-date to includes an entry logged later that same day', async () => {
+    // date is DATETIME; to=2024-01-05 (no time) must mean "through the end of
+    // Jan 5", not midnight at its start, or a same-day weigh-in would be lost.
+    const user = await db.createTestUser();
+    await post(baseUrl, user, { weight: 100, date: '2024-01-01' });
+    await post(baseUrl, user, { weight: 110, date: '2024-01-05T18:30:00Z' });
+
+    const { status, body } = await get(baseUrl, user, { to: '2024-01-05' });
+    assert.equal(status, 200);
+    assert.deepEqual(body.data.map((row) => row.weight), [100, 110]);
+  });
+
+  await t.test('GET / with a full ISO datetime to excludes a later entry that same day', async () => {
+    const user = await db.createTestUser();
+    await post(baseUrl, user, { weight: 100, date: '2024-01-01' });
+    await post(baseUrl, user, { weight: 110, date: '2024-01-05T18:30:00Z' });
+
+    const { status, body } = await get(baseUrl, user, { to: '2024-01-05T10:00:00Z' });
+    assert.equal(status, 200);
+    assert.deepEqual(body.data.map((row) => row.weight), [100]);
+  });
+
+  await t.test('GET / with a range excluding all entries returns an empty list', async () => {
+    const user = await db.createTestUser();
+    await post(baseUrl, user, { weight: 100, date: '2024-01-01' });
+
+    const { status, body } = await get(baseUrl, user, { from: '2024-02-01', to: '2024-03-01' });
+    assert.equal(status, 200);
+    assert.deepEqual(body.data, []);
   });
 
   await t.test('there is no update endpoint; editing is delete-then-recreate', async () => {

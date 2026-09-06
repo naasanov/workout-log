@@ -1,13 +1,11 @@
-import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { Router } from 'express';
-import pool from '../database';
 import handleSqlError from '../utils/handleSqlError';
-import withTransaction from '../utils/withTransaction';
 import { validateId, validateLabel } from '../utils/validation';
 import SqlError from '../utils/sqlErrors';
 const { NO_REFERENCE_ERROR, WRONG_VALUE_ERROR } = SqlError;
 import { authenticateToken } from "./auth";
 import { User } from '../types';
+import * as store from '../services/workouts';
 
 const router = Router();
 router.use(authenticateToken);
@@ -15,22 +13,6 @@ router.use(authenticateToken);
 // Movements are owned transitively: movement -> section -> user. Without confirming that
 // chain a valid token can reach another user's data by guessing sequential ids. Callers
 // report a 404 rather than a 403 so ids stay unenumerable.
-async function ownsSection(uuid: string, sectionId: string): Promise<boolean> {
-    const [rows] = await pool.query<RowDataPacket[]>(`
-        SELECT 1 FROM sections
-        WHERE section_id = ? AND user_uuid = UUID_TO_BIN(?)
-    `, [sectionId, uuid]);
-    return rows.length > 0;
-}
-
-async function ownsMovement(uuid: string, movementId: string): Promise<boolean> {
-    const [rows] = await pool.query<RowDataPacket[]>(`
-        SELECT 1 FROM movements m
-        JOIN sections s ON s.section_id = m.section_id
-        WHERE m.movement_id = ? AND s.user_uuid = UUID_TO_BIN(?)
-    `, [movementId, uuid]);
-    return rows.length > 0;
-}
 
 // POST
 router.post('/:sectionId', async (req, res): Promise<any> => {
@@ -41,7 +23,7 @@ router.post('/:sectionId', async (req, res): Promise<any> => {
 
     const { uuid }: User = res.locals.user;
     try {
-        if (!await ownsSection(uuid, sectionId)) {
+        if (!await store.ownsSection(uuid, sectionId)) {
             return res.status(404).json({ message: `Section with id ${sectionId} not found` });
         }
     } catch (error) {
@@ -50,18 +32,7 @@ router.post('/:sectionId', async (req, res): Promise<any> => {
 
     let movementId: number;
     try {
-        movementId = await withTransaction(async (conn) => {
-            const [result] = await conn.query<ResultSetHeader>(`
-                INSERT INTO movements (section_id, label)
-                VALUES (?, ?)
-                `, [sectionId, label]);
-            const id = result.insertId;
-            await conn.query<ResultSetHeader>(`
-                INSERT INTO variations (movement_id, label)
-                VALUES (?, ?)
-                `, [id, "Variation"]);
-            return id;
-        });
+        movementId = await store.createMovement(sectionId, label);
     } catch (error) {
         return handleSqlError(error, res, {
             [NO_REFERENCE_ERROR]: [404, `Section with id ${sectionId} not found`],
@@ -78,23 +49,19 @@ router.post('/:sectionId', async (req, res): Promise<any> => {
 router.get('/section/:sectionId', async (req, res): Promise<any> => {
     const sectionId = req.params.sectionId;
     if (!validateId(sectionId, res)) return;
-    
+
     const { uuid }: User = res.locals.user;
-    let data: RowDataPacket[];
     try {
-        if (!await ownsSection(uuid, sectionId)) {
+        if (!await store.ownsSection(uuid, sectionId)) {
             return res.status(404).json({ message: `Section with id ${sectionId} does not exist` });
         }
     } catch (error) {
         return handleSqlError(error, res);
     }
 
+    let data: store.MovementSummary[];
     try {
-        [data] = await pool.query<RowDataPacket[]>(`
-            SELECT movement_id as id, label
-            FROM movements
-            WHERE section_id = ?
-        `, [sectionId])
+        data = await store.listMovementsForSection(sectionId);
     }
     catch (error) {
         return handleSqlError(error, res);
@@ -110,16 +77,11 @@ router.get('/section/:sectionId', async (req, res): Promise<any> => {
 router.get('/movement/:movementId', async (req, res): Promise<any> => {
     const movementId = req.params.movementId;
     if (!validateId(movementId, res)) return;
-    
+
     const { uuid }: User = res.locals.user;
-    let data: RowDataPacket;
+    let data: store.MovementSummary | null;
     try {
-        [[data]] = await pool.query<RowDataPacket[]>(`
-            SELECT m.movement_id as id, m.label
-            FROM movements m
-            JOIN sections s ON s.section_id = m.section_id
-            WHERE m.movement_id = ? AND s.user_uuid = UUID_TO_BIN(?)
-        `, [movementId, uuid]);
+        data = await store.getMovementById(uuid, movementId);
     }
     catch (error) {
         return handleSqlError(error, res);
@@ -142,23 +104,14 @@ router.patch('/:movementId', async (req, res): Promise<any> => {
     if (!validateId(movementId, res) || !validateLabel(label, res)) return;
 
     const { uuid }: User = res.locals.user;
-    let data: ResultSetHeader;
+    let updated: boolean;
     try {
-        if (!await ownsMovement(uuid, movementId)) {
-            return res.status(404).json({ message: `No movement with id ${movementId}` });
-        }
-
-        [data] = await pool.query<ResultSetHeader>(`
-            UPDATE movements
-            SET label = ?
-            WHERE movement_id = ?
-            `, [label, movementId]
-        )
+        updated = await store.updateMovement(uuid, movementId, label);
     } catch (error) {
         return handleSqlError(error, res)
     }
 
-    if (data.affectedRows === 0) {
+    if (!updated) {
         return res.status(404).json({ message: `No movement with id ${movementId}` });
     }
 
@@ -171,21 +124,16 @@ router.delete('/:movementId', async (req, res): Promise<any> => {
     if (!validateId(movementId, res)) return;
 
     const { uuid }: User = res.locals.user;
-    let data: ResultSetHeader;
+    let deleted: boolean;
     try {
-        [data] = await pool.query<ResultSetHeader>(`
-            DELETE m FROM movements m
-            JOIN sections s ON s.section_id = m.section_id
-            WHERE m.movement_id = ? AND s.user_uuid = UUID_TO_BIN(?)
-            `, [movementId, uuid]
-        )
+        deleted = await store.deleteMovement(uuid, movementId);
     } catch (error) {
         return handleSqlError(error, res, {
             [WRONG_VALUE_ERROR]: [400, "Request parameter movement id must be an integer"]
         });
     }
 
-    if (data.affectedRows === 0) {
+    if (!deleted) {
         return res.status(404).json({ message: `No movement found with id ${movementId}` });
     }
 

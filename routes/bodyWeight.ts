@@ -1,35 +1,29 @@
-import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { Router } from 'express';
-import pool from '../database';
 import handleSqlError from '../utils/handleSqlError';
 import { validateId } from '../utils/validation';
 import { parseISO } from 'date-fns';
 import { authenticateToken } from './auth';
 import { User } from '../types';
+import * as store from '../services/bodyWeight/store';
 
 const router = Router();
 router.use(authenticateToken);
 
-// GET all entries for the authenticated user
+// GET all entries for the authenticated user, optionally bounded to a date range
 router.get('/', async (req, res): Promise<any> => {
     const { uuid }: User = res.locals.user;
+    const from = req.query.from as string | undefined;
+    const to = req.query.to as string | undefined;
 
-    let data: RowDataPacket[];
     try {
-        [data] = await pool.query<RowDataPacket[]>(`
-            SELECT id, weight, date
-            FROM body_weight
-            WHERE user_uuid = UUID_TO_BIN(?)
-            ORDER BY date ASC
-        `, [uuid]);
+        const data = await store.listEntries(uuid, from, to);
+        return res.status(200).json({
+            data,
+            message: `Successfully retrieved body weight entries`
+        });
     } catch (error) {
         return handleSqlError(error, res);
     }
-
-    res.status(200).json({
-        data,
-        message: `Successfully retrieved body weight entries`
-    });
 });
 
 // POST a new entry
@@ -43,20 +37,15 @@ router.post('/', async (req, res): Promise<any> => {
 
     const parsedDate = date ? new Date(parseISO(date)) : new Date();
 
-    let result: ResultSetHeader;
     try {
-        [result] = await pool.query<ResultSetHeader>(`
-            INSERT INTO body_weight (user_uuid, weight, date)
-            VALUES (UUID_TO_BIN(?), ?, ?)
-        `, [uuid, weight, parsedDate]);
+        const id = await store.createEntry(uuid, weight, parsedDate);
+        return res.status(201).json({
+            data: { id },
+            message: `Successfully logged body weight`
+        });
     } catch (error) {
         return handleSqlError(error, res);
     }
-
-    res.status(201).json({
-        data: { id: result.insertId },
-        message: `Successfully logged body weight`
-    });
 });
 
 // DELETE an entry (only if it belongs to the user)
@@ -65,21 +54,15 @@ router.delete('/:id', async (req, res): Promise<any> => {
     const id = req.params.id;
     if (!validateId(id, res)) return;
 
-    let data: ResultSetHeader;
     try {
-        [data] = await pool.query<ResultSetHeader>(`
-            DELETE FROM body_weight
-            WHERE id = ? AND user_uuid = UUID_TO_BIN(?)
-        `, [id, uuid]);
+        const deleted = await store.deleteEntry(uuid, Number(id));
+        if (!deleted) {
+            return res.status(404).json({ message: `No body weight entry with id ${id} found for this user` });
+        }
+        return res.status(200).json({ message: `Successfully deleted body weight entry with id ${id}` });
     } catch (error) {
         return handleSqlError(error, res);
     }
-
-    if (data.affectedRows === 0) {
-        return res.status(404).json({ message: `No body weight entry with id ${id} found for this user` });
-    }
-
-    res.status(200).json({ message: `Successfully deleted body weight entry with id ${id}` });
 });
 
 export default router;

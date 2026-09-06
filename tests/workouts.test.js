@@ -55,7 +55,11 @@ const postVariation = (baseUrl, user, movementId, body) => request(baseUrl, 'POS
 const getVariationsBatch = (baseUrl, user, idsParam) => request(baseUrl, 'GET', `/api/variations/movements?ids=${encodeURIComponent(idsParam)}`, user);
 const listVariationsForMovement = (baseUrl, user, movementId) => request(baseUrl, 'GET', `/api/variations/movement/${movementId}`, user);
 const getVariation = (baseUrl, user, variationId) => request(baseUrl, 'GET', `/api/variations/variation/${variationId}`, user);
-const getHistory = (baseUrl, user, variationId) => request(baseUrl, 'GET', `/api/variations/history/${variationId}`, user);
+const getHistory = (baseUrl, user, variationId, range) => {
+  const params = new URLSearchParams(range ?? {}).toString();
+  const query = params ? `?${params}` : '';
+  return request(baseUrl, 'GET', `/api/variations/history/${variationId}${query}`, user);
+};
 const patchVariation = (baseUrl, user, variationId, body) => request(baseUrl, 'PATCH', `/api/variations/${variationId}`, user, body ?? {});
 const deleteVariation = (baseUrl, user, variationId) => request(baseUrl, 'DELETE', `/api/variations/${variationId}`, user);
 
@@ -1003,6 +1007,88 @@ test('workouts routes (sections, movements, variations)', async (t) => {
         const dates = body.data.map((row) => row.date);
         assert.deepEqual(dates, [...dates].sort());
         assert.deepEqual(Object.keys(body.data[0]).sort(), ['date', 'reps', 'weight']);
+      });
+
+      await t.test('GET /history/:variationId?from=&to= filters to an inclusive date range', async (t) => {
+        await t.test('from excludes rows strictly before it and includes a row exactly on it', async () => {
+          const user = await db.createTestUser();
+          const { variationId } = await makeChain(baseUrl, user, { label: 'V', weight: 100, reps: 5 });
+          await patchVariation(baseUrl, user, variationId, { weight: 90, date: '2024-01-01T00:00:00.000Z' });
+          await patchVariation(baseUrl, user, variationId, { weight: 95, date: '2024-02-01T00:00:00.000Z' });
+          await patchVariation(baseUrl, user, variationId, { weight: 100, date: '2024-03-01T00:00:00.000Z' });
+
+          const { status, body } = await getHistory(baseUrl, user, variationId, { from: '2024-02-01T00:00:00.000Z' });
+          assert.equal(status, 200);
+          assert.deepEqual(body.data.map((row) => row.weight), [95, 100]);
+        });
+
+        await t.test('to with an explicit time excludes rows strictly after it and includes a row exactly on it', async () => {
+          const user = await db.createTestUser();
+          const { variationId } = await makeChain(baseUrl, user, { label: 'V', weight: 100, reps: 5 });
+          await patchVariation(baseUrl, user, variationId, { weight: 90, date: '2024-01-01T00:00:00.000Z' });
+          await patchVariation(baseUrl, user, variationId, { weight: 95, date: '2024-02-01T00:00:00.000Z' });
+          await patchVariation(baseUrl, user, variationId, { weight: 100, date: '2024-03-01T00:00:00.000Z' });
+
+          const { status, body } = await getHistory(baseUrl, user, variationId, { to: '2024-02-01T00:00:00.000Z' });
+          assert.equal(status, 200);
+          assert.deepEqual(body.data.map((row) => row.weight), [90, 95]);
+        });
+
+        await t.test('a bare (date-only) to includes rows later that same day', async () => {
+          const user = await db.createTestUser();
+          const { variationId } = await makeChain(baseUrl, user, { label: 'V', weight: 100, reps: 5 });
+          await patchVariation(baseUrl, user, variationId, { weight: 90, date: '2024-02-01T08:00:00.000Z' });
+          await patchVariation(baseUrl, user, variationId, { weight: 95, date: '2024-02-01T23:00:00.000Z' });
+          await patchVariation(baseUrl, user, variationId, { weight: 100, date: '2024-02-02T00:00:01.000Z' });
+
+          const { status, body } = await getHistory(baseUrl, user, variationId, { to: '2024-02-01' });
+          assert.equal(status, 200);
+          assert.deepEqual(body.data.map((row) => row.weight), [90, 95]);
+        });
+
+        await t.test('from and to together bound both ends', async () => {
+          const user = await db.createTestUser();
+          const { variationId } = await makeChain(baseUrl, user, { label: 'V', weight: 100, reps: 5 });
+          await patchVariation(baseUrl, user, variationId, { weight: 90, date: '2024-01-01T00:00:00.000Z' });
+          await patchVariation(baseUrl, user, variationId, { weight: 95, date: '2024-02-01T00:00:00.000Z' });
+          await patchVariation(baseUrl, user, variationId, { weight: 100, date: '2024-03-01T00:00:00.000Z' });
+
+          const { status, body } = await getHistory(baseUrl, user, variationId, {
+            from: '2024-02-01T00:00:00.000Z',
+            to: '2024-02-01T00:00:00.000Z',
+          });
+          assert.equal(status, 200);
+          assert.deepEqual(body.data.map((row) => row.weight), [95]);
+        });
+
+        await t.test('omitting both params is unchanged: every row is returned', async () => {
+          const user = await db.createTestUser();
+          const { variationId } = await makeChain(baseUrl, user, { label: 'V', weight: 100, reps: 5 });
+          await patchVariation(baseUrl, user, variationId, { weight: 90, date: '2024-01-01T00:00:00.000Z' });
+          await patchVariation(baseUrl, user, variationId, { weight: 95, date: '2024-02-01T00:00:00.000Z' });
+
+          const { status, body } = await getHistory(baseUrl, user, variationId);
+          assert.equal(status, 200);
+          assert.equal(body.data.length, 2);
+        });
+
+        await t.test('rejects a non-ISO from', async () => {
+          const user = await db.createTestUser();
+          const { variationId } = await makeChain(baseUrl, user, { label: 'V', weight: 100, reps: 5 });
+
+          const { status, body } = await getHistory(baseUrl, user, variationId, { from: 'not-a-date' });
+          assert.equal(status, 400);
+          assert.equal(body.message, 'from must be an ISO 8601 formatted date string');
+        });
+
+        await t.test('rejects a non-ISO to', async () => {
+          const user = await db.createTestUser();
+          const { variationId } = await makeChain(baseUrl, user, { label: 'V', weight: 100, reps: 5 });
+
+          const { status, body } = await getHistory(baseUrl, user, variationId, { to: 'not-a-date' });
+          assert.equal(status, 400);
+          assert.equal(body.message, 'to must be an ISO 8601 formatted date string');
+        });
       });
 
       await t.test('404s for another user\'s variation', async () => {

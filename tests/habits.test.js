@@ -52,10 +52,10 @@ async function deleteHabit(baseUrl, user, id) {
   return { status: res.status, body: await res.json() };
 }
 
-async function getTallies(baseUrl, user, habitName) {
-  const res = await fetch(`${baseUrl}/api/habits/${encodeURIComponent(habitName)}`, {
-    headers: user.authHeader(),
-  });
+async function getTallies(baseUrl, user, habitName, query = {}) {
+  const qs = new URLSearchParams(query).toString();
+  const url = `${baseUrl}/api/habits/${encodeURIComponent(habitName)}${qs ? `?${qs}` : ''}`;
+  const res = await fetch(url, { headers: user.authHeader() });
   return { status: res.status, body: await res.json() };
 }
 
@@ -438,6 +438,73 @@ test('habits routes', async (t) => {
     const { body: bodyA } = await getTallies(baseUrl, userA, 'reading');
     assert.equal(bodyA.data.length, 1);
     assert.equal(dateOnly(bodyA.data[0].date), '2024-01-01');
+  });
+
+  // ── GET /:habitName?from=&to= (range filtering) ──────────────────────────
+
+  await t.test('GET /:habitName with no from/to returns every tally, matching prior behavior', async () => {
+    const user = await db.createTestUser();
+    await postTally(baseUrl, user, 'reading', { localDate: '2024-01-01', localTime: '09:00' });
+    await postTally(baseUrl, user, 'reading', { localDate: '2024-02-01', localTime: '09:00' });
+    await postTally(baseUrl, user, 'reading', { localDate: '2024-03-01', localTime: '09:00' });
+
+    const { status, body } = await getTallies(baseUrl, user, 'reading');
+    assert.equal(status, 200);
+    assert.deepEqual(body.data.map((r) => dateOnly(r.date)), ['2024-03-01', '2024-02-01', '2024-01-01']);
+  });
+
+  await t.test('GET /:habitName?from= filters out dates before the cutoff, inclusive of the cutoff itself', async () => {
+    const user = await db.createTestUser();
+    await postTally(baseUrl, user, 'reading', { localDate: '2024-01-01', localTime: '09:00' });
+    await postTally(baseUrl, user, 'reading', { localDate: '2024-02-01', localTime: '09:00' });
+    await postTally(baseUrl, user, 'reading', { localDate: '2024-03-01', localTime: '09:00' });
+
+    const { status, body } = await getTallies(baseUrl, user, 'reading', { from: '2024-02-01' });
+    assert.equal(status, 200);
+    assert.deepEqual(body.data.map((r) => dateOnly(r.date)), ['2024-03-01', '2024-02-01']);
+  });
+
+  await t.test('GET /:habitName?to= filters out dates after the cutoff, inclusive of the cutoff itself', async () => {
+    const user = await db.createTestUser();
+    await postTally(baseUrl, user, 'reading', { localDate: '2024-01-01', localTime: '09:00' });
+    await postTally(baseUrl, user, 'reading', { localDate: '2024-02-01', localTime: '09:00' });
+    await postTally(baseUrl, user, 'reading', { localDate: '2024-03-01', localTime: '09:00' });
+
+    const { status, body } = await getTallies(baseUrl, user, 'reading', { to: '2024-02-01' });
+    assert.equal(status, 200);
+    assert.deepEqual(body.data.map((r) => dateOnly(r.date)), ['2024-02-01', '2024-01-01']);
+  });
+
+  await t.test('GET /:habitName?from=&to= combines both bounds inclusively', async () => {
+    const user = await db.createTestUser();
+    await postTally(baseUrl, user, 'reading', { localDate: '2024-01-01', localTime: '09:00' });
+    await postTally(baseUrl, user, 'reading', { localDate: '2024-02-01', localTime: '09:00' });
+    await postTally(baseUrl, user, 'reading', { localDate: '2024-03-01', localTime: '09:00' });
+    await postTally(baseUrl, user, 'reading', { localDate: '2024-04-01', localTime: '09:00' });
+
+    const { status, body } = await getTallies(baseUrl, user, 'reading', { from: '2024-02-01', to: '2024-03-01' });
+    assert.equal(status, 200);
+    assert.deepEqual(body.data.map((r) => dateOnly(r.date)), ['2024-03-01', '2024-02-01']);
+  });
+
+  await t.test('GET /:habitName?from=&to= returns an empty list when the range matches nothing', async () => {
+    const user = await db.createTestUser();
+    await postTally(baseUrl, user, 'reading', { localDate: '2024-01-01', localTime: '09:00' });
+
+    const { status, body } = await getTallies(baseUrl, user, 'reading', { from: '2024-06-01', to: '2024-07-01' });
+    assert.equal(status, 200);
+    assert.deepEqual(body.data, []);
+  });
+
+  await t.test('GET /:habitName rejects a malformed from/to', async () => {
+    const user = await db.createTestUser();
+    const { status: fromStatus, body: fromBody } = await getTallies(baseUrl, user, 'reading', { from: '01-01-2024' });
+    assert.equal(fromStatus, 400);
+    assert.equal(fromBody.message, 'from must be in YYYY-MM-DD format');
+
+    const { status: toStatus, body: toBody } = await getTallies(baseUrl, user, 'reading', { to: '01-01-2024' });
+    assert.equal(toStatus, 400);
+    assert.equal(toBody.message, 'to must be in YYYY-MM-DD format');
   });
 
   // ── POST /:habitName/tally ────────────────────────────────────────────────
