@@ -11,6 +11,8 @@ import SqlError from '../utils/sqlErrors';
 import { streamNutritionChat } from '../services/nutrition/agent';
 import * as nutritionStore from '../services/nutrition/store';
 import type { EntryInput } from '../schemas/nutrition';
+import * as workoutsStore from '../services/workouts';
+import * as habitsStore from '../services/habits/store';
 const { NO_REFERENCE_ERROR, WRONG_VALUE_ERROR } = SqlError;
 
 const router = Router();
@@ -95,17 +97,15 @@ router.use(authenticateApiKey);
 router.get('/workouts', async (req, res): Promise<any> => {
     const { uuid } = res.locals.user;
 
-    let data: RowDataPacket[];
+    let sections: workoutsStore.SectionSummary[];
     try {
-        [data] = await pool.query<RowDataPacket[]>(`
-            SELECT section_id as id, label
-            FROM sections
-            WHERE user_uuid = UUID_TO_BIN(?)
-        `, [uuid]);
+        sections = await workoutsStore.listSectionsForUser(uuid);
     } catch (error) {
         return handleSqlError(error, res);
     }
 
+    // Drop showItems: this endpoint's wire shape has only ever been {id, label}.
+    const data = sections.map(({ id, label }) => ({ id, label }));
     res.status(200).json({ data, message: "Successfully retrieved workouts" });
 });
 
@@ -114,38 +114,37 @@ router.post('/workouts', async (req, res): Promise<any> => {
     const { name } = req.body;
     if (!validateLabel(name, res)) return;
 
-    let result: ResultSetHeader;
+    let id: number;
     try {
-        [result] = await pool.query<ResultSetHeader>(`
-            INSERT INTO sections (user_uuid, label)
-            VALUES (UUID_TO_BIN(?), ?)
-        `, [uuid, name]);
+        id = await workoutsStore.createSection(uuid, name);
     } catch (error) {
         return handleSqlError(error, res);
     }
 
     res.status(201).json({
-        data: { id: result.insertId },
-        message: `Successfully created workout with id ${result.insertId}`
+        data: { id },
+        message: `Successfully created workout with id ${id}`
     });
 });
 
+// Scoped to the caller via store.deleteSection, which matches on user_uuid.
+// A workout id owned by someone else 404s rather than deleting, so ids stay
+// unenumerable across accounts.
 router.delete('/workouts/:id', async (req, res): Promise<any> => {
+    const { uuid } = res.locals.user;
     const workoutId = req.params.id;
     if (!validateId(workoutId, res)) return;
 
-    let data: ResultSetHeader;
+    let deleted: boolean;
     try {
-        [data] = await pool.query<ResultSetHeader>(`
-            DELETE FROM sections WHERE section_id = ?
-        `, [workoutId]);
+        deleted = await workoutsStore.deleteSection(uuid, workoutId);
     } catch (error) {
         return handleSqlError(error, res, {
             [WRONG_VALUE_ERROR]: [400, "Workout id must be a positive integer"]
         });
     }
 
-    if (data.affectedRows === 0) {
+    if (!deleted) {
         return res.status(404).json({ message: `No workout with id ${workoutId}` });
     }
 
@@ -162,15 +161,16 @@ router.get('/movements', async (req, res): Promise<any> => {
         return res.status(400).json({ message: "Query parameter workoutId is required" });
     }
     if (!validateId(workoutId, res)) return;
+    const { uuid } = res.locals.user;
 
-    let data: RowDataPacket[];
+    // The original query joined through sections so a foreign/nonexistent
+    // workoutId silently produced zero rows rather than a 404 -- reproduced
+    // here by skipping the list call (not returning early) when unowned.
+    let data: workoutsStore.MovementSummary[] = [];
     try {
-        [data] = await pool.query<RowDataPacket[]>(`
-            SELECT m.movement_id as id, m.label
-            FROM movements m
-            INNER JOIN sections s ON s.section_id = m.section_id
-            WHERE m.section_id = ? AND s.user_uuid = UUID_TO_BIN(?)
-        `, [workoutId, res.locals.user.uuid]);
+        if (await workoutsStore.ownsSection(uuid, workoutId)) {
+            data = await workoutsStore.listMovementsForSection(workoutId);
+        }
     } catch (error) {
         return handleSqlError(error, res);
     }
@@ -178,13 +178,23 @@ router.get('/movements', async (req, res): Promise<any> => {
     res.status(200).json({ data, message: `Successfully retrieved movements for workout ${workoutId}` });
 });
 
+// store.createMovement also inserts a default "Variation" child row (see
+// services/workouts/movements.ts), which this endpoint has never done. Kept
+// inline to avoid that side effect; see the accompanying report.
 router.post('/movements', async (req, res): Promise<any> => {
+    const { uuid } = res.locals.user;
     const { name, workoutId } = req.body;
     if (!validateLabel(name, res)) return;
     if (!workoutId || !validateId(String(workoutId), res)) return;
 
     let result: ResultSetHeader;
     try {
+        // Checked via store.ownsSection before inserting: a workoutId that
+        // exists but belongs to another user 404s here rather than reaching
+        // the foreign-key check below, which can't tell the two cases apart.
+        if (!(await workoutsStore.ownsSection(uuid, String(workoutId)))) {
+            return res.status(404).json({ message: `Workout with id ${workoutId} not found` });
+        }
         [result] = await pool.query<ResultSetHeader>(`
             INSERT INTO movements (section_id, label)
             VALUES (?, ?)
@@ -201,22 +211,24 @@ router.post('/movements', async (req, res): Promise<any> => {
     });
 });
 
+// Scoped to the caller via store.deleteMovement, which joins through the
+// owning section. A movement owned by someone else 404s rather than
+// deleting, so ids stay unenumerable across accounts.
 router.delete('/movements/:id', async (req, res): Promise<any> => {
+    const { uuid } = res.locals.user;
     const movementId = req.params.id;
     if (!validateId(movementId, res)) return;
 
-    let data: ResultSetHeader;
+    let deleted: boolean;
     try {
-        [data] = await pool.query<ResultSetHeader>(`
-            DELETE FROM movements WHERE movement_id = ?
-        `, [movementId]);
+        deleted = await workoutsStore.deleteMovement(uuid, movementId);
     } catch (error) {
         return handleSqlError(error, res, {
             [WRONG_VALUE_ERROR]: [400, "Movement id must be a positive integer"]
         });
     }
 
-    if (data.affectedRows === 0) {
+    if (!deleted) {
         return res.status(404).json({ message: `No movement with id ${movementId}` });
     }
 
@@ -233,16 +245,17 @@ router.get('/variations', async (req, res): Promise<any> => {
         return res.status(400).json({ message: "Query parameter movementId is required" });
     }
     if (!validateId(movementId, res)) return;
+    const { uuid } = res.locals.user;
 
-    let data: RowDataPacket[];
+    // Mirrors the movements route above: a foreign/nonexistent movementId
+    // produces an empty list rather than a 404, matching the original join.
+    let data: { id: number; label: string; weight: number | null; reps: number; date: Date | string }[] = [];
     try {
-        [data] = await pool.query<RowDataPacket[]>(`
-            SELECT v.variation_id as id, v.label, v.weight, v.reps, v.date
-            FROM variations v
-            INNER JOIN movements m ON m.movement_id = v.movement_id
-            INNER JOIN sections s ON s.section_id = m.section_id
-            WHERE v.movement_id = ? AND s.user_uuid = UUID_TO_BIN(?)
-        `, [movementId, res.locals.user.uuid]);
+        if (await workoutsStore.ownsMovement(uuid, movementId)) {
+            const rows = await workoutsStore.listVariationsForMovement(movementId);
+            // Drop `notes`: this endpoint's wire shape has never included it.
+            data = rows.map(({ id, label, weight, reps, date }) => ({ id, label, weight, reps, date }));
+        }
     } catch (error) {
         return handleSqlError(error, res);
     }
@@ -251,6 +264,7 @@ router.get('/variations', async (req, res): Promise<any> => {
 });
 
 router.post('/variations', async (req, res): Promise<any> => {
+    const { uuid } = res.locals.user;
     const { label, weight, reps, movementId } = req.body;
     if (!validateLabel(label, res)) return;
     if (!movementId || !validateId(String(movementId), res)) return;
@@ -258,12 +272,18 @@ router.post('/variations', async (req, res): Promise<any> => {
     const body = { label, weight, reps };
     if (!validateVariation(body, res)) return;
 
-    let result: ResultSetHeader;
+    let id: number;
     try {
-        [result] = await pool.query<ResultSetHeader>(`
-            INSERT INTO variations (movement_id, label, weight, reps)
-            VALUES (?, ?, ?, ?)
-        `, [movementId, label, weight ?? null, reps ?? 0]);
+        // Checked via store.ownsMovement before creating: a movementId that
+        // exists but belongs to another user 404s here rather than reaching
+        // the foreign-key check below, which can't tell the two cases apart.
+        if (!(await workoutsStore.ownsMovement(uuid, String(movementId)))) {
+            return res.status(404).json({ message: `Movement with id ${movementId} not found` });
+        }
+        // reps defaulted to 0 here (not left undefined) because the shared
+        // insert binds it positionally, and an undefined reps would send a
+        // literal SQL NULL against the NOT NULL column.
+        id = await workoutsStore.createVariation(movementId, label, weight, reps ?? 0, new Date());
     } catch (error) {
         return handleSqlError(error, res, {
             [NO_REFERENCE_ERROR]: [404, `Movement with id ${movementId} not found`]
@@ -271,12 +291,13 @@ router.post('/variations', async (req, res): Promise<any> => {
     }
 
     res.status(201).json({
-        data: { id: result.insertId },
-        message: `Successfully created variation with id ${result.insertId}`
+        data: { id },
+        message: `Successfully created variation with id ${id}`
     });
 });
 
 router.patch('/variations/:id', async (req, res): Promise<any> => {
+    const { uuid } = res.locals.user;
     const variationId = req.params.id;
     if (!validateId(variationId, res)) return;
 
@@ -292,19 +313,27 @@ router.patch('/variations/:id', async (req, res): Promise<any> => {
         req.body.date = new Date(parseISO(req.body.date));
     }
 
-    let data: ResultSetHeader;
+    let updated: boolean;
     try {
-        [data] = await pool.query<ResultSetHeader>(`
-            UPDATE variations SET ? WHERE variation_id = ?
-        `, [req.body, variationId]);
+        // Checked via store.ownsVariation before updating, so a variation
+        // owned by someone else 404s here -- and the history insert below
+        // never runs, since it's gated behind the same success path.
+        if (!(await workoutsStore.ownsVariation(uuid, variationId))) {
+            return res.status(404).json({ message: `No variation with id ${variationId}` });
+        }
+        updated = await workoutsStore.updateVariationFields(variationId, req.body);
     } catch (error) {
         return handleSqlError(error, res);
     }
 
-    if (data.affectedRows === 0) {
+    if (!updated) {
         return res.status(404).json({ message: `No variation with id ${variationId}` });
     }
 
+    // Kept inline rather than store.appendHistoryIfChanged: that helper only
+    // fires on the variation's post-update weight, dedupes against the latest
+    // history row, and also records reps -- three behavior differences from
+    // this endpoint's always-insert, weight-only, req.body-driven history log.
     if ('weight' in req.body && req.body.weight != null) {
         const historyDate = req.body.date ?? new Date();
         pool.query<ResultSetHeader>(`
@@ -316,22 +345,24 @@ router.patch('/variations/:id', async (req, res): Promise<any> => {
     res.status(200).json({ message: `Successfully updated variation with id ${variationId}` });
 });
 
+// Scoped to the caller via store.deleteVariation, which joins through the
+// owning movement and section. A variation owned by someone else 404s
+// rather than deleting, so ids stay unenumerable across accounts.
 router.delete('/variations/:id', async (req, res): Promise<any> => {
+    const { uuid } = res.locals.user;
     const variationId = req.params.id;
     if (!validateId(variationId, res)) return;
 
-    let data: ResultSetHeader;
+    let deleted: boolean;
     try {
-        [data] = await pool.query<ResultSetHeader>(`
-            DELETE FROM variations WHERE variation_id = ?
-        `, [variationId]);
+        deleted = await workoutsStore.deleteVariation(uuid, variationId);
     } catch (error) {
         return handleSqlError(error, res, {
             [WRONG_VALUE_ERROR]: [400, "Variation id must be a positive integer"]
         });
     }
 
-    if (data.affectedRows === 0) {
+    if (!deleted) {
         return res.status(404).json({ message: `No variation with id ${variationId}` });
     }
 
@@ -342,21 +373,26 @@ router.delete('/variations/:id', async (req, res): Promise<any> => {
 // History
 // ---------------------------------------------------------------------------
 
+// Scoped to the caller via store.ownsVariation, checked before reading
+// history. A variation owned by someone else 404s so ids stay unenumerable.
 router.get('/history/:variationId', async (req, res): Promise<any> => {
+    const { uuid } = res.locals.user;
     const variationId = req.params.variationId;
     if (!validateId(variationId, res)) return;
 
-    let data: RowDataPacket[];
+    let history: workoutsStore.HistoryEntry[];
     try {
-        [data] = await pool.query<RowDataPacket[]>(`
-            SELECT weight, date
-            FROM variation_history
-            WHERE variation_id = ?
-            ORDER BY date ASC
-        `, [variationId]);
+        if (!(await workoutsStore.ownsVariation(uuid, variationId))) {
+            return res.status(404).json({ message: `No variation with id ${variationId}` });
+        }
+        history = await workoutsStore.getHistory(variationId);
     } catch (error) {
         return handleSqlError(error, res);
     }
+
+    // Drop `reps`: this endpoint's wire shape has always been weight-only,
+    // unlike the main API's equivalent which also returns reps.
+    const data = history.map(({ weight, date }) => ({ weight, date }));
 
     res.status(200).json({
         data,
@@ -371,83 +407,78 @@ router.get('/history/:variationId', async (req, res): Promise<any> => {
 router.get('/summary', async (req, res): Promise<any> => {
     const { uuid } = res.locals.user;
 
-    let sections: RowDataPacket[];
-    let movements: RowDataPacket[];
-    let variations: RowDataPacket[];
-    let history: RowDataPacket[];
+    type SummaryMovement = { id: number; label: string; workoutId: number };
+    type SummaryVariation = {
+        id: number; movementId: number; label: string;
+        weight: number | null; reps: number; date: Date | string;
+    };
+
+    let sections: { id: number; label: string }[] = [];
+    const movements: SummaryMovement[] = [];
+    let variations: SummaryVariation[] = [];
+    // Keyed by variationId; each entry is the 10 most recent points, newest first.
+    const historyByVariation: Record<number, { weight: number | null; date: Date | string }[]> = {};
 
     try {
-        [sections] = await pool.query<RowDataPacket[]>(`
-            SELECT section_id as id, label
-            FROM sections
-            WHERE user_uuid = UUID_TO_BIN(?)
-        `, [uuid]);
+        const sectionRows = await workoutsStore.listSectionsForUser(uuid);
+        sections = sectionRows.map(({ id, label }) => ({ id, label }));
 
         if (sections.length === 0) {
             return res.status(200).json({ data: [], message: "No workouts found" });
         }
 
-        const sectionIds = sections.map(s => s.id);
-
-        [movements] = await pool.query<RowDataPacket[]>(`
-            SELECT movement_id as id, section_id as workoutId, label
-            FROM movements
-            WHERE section_id IN (?)
-        `, [sectionIds]);
+        // No bulk "movements for many sections" service call exists, so this
+        // fetches per section -- same rows as the original single IN (?) query.
+        for (const section of sections) {
+            const sectionMovements = await workoutsStore.listMovementsForSection(String(section.id));
+            for (const m of sectionMovements) {
+                movements.push({ id: m.id, label: m.label, workoutId: section.id });
+            }
+        }
 
         if (movements.length === 0) {
             const data = sections.map(s => ({ ...s, movements: [] }));
             return res.status(200).json({ data, message: "Summary retrieved" });
         }
 
-        const movementIds = movements.map(m => m.id);
+        const movementIds = movements.map(m => String(m.id));
+        const variationRows = await workoutsStore.listVariationsByMovementIds(movementIds);
+        // Drop `notes`: this endpoint's variation shape has never included it.
+        variations = variationRows.map(({ id, movement_id, label, weight, reps, date }) => ({
+            id, movementId: movement_id, label, weight, reps, date
+        }));
 
-        [variations] = await pool.query<RowDataPacket[]>(`
-            SELECT variation_id as id, movement_id as movementId, label, weight, reps, date
-            FROM variations
-            WHERE movement_id IN (?)
-        `, [movementIds]);
-
-        if (variations.length > 0) {
-            const variationIds = variations.map(v => v.id);
-            [history] = await pool.query<RowDataPacket[]>(`
-                SELECT variation_id as variationId, weight, date
-                FROM variation_history
-                WHERE variation_id IN (?)
-                ORDER BY date DESC
-            `, [variationIds]);
-        } else {
-            history = [];
+        // No bulk "history for many variations" service call exists, so this
+        // fetches per variation. getHistory is oldest-first; take the most
+        // recent 10 and reverse to match this endpoint's newest-first order.
+        for (const v of variations) {
+            const fullHistory = await workoutsStore.getHistory(String(v.id));
+            historyByVariation[v.id] = fullHistory
+                .slice(-10)
+                .reverse()
+                .map(({ weight, date }) => ({ weight, date }));
         }
     } catch (error) {
         return handleSqlError(error, res);
     }
 
-    // Group history by variationId (already sorted DESC — most recent first)
-    const historyByVariation: Record<number, { weight: number; date: string }[]> = {};
-    for (const h of history!) {
-        if (!historyByVariation[h.variationId]) historyByVariation[h.variationId] = [];
-        historyByVariation[h.variationId].push({ weight: h.weight, date: h.date });
-    }
-
     // Group variations by movementId
     const variationsByMovement: Record<number, any[]> = {};
-    for (const v of variations!) {
+    for (const v of variations) {
         if (!variationsByMovement[v.movementId]) variationsByMovement[v.movementId] = [];
-        const recentHistory = (historyByVariation[v.id] ?? []).slice(0, 10);
         variationsByMovement[v.movementId].push({
             id: v.id,
             label: v.label,
             currentWeight: v.weight,
             currentReps: v.reps,
             lastUpdated: v.date,
-            recentHistory
+            recentHistory: historyByVariation[v.id] ?? []
         });
     }
 
     // Group movements by sectionId
     const movementsBySection: Record<number, any[]> = {};
-    for (const m of movements!) {
+    for (const m of movements) {
         if (!movementsBySection[m.workoutId]) movementsBySection[m.workoutId] = [];
         movementsBySection[m.workoutId].push({
             id: m.id,
@@ -469,7 +500,10 @@ router.get('/summary', async (req, res): Promise<any> => {
 // Habits (tallies)
 // ---------------------------------------------------------------------------
 
-// GET distinct habit names for the user (discover what habits exist)
+// GET distinct habit names for the user (discover what habits exist). No
+// store function covers this: it reads distinct names ever tallied in
+// habit_tallies, a different (older) concept from the habits registry table
+// that services/habits/store.ts's listHabits reads from. Kept inline.
 router.get('/habits', async (req, res): Promise<any> => {
     const { uuid } = res.locals.user;
 
@@ -497,14 +531,9 @@ router.get('/habits/:habitName', async (req, res): Promise<any> => {
         return res.status(400).json({ message: "habitName must be a non-empty string" });
     }
 
-    let data: RowDataPacket[];
+    let data: habitsStore.TallyRow[];
     try {
-        [data] = await pool.query<RowDataPacket[]>(`
-            SELECT id, habit_name, date, count, range_start, range_end
-            FROM habit_tallies
-            WHERE user_uuid = UUID_TO_BIN(?) AND habit_name = ?
-            ORDER BY date DESC
-        `, [uuid, habitName]);
+        data = await habitsStore.listTallies(uuid, habitName);
     } catch (error) {
         return handleSqlError(error, res);
     }
@@ -539,61 +568,21 @@ router.post('/habits/:habitName/tally', async (req, res): Promise<any> => {
     const todayDate = dateValue ?? fallbackDate;
     const currentTime = timeValue ?? fallbackTime;
 
-    let existingRows: RowDataPacket[];
+    let result: habitsStore.TallyUpsertResult;
     try {
-        [existingRows] = await pool.query<RowDataPacket[]>(`
-            SELECT id, count, range_start, range_end
-            FROM habit_tallies
-            WHERE user_uuid = UUID_TO_BIN(?) AND habit_name = ? AND date = ?
-        `, [uuid, habitName, todayDate]);
+        result = await habitsStore.upsertTally(uuid, habitName, todayDate, currentTime);
     } catch (error) {
         return handleSqlError(error, res);
     }
 
-    if (existingRows.length === 0) {
-        // No row for the date — insert with count=1 and range_start=range_end=currentTime
-        let result: ResultSetHeader;
-        try {
-            [result] = await pool.query<ResultSetHeader>(`
-                INSERT INTO habit_tallies (user_uuid, habit_name, date, count, range_start, range_end)
-                VALUES (UUID_TO_BIN(?), ?, ?, 1, ?, ?)
-            `, [uuid, habitName, todayDate, currentTime, currentTime]);
-        } catch (error) {
-            return handleSqlError(error, res);
-        }
-
+    if (result.created) {
         return res.status(201).json({
-            data: {
-                id: result.insertId,
-                date: todayDate,
-                count: 1,
-                range_start: currentTime,
-                range_end: currentTime
-            },
+            data: result.data,
             message: `Tally added for ${habitName} on ${todayDate}`
         });
     } else {
-        // Row exists — increment count and push range_end forward
-        const existing = existingRows[0];
-        const newCount = existing.count + 1;
-        try {
-            await pool.query<ResultSetHeader>(`
-                UPDATE habit_tallies
-                SET count = ?, range_end = ?
-                WHERE id = ?
-            `, [newCount, currentTime, existing.id]);
-        } catch (error) {
-            return handleSqlError(error, res);
-        }
-
         return res.status(200).json({
-            data: {
-                id: existing.id,
-                date: todayDate,
-                count: newCount,
-                range_start: existing.range_start,
-                range_end: currentTime
-            },
+            data: result.data,
             message: `Tally incremented for ${habitName} on ${todayDate}`
         });
     }
