@@ -8,21 +8,26 @@ import * as store from '../nutrition/store';
 import { recordUsage } from '../nutrition/usage';
 import { getUserFlags } from '../flags';
 import { buildSystemPrompt } from './prompt';
-import { assembleTools, ToolContext, ToolModule } from './tools/registry';
+import { assembleTools, ToolContext, ToolModule, readToolModules } from './tools/registry';
 import { nutritionTools } from './tools/nutrition';
+import { mutationTools } from './tools/mutations';
 import { reportTokenUsage } from './tokenEstimate';
 
 /**
- * Every domain's tools, merged per-request by assembleTools. Later waves add
- * more entries here (workouts, goals, etc.) without touching this file's
- * request-handling logic.
+ * Every domain's tools, merged per-request by assembleTools: nutrition's
+ * named tools, the cross-domain mutation-proposal tools, and the Wave 3
+ * read-only tools (query_series, list_resources, get_resource).
  */
-const TOOL_MODULES: ToolModule[] = [nutritionTools];
+export const TOOL_MODULES: ToolModule[] = [nutritionTools, mutationTools, ...readToolModules];
 
 export interface ChatOptions {
   userUuid: string;
   /** ISO-8601 date string: YYYY-MM-DD — the day the user is currently viewing */
   selectedDate: string;
+  /** Name of the client tab the user is currently on (e.g. "workouts", "nutrition"). */
+  tab?: string;
+  /** The specific resource the user is currently focused on within their tab, if any. */
+  focusedResource?: { type: string; id: string | number };
   /** Raw useChat UI messages from the client (array of UIMessage-like objects without id) */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   messages: any[];
@@ -142,6 +147,8 @@ function buildBarcodeToolResultMessages(
 export async function streamChat({
   userUuid,
   selectedDate,
+  tab,
+  focusedResource,
   messages,
   effort,
   autoConfirm,
@@ -172,6 +179,8 @@ export async function streamChat({
   const system = buildSystemPrompt({
     uncEnabled,
     selectedDate,
+    tab,
+    focusedResource,
     goalsLine,
     todayTotals: todayDay.totals,
     recentEntries: recent,

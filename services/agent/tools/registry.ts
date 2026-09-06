@@ -2,6 +2,7 @@
 // so new domains (workouts, goals, etc.) register alongside nutrition without
 // this file or callers needing to change per-domain internals.
 import type { ToolSet } from 'ai';
+import { analyticsTools } from './analytics';
 
 /**
  * Shared per-request context handed to every domain's tool builder. Domains
@@ -27,3 +28,11 @@ export type ToolModule = (ctx: ToolContext) => ToolSet;
 export function assembleTools(modules: ToolModule[], ctx: ToolContext): ToolSet {
   return modules.reduce<ToolSet>((acc, buildModule) => ({ ...acc, ...buildModule(ctx) }), {});
 }
+
+/**
+ * Wave 3 read-only tool modules: query_series plus generic list_resources /
+ * get_resource reads over workouts, body weight, and habits. Not yet merged
+ * into index.ts's TOOL_MODULES -- a later wave combines this with nutrition
+ * and mutation tools into one request-level tool set.
+ */
+export const readToolModules: ToolModule[] = [analyticsTools];

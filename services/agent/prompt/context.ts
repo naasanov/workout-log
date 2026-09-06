@@ -7,6 +7,10 @@ import type { recentEntries } from '../../nutrition/store';
 export interface VolatileContextInput {
   /** ISO-8601 date string: YYYY-MM-DD — the day the user is currently viewing */
   selectedDate: string;
+  /** Name of the client tab the user is currently on (e.g. "workouts", "nutrition"). */
+  tab?: string;
+  /** The specific resource the user is currently focused on within their tab, if any. */
+  focusedResource?: { type: string; id: string | number };
   goalsLine: string;
   todayTotals: { calories: number; protein_g: number; carbs_g: number; fat_g: number };
   recentEntries: Awaited<ReturnType<typeof recentEntries>>;
@@ -34,6 +38,8 @@ function summariseEntries(entries: VolatileContextInput['recentEntries']): strin
 /** Assemble the volatile tail of the system prompt from this request's context. */
 export function buildVolatileContext({
   selectedDate,
+  tab,
+  focusedResource,
   goalsLine,
   todayTotals,
   recentEntries,
@@ -49,6 +55,17 @@ TODAY'S DATE: ${selectedDate}
 
 **Recent meals (last 3 days):**
 ${summariseEntries(recentEntries)}`;
+
+  // Where the user is looking right now, for resolving vague references like
+  // "this exercise" or "today" -- not a restriction on what you may query.
+  // You can still look up any resource on any tab.
+  const location = [
+    tab ? `tab: ${tab}` : null,
+    focusedResource ? `focused on ${focusedResource.type} #${focusedResource.id}` : null,
+  ].filter(Boolean).join(', ');
+  if (location) {
+    block += `\n\n**Viewing:** ${location} -- resolves vague refs like "this"/"today"; not restrictive, query any resource.`;
+  }
 
   if (autoConfirm) {
     block += '\n\nIMPORTANT: This is an automated API call. Do NOT ask any follow-up questions. Do NOT ask for confirmation. Log the food entry immediately based on the prompt provided. Use your best judgment on quantities and macros. Call propose_entry as soon as you have identified the food and estimated the portion.';

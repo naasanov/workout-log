@@ -43,10 +43,16 @@ export interface StoredChatMessage {
   created_at: string;
 }
 
-/** A stored proposal resolution row as returned to the client. */
+/**
+ * A stored proposal resolution row as returned to the client. `kind` is a
+ * free-form resource tag (e.g. 'entry', 'custom_food', 'section',
+ * 'body_weight_entry.delete') rather than a closed union -- one resolution
+ * mechanism now covers proposals from any resource, not just nutrition's
+ * original two kinds. See migrations/024_generalize_proposal_kind.sql.
+ */
 export interface ProposalResolutionRow {
   tool_call_id: string;
-  kind: 'entry' | 'custom_food';
+  kind: string;
   status: 'confirmed' | 'denied';
   display_name: string | null;
 }
@@ -264,7 +270,7 @@ export async function getResolutions(conversationId: number): Promise<ProposalRe
     );
     return rows.map((row) => ({
       tool_call_id: row.tool_call_id as string,
-      kind: row.kind as 'entry' | 'custom_food',
+      kind: row.kind as string,
       status: row.status as 'confirmed' | 'denied',
       display_name: (row.display_name as string | null) ?? null,
     }));
@@ -285,7 +291,7 @@ export async function saveResolution(
   userUuid: string,
   conversationId: number,
   toolCallId: string,
-  kind: 'entry' | 'custom_food',
+  kind: string,
   status: 'confirmed' | 'denied',
   displayName: string | null,
   date: string | null = null,
