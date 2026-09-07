@@ -110,33 +110,35 @@ test('tab preferences routes', async (t) => {
 
   await t.test('a deliberately disabled tab stays disabled after a new tab key is introduced', async () => {
     const user = await db.createTestUser();
-    // habits was never offered to this user (simulating a just-added tab key);
-    // body-weight was offered and the user turned it off on purpose.
-    await seedRow(
-      pool,
-      user.uuid,
-      ['workouts', 'nutrition'],
-      ['workouts', 'body-weight', 'nutrition'],
-    );
+    // The last canonical key stands in for a just-added tab: it is the only one
+    // missing from known_tabs. Derived from TAB_KEYS so adding a real tab later
+    // does not turn this into a two-new-keys case and break the assertion.
+    const newKey = TAB_KEYS[TAB_KEYS.length - 1];
+    const offered = TAB_KEYS.filter((k) => k !== newKey);
+    const disabled = offered[1];
+    const enabled = offered.filter((k) => k !== disabled);
+
+    await seedRow(pool, user.uuid, enabled, offered);
 
     const { status, body } = await get(baseUrl, user);
     assert.equal(status, 200);
-    // habits is adopted (new); body-weight stays off (deliberate).
-    assert.deepEqual(body.data, ['workouts', 'nutrition', 'habits']);
+    // The new key is adopted; the deliberately disabled one stays off.
+    assert.deepEqual(body.data, [...enabled, newKey]);
   });
 
   await t.test('a brand-new tab key is adopted for a user who has never seen it', async () => {
     const user = await db.createTestUser();
-    await seedRow(
-      pool,
-      user.uuid,
-      ['workouts', 'body-weight', 'habits'],
-      ['workouts', 'body-weight', 'habits'],
-    );
+    // Everything except the last canonical key has been offered and enabled,
+    // so that key is the single new one. Derived from TAB_KEYS so a future tab
+    // addition does not silently make this a two-new-keys case.
+    const newKey = TAB_KEYS[TAB_KEYS.length - 1];
+    const offered = TAB_KEYS.filter((k) => k !== newKey);
+
+    await seedRow(pool, user.uuid, offered, offered);
 
     const { status, body } = await get(baseUrl, user);
     assert.equal(status, 200);
-    assert.deepEqual(body.data, ['workouts', 'body-weight', 'habits', 'nutrition']);
+    assert.deepEqual(body.data, [...offered, newKey]);
 
     const knownAfter = await readKnownTabs(pool, user.uuid);
     assert.deepEqual(new Set(knownAfter), new Set(TAB_KEYS));

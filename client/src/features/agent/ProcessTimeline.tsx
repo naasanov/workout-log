@@ -128,6 +128,7 @@ export type RenderGroup =
 function classifyMergedPart(
   merged: MergedPart,
   resolutions: Map<string, ProposalResolutionState>,
+  readOnly = false,
 ): 'cluster' | 'inline' | 'hidden' {
   if (merged.type === 'merged-reasoning') {
     // An empty reasoning block that's finished streaming renders nothing
@@ -159,6 +160,10 @@ function classifyMergedPart(
   if (resolutions.has(toolCallId)) return 'inline';
 
   if (registration.kind === 'proposal') {
+    // A read-only (archived-conversation) view never mounts an actionable
+    // proposal card (confirm/deny only makes sense in a live chat), so an
+    // unresolved proposal always renders as a plain ToolCallCard step there.
+    if (readOnly) return 'cluster';
     // Not yet resolved into args — renders as a plain ToolCallCard, so it's
     // just another step in the chain until the proposal is actually ready.
     return part.state === 'input-available' || part.state === 'output-available' ? 'inline' : 'cluster';
@@ -171,6 +176,7 @@ function classifyMergedPart(
 export function groupPartsForRender(
   mergedParts: MergedPart[],
   resolutions: Map<string, ProposalResolutionState>,
+  readOnly = false,
 ): RenderGroup[] {
   const groups: RenderGroup[] = [];
   // All process steps (reasoning + tool calls) across the whole message collapse
@@ -182,7 +188,7 @@ export function groupPartsForRender(
   let cluster: { kind: 'cluster'; items: MergedPart[]; groupKey: string } | null = null;
 
   for (const merged of mergedParts) {
-    const cls = classifyMergedPart(merged, resolutions);
+    const cls = classifyMergedPart(merged, resolutions, readOnly);
     if (cls === 'hidden') continue;
 
     if (cls === 'cluster') {

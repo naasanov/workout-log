@@ -41,6 +41,8 @@ import {
   useRef,
   useCallback,
   useEffect,
+  forwardRef,
+  useImperativeHandle,
 } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
@@ -98,6 +100,21 @@ export interface AgentChatProps {
   /** Accessible label for the dialog and the FAB. */
   srLabel?: string;
   composerPlaceholder?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Imperative handle: the sheet manages its own open/expanded state
+// internally (drag gestures, tap-to-open), so `open`/`onClose` above are not
+// a real controlled-open API. A caller outside the sheet (e.g. chat history's
+// "Continue" action, which reactivates a different conversation server-side)
+// needs to both pull that new active conversation in and pop the sheet open;
+// this ref exposes exactly that, without turning `open` into two competing
+// sources of truth for the same state.
+// ---------------------------------------------------------------------------
+export interface AgentChatHandle {
+  /** Re-resolves the caller's active conversation from the server (picking
+   *  up whatever just became active) and expands the sheet to show it. */
+  openActiveConversation: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -195,7 +212,7 @@ const EXPANDED_HEIGHT_VH = 88; // dvh
 // .reconnectIconSpinning duration, so one rotation and the minimum are equal.
 const RECONNECT_MIN_SPIN_MS = 1000;
 
-export default function AgentChat({
+const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat({
   open,
   onClose,
   context,
@@ -204,7 +221,7 @@ export default function AgentChat({
   title = 'Ask AI',
   srLabel = 'AI chat',
   composerPlaceholder = 'Message the assistant…',
-}: AgentChatProps) {
+}: AgentChatProps, ref) {
   // Fast cache: seed from whichever conversation id we last knew about, so a
   // reload doesn't flash an empty thread while GET /active resolves.
   const lastKnownId = (() => {
@@ -358,6 +375,17 @@ export default function AgentChat({
     const isLiveStreaming = statusRef.current === 'streaming' || statusRef.current === 'submitted';
     setPollingActive(endsInDanglingUser(set) && !isLiveStreaming);
   }, []);
+
+  // See AgentChatHandle: lets an external caller (chat history's "Continue")
+  // pull in a conversation that was just made active elsewhere and pop the
+  // sheet open, without turning `open` into a second, competing source of
+  // truth for the sheet's own expand/collapse state.
+  useImperativeHandle(ref, () => ({
+    openActiveConversation: () => {
+      fetchAndApplyActive(undefined, true).then(applied => evaluateDangling(applied));
+      setExpanded(true);
+    },
+  }), [fetchAndApplyActive, evaluateDangling]);
 
   // On mount: resolve the active conversation, apply its transcript, then
   // evaluate the dangling condition. Also pulls server-side resolutions so
@@ -989,4 +1017,6 @@ export default function AgentChat({
       )}
     </>
   );
-}
+});
+
+export default AgentChat;

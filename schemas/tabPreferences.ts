@@ -9,7 +9,7 @@ import { z } from 'zod';
 // Adding a key here is the only step needed for services/tabPreferences.ts to
 // adopt it for existing users on their next read (see known_tabs there) --
 // remember to also add it to the client's TABS list by hand.
-export const TAB_KEYS = ['workouts', 'body-weight', 'habits', 'nutrition'] as const;
+export const TAB_KEYS = ['workouts', 'body-weight', 'habits', 'nutrition', 'chat-history'] as const;
 export type TabKey = (typeof TAB_KEYS)[number];
 
 // PUT /users/tab-preferences body: an ordered, duplicate-free list of valid keys.

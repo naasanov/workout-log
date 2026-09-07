@@ -8,6 +8,7 @@ export const TABS = {
   BODY_WEIGHT: 'body-weight',
   HABITS: 'habits',
   NUTRITION: 'nutrition',
+  CHAT_HISTORY: 'chat-history',
 };
 
 export const TAB_LABELS = {
@@ -15,6 +16,7 @@ export const TAB_LABELS = {
   [TABS.BODY_WEIGHT]: 'Body Weight',
   [TABS.HABITS]: 'Habits',
   [TABS.NUTRITION]: 'Nutrition',
+  [TABS.CHAT_HISTORY]: 'Chat History',
 };
 
 // Default order for new/backfilled accounts; also the canonical ordering used to
@@ -24,6 +26,7 @@ export const DEFAULT_ORDER = [
   TABS.BODY_WEIGHT,
   TABS.HABITS,
   TABS.NUTRITION,
+  TABS.CHAT_HISTORY,
 ];
 
 export const VALID_TABS = new Set(DEFAULT_ORDER);

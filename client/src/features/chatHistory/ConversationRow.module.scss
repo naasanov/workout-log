@@ -1,0 +1,120 @@
+@use "../../styles/variables" as vars;
+
+.row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  background-color: vars.$surface;
+  border-radius: vars.$border-radius;
+  margin-bottom: 8px;
+  overflow: hidden;
+
+  &.rowActive {
+    border: 1px solid rgba(vars.$primary, 0.5);
+  }
+}
+
+.rowMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  color: vars.$text;
+
+  &:hover {
+    background-color: rgba(vars.$primary, 0.06);
+  }
+}
+
+.rowTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: vars.$sarabun-spacing;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.activeBadge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: vars.$primary;
+  background-color: vars.$primary-translucent;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.preview {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(vars.$text, 0.65);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: rgba(vars.$text, 0.4);
+}
+
+.expiredLabel {
+  color: vars.$error;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: rgba(vars.$text, 0.55);
+  cursor: pointer;
+
+  &:hover {
+    background-color: rgba(vars.$primary, 0.1);
+    color: vars.$primary;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+.deleteBtn:hover {
+  background-color: rgba(vars.$error, 0.12);
+  color: vars.$error;
+}

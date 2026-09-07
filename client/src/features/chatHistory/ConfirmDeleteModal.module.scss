@@ -1,0 +1,57 @@
+@use "../../styles/variables" as vars;
+
+.modalContent {
+  max-width: 360px;
+}
+
+.inner {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+
+.heading {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: vars.$text;
+}
+
+.description {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(vars.$text, 0.7);
+  line-height: 1.4;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.cancelBtn {
+  background: transparent;
+  border: 1px solid vars.$surface-border;
+  border-radius: 10px;
+  color: vars.$text;
+  padding: 10px 16px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.confirmBtn {
+  background-color: vars.$error;
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}

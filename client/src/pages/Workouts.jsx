@@ -3,8 +3,9 @@ import AddSection from '../components/AddSection.jsx';
 import BodyWeightTracker from '../components/BodyWeightTracker.jsx';
 import HabitTracker from '../components/HabitTracker.jsx';
 import NutritionTracker from '../features/nutrition/NutritionTracker';
+import ChatHistoryPanel from '../features/chatHistory/ChatHistoryPanel';
 import TabsEmptyState from '../components/TabsEmptyState.jsx';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import styles from "../styles/Workouts.module.scss";
 import Header from '../components/Header.jsx';
@@ -108,6 +109,15 @@ function Workouts() {
 
   const handleChatClose = useCallback(() => {}, []);
 
+  // Imperative handle onto the single page-level AgentChat instance (see its
+  // AgentChatHandle) -- lets chat history's "Continue" action pull in the
+  // conversation it just reactivated and pop the sheet open, without
+  // threading a second, competing "open" state through this page.
+  const agentChatRef = useRef(null);
+  const handleConversationContinued = useCallback(() => {
+    agentChatRef.current?.openActiveConversation();
+  }, []);
+
   // #236: unique tab titles, tab name first so browser-tab truncation
   // (which cuts from the end) never eats the distinguishing word. activeTab
   // is null in the empty state (logged in, no enabled tools) — fall back to
@@ -158,6 +168,12 @@ function Workouts() {
             <NutritionTracker onSelectedDateChange={setNutritionSelectedDate} />
           </div>
         )}
+
+        {user && (
+          <div style={{ display: activeTab === TABS.CHAT_HISTORY ? undefined : 'none' }}>
+            <ChatHistoryPanel onConversationContinued={handleConversationContinued} />
+          </div>
+        )}
       </main>
 
       {/* AI chat — mounted once here (not per-tab) so it's available on every
@@ -172,6 +188,7 @@ function Workouts() {
           gating). */}
       {user && (
         <AgentChat
+          ref={agentChatRef}
           open={false}
           onClose={handleChatClose}
           context={chatContext}

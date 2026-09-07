@@ -31,6 +31,10 @@ export interface ChatMessageProps {
   context: AgentChatContext;
   resolutions: Map<string, ProposalResolutionState>;
   resolveProposal: (toolCallId: string, status: 'confirmed' | 'denied', kind: string, displayName?: string | null) => void;
+  /** Archived-conversation read-only view: never mounts an actionable
+   *  proposal card (confirm/deny only makes sense in a live chat); an
+   *  unresolved proposal instead renders as a plain step in the timeline. */
+  readOnly?: boolean;
 }
 
 export default function ChatMessage({
@@ -40,6 +44,7 @@ export default function ChatMessage({
   context,
   resolutions,
   resolveProposal,
+  readOnly = false,
 }: ChatMessageProps) {
   const isUser = message.role === 'user';
   // Interrupted flag from a stored assistant message that ended without onFinish.
@@ -47,7 +52,7 @@ export default function ChatMessage({
   const isStreamingThis = isLastAssistant && isStreaming;
 
   const mergedParts = mergeReasoningParts(message.parts);
-  const groups = groupPartsForRender(mergedParts, resolutions);
+  const groups = groupPartsForRender(mergedParts, resolutions, readOnly);
 
   // Renders a single non-cluster part (text / attachment / resolved or
   // actionable proposal/view). Cluster-eligible parts (plain tool-call

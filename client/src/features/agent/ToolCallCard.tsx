@@ -273,6 +273,12 @@ export default function ToolCallCard({ part }: ToolCallCardProps) {
   const hasEmptyInput = isEmptyInput(input);
   const resultItems = isDone ? extractResultItems(output) : null;
 
+  // The nightly retention job strips input/output off tool-* parts older
+  // than 7 days, leaving only { type, payloadTrimmed: true, toolCallId,
+  // state }. Show a quiet note instead of empty/skeletal Input/Output
+  // sections so an aged-out card still reads as intentional, not broken.
+  const payloadTrimmed = (part as { payloadTrimmed?: boolean }).payloadTrimmed === true;
+
   return (
     <div className={`${styles.card} ${isError ? styles.cardError : ''}`}>
       {/* Item 11: single muted collapsed line */}
@@ -305,38 +311,46 @@ export default function ToolCallCard({ part }: ToolCallCardProps) {
 
       {/* Animated expand/collapse */}
       <AnimatedBody expanded={expanded}>
-        {/* Item 13: skip input section if empty */}
-        {!hasEmptyInput && (
+        {payloadTrimmed ? (
           <div className={styles.section}>
-            <span className={styles.sectionLabel}>Input</span>
-            <PrettyJson value={input} />
+            <p className={styles.trimmedNote}>Details no longer available — this step aged out.</p>
           </div>
-        )}
-        {/* Food-search / UNC-dining tool outputs get a friendly badged list
-            (source badge + name + serving/location detail) instead of raw
-            JSON when the shape is recognized; anything else still falls back
-            to the plain PrettyJson dump. */}
-        {isDone && resultItems && resultItems.length > 0 && (
-          <div className={styles.section}>
-            <span className={styles.sectionLabel}>Results</span>
-            <ul className={styles.resultsList}>
-              {resultItems.map((item, i) => (
-                <ResultRow key={i} item={item} />
-              ))}
-            </ul>
-          </div>
-        )}
-        {isDone && !(resultItems && resultItems.length > 0) && (
-          <div className={styles.section}>
-            <span className={styles.sectionLabel}>Output</span>
-            <PrettyJson value={output} />
-          </div>
-        )}
-        {isError && (
-          <div className={styles.section}>
-            <span className={styles.sectionLabel}>Error</span>
-            <p className={styles.errorText}>{errorText}</p>
-          </div>
+        ) : (
+          <>
+            {/* Item 13: skip input section if empty */}
+            {!hasEmptyInput && (
+              <div className={styles.section}>
+                <span className={styles.sectionLabel}>Input</span>
+                <PrettyJson value={input} />
+              </div>
+            )}
+            {/* Food-search / UNC-dining tool outputs get a friendly badged list
+                (source badge + name + serving/location detail) instead of raw
+                JSON when the shape is recognized; anything else still falls back
+                to the plain PrettyJson dump. */}
+            {isDone && resultItems && resultItems.length > 0 && (
+              <div className={styles.section}>
+                <span className={styles.sectionLabel}>Results</span>
+                <ul className={styles.resultsList}>
+                  {resultItems.map((item, i) => (
+                    <ResultRow key={i} item={item} />
+                  ))}
+                </ul>
+              </div>
+            )}
+            {isDone && !(resultItems && resultItems.length > 0) && (
+              <div className={styles.section}>
+                <span className={styles.sectionLabel}>Output</span>
+                <PrettyJson value={output} />
+              </div>
+            )}
+            {isError && (
+              <div className={styles.section}>
+                <span className={styles.sectionLabel}>Error</span>
+                <p className={styles.errorText}>{errorText}</p>
+              </div>
+            )}
+          </>
         )}
       </AnimatedBody>
     </div>
