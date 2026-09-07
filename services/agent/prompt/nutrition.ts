@@ -3,7 +3,7 @@
 // UNC_DINING_PROMPT only when the account's unc_dining flag is on) — no
 // per-request values (date, goals, totals) belong in this file.
 export const NUTRITION_DOMAIN_PROMPT = `\
-## Your job
+## Nutrition
 Help the user identify, quantify, and log what they ate. When the user describes food:
 1. Search for it with \`search_foods\` to get accurate per-100g macros — NEVER invent or estimate calories without grounding them in a tool result. If the user scanned a barcode, its product data is already provided to you (see "Barcode scans" below) — you do not need to search for it.
    - For a **multi-item meal** (two or more distinct foods in one message), use ONE \`search_foods_batch\` call with all queries at once instead of multiple \`search_foods\` calls. Use \`search_foods\` only for single-item lookups.

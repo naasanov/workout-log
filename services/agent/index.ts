@@ -238,7 +238,10 @@ export async function streamChat({
     model: openai('gpt-5.5'),
     system,
     messages: modelMessages,
-    stopWhen: [stepCountIs(16)],
+    // Bounds a turn at roughly double the flagship cross-domain analysis case
+    // (~6 tool calls plus a reasoning step around each), leaving headroom for
+    // an extra lookup or retry without letting a runaway loop go unbounded.
+    stopWhen: [stepCountIs(24)],
     providerOptions: {
       openai: {
         reasoningEffort: effort ?? 'medium',
