@@ -127,9 +127,13 @@ async function setupTestDb() {
   runMigrations();
 }
 
-// Truncates every table in the test schema except schema_migrations, so each
+// Empties every table in the test schema except schema_migrations, so each
 // test starts from an empty-but-migrated database. FK checks are toggled off
 // for the duration so table order doesn't matter.
+//
+// DELETE, not TRUNCATE: TRUNCATE drops/recreates each InnoDB tablespace even
+// when empty (~46ms/table) while DELETE costs ~45ms for the whole schema.
+// Ids do not reset between tests within a file as a result; no test may rely on one starting at 1.
 async function resetDb() {
   assertTestSchema();
   const pool = getPool();
@@ -141,7 +145,7 @@ async function resetDb() {
   await pool.query('SET FOREIGN_KEY_CHECKS = 0');
   for (const row of rows) {
     const table = row.table_name ?? row.TABLE_NAME;
-    await pool.query(`TRUNCATE TABLE \`${table}\``);
+    await pool.query(`DELETE FROM \`${table}\``);
   }
   await pool.query('SET FOREIGN_KEY_CHECKS = 1');
 }
