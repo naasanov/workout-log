@@ -77,6 +77,14 @@ async function patchTally(baseUrl, user, habitName, date, body) {
   return { status: res.status, body: await res.json() };
 }
 
+async function deleteTally(baseUrl, user, habitName, date) {
+  const res = await fetch(`${baseUrl}/api/habits/${encodeURIComponent(habitName)}/${date}`, {
+    method: 'DELETE',
+    headers: user.authHeader(),
+  });
+  return { status: res.status, body: await res.json() };
+}
+
 // GET /:habitName's `date` field comes straight off a DATE column with no
 // dateStrings option set, so mysql2 hands back a JS Date (local midnight)
 // and res.json() serializes it as a full UTC ISO timestamp. Reconstructing
@@ -662,6 +670,100 @@ test('habits routes', async (t) => {
 
     const { body: tallyBody } = await getTallies(baseUrl, userB, 'reading');
     assert.equal(tallyBody.data[0].count, 1);
+  });
+
+  // ── DELETE /:habitName/:date (tally) ─────────────────────────────────────
+
+  await t.test('DELETE /:habitName/:date removes a single tally row', async () => {
+    const user = await db.createTestUser();
+    await postTally(baseUrl, user, 'reading', { localDate: '2024-01-01', localTime: '09:00' });
+
+    const { status, body } = await deleteTally(baseUrl, user, 'reading', '2024-01-01');
+    assert.equal(status, 200);
+    assert.equal(body.message, 'Successfully deleted tally for reading on 2024-01-01');
+
+    const { body: tallyBody } = await getTallies(baseUrl, user, 'reading');
+    assert.deepEqual(tallyBody.data, []);
+  });
+
+  await t.test('DELETE /:habitName/:date (wart) works for a name never registered, matching other tally endpoints', async () => {
+    const user = await db.createTestUser();
+    await postTally(baseUrl, user, 'ghost-habit', { localDate: '2024-01-01', localTime: '09:00' });
+
+    const { status } = await deleteTally(baseUrl, user, 'ghost-habit', '2024-01-01');
+    assert.equal(status, 200);
+
+    const { body: tallyBody } = await getTallies(baseUrl, user, 'ghost-habit');
+    assert.deepEqual(tallyBody.data, []);
+  });
+
+  await t.test('DELETE /:habitName/:date only removes the targeted date, leaving other dates intact', async () => {
+    const user = await db.createTestUser();
+    await postTally(baseUrl, user, 'reading', { localDate: '2024-01-01', localTime: '09:00' });
+    await postTally(baseUrl, user, 'reading', { localDate: '2024-01-02', localTime: '09:00' });
+
+    await deleteTally(baseUrl, user, 'reading', '2024-01-01');
+
+    const { body: tallyBody } = await getTallies(baseUrl, user, 'reading');
+    assert.equal(tallyBody.data.length, 1);
+    assert.equal(dateOnly(tallyBody.data[0].date), '2024-01-02');
+  });
+
+  await t.test('DELETE /:habitName/:date rejects a malformed date', async () => {
+    const user = await db.createTestUser();
+    const { status, body } = await deleteTally(baseUrl, user, 'reading', '01-01-2024');
+    assert.equal(status, 400);
+    assert.equal(body.message, 'date must be in YYYY-MM-DD format');
+  });
+
+  await t.test('DELETE /:habitName/:date 404s when no tally exists for that date', async () => {
+    const user = await db.createTestUser();
+    const { status, body } = await deleteTally(baseUrl, user, 'reading', '2024-01-01');
+    assert.equal(status, 404);
+    assert.equal(body.message, 'No tally found for reading on 2024-01-01');
+  });
+
+  await t.test('DELETE /:habitName/:date cannot touch another user\'s tally', async () => {
+    const userA = await db.createTestUser();
+    const userB = await db.createTestUser();
+    await postTally(baseUrl, userB, 'reading', { localDate: '2024-01-01', localTime: '09:00' });
+
+    const { status } = await deleteTally(baseUrl, userA, 'reading', '2024-01-01');
+    assert.equal(status, 404);
+
+    const { body: tallyBody } = await getTallies(baseUrl, userB, 'reading');
+    assert.equal(tallyBody.data.length, 1);
+  });
+
+  await t.test('DELETE /:habitName/:date and DELETE /:id do not shadow one another', async () => {
+    // A two-segment path can never match the single-segment DELETE /:id
+    // route (and vice versa), but this exercises both through the real
+    // router to confirm neither was accidentally registered ahead of the
+    // other in a way that would intercept the wrong requests.
+    const user = await db.createTestUser();
+    const { body: created } = await createHabit(baseUrl, user, { name: 'reading' });
+    await postTally(baseUrl, user, 'reading', { localDate: '2024-01-01', localTime: '09:00' });
+    await postTally(baseUrl, user, 'reading', { localDate: '2024-01-02', localTime: '09:00' });
+
+    // Two-segment delete removes only the one tally date.
+    const { status: tallyDeleteStatus, body: tallyDeleteBody } = await deleteTally(baseUrl, user, 'reading', '2024-01-01');
+    assert.equal(tallyDeleteStatus, 200);
+    assert.equal(tallyDeleteBody.message, 'Successfully deleted tally for reading on 2024-01-01');
+
+    const { body: afterTallyDelete } = await getTallies(baseUrl, user, 'reading');
+    assert.equal(afterTallyDelete.data.length, 1);
+
+    // The habit itself is untouched by the tally delete.
+    const { body: habitsAfterTallyDelete } = await listHabits(baseUrl, user);
+    assert.equal(habitsAfterTallyDelete.data.length, 1);
+
+    // Single-segment delete still hits the registry route, not the tally route.
+    const { status: habitDeleteStatus, body: habitDeleteBody } = await deleteHabit(baseUrl, user, created.data.id);
+    assert.equal(habitDeleteStatus, 200);
+    assert.equal(habitDeleteBody.message, 'Habit "reading" and its tallies deleted');
+
+    const { body: habitsAfterHabitDelete } = await listHabits(baseUrl, user);
+    assert.deepEqual(habitsAfterHabitDelete.data, []);
   });
 
   // ── Rename/delete vs. name-based tally join: deeper warts ───────────────────

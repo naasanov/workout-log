@@ -39,6 +39,15 @@ async function del(baseUrl, user, id) {
   return { status: res.status, body: await res.json() };
 }
 
+async function patch(baseUrl, user, id, body) {
+  const res = await fetch(`${baseUrl}/api/body-weight/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...user.authHeader() },
+    body: JSON.stringify(body),
+  });
+  return { status: res.status, body: await res.json() };
+}
+
 test('bodyWeight routes', async (t) => {
   const available = await db.isDbReachable();
   if (!available) {
@@ -287,15 +296,125 @@ test('bodyWeight routes', async (t) => {
     assert.deepEqual(body.data, []);
   });
 
-  await t.test('there is no update endpoint; editing is delete-then-recreate', async () => {
+  await t.test('there is no PUT endpoint; only PATCH updates an entry', async () => {
     const user = await db.createTestUser();
     const res = await fetch(`${baseUrl}/api/body-weight/1`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...user.authHeader() },
       body: JSON.stringify({ weight: 100 }),
     });
-    // No PUT/PATCH handler is registered for this router at all, so Express
-    // falls through with its default 404 rather than the route's own JSON 404s.
+    // No PUT handler is registered for this router, so Express falls through
+    // with its default 404 rather than the route's own JSON 404s.
     assert.equal(res.status, 404);
+  });
+
+  // ── PATCH /:id ────────────────────────────────────────────────────────────
+
+  await t.test('PATCH /:id updates weight and date together', async () => {
+    const user = await db.createTestUser();
+    const { body: created } = await post(baseUrl, user, { weight: 150, date: '2024-01-01' });
+    const id = created.data.id;
+
+    const { status, body } = await patch(baseUrl, user, id, { weight: 160, date: '2024-02-01' });
+    assert.equal(status, 200);
+    assert.equal(body.message, `Successfully updated body weight entry with id ${id}`);
+
+    const { body: listBody } = await get(baseUrl, user);
+    assert.equal(listBody.data[0].weight, 160);
+    assert.equal(new Date(listBody.data[0].date).toISOString().slice(0, 10), '2024-02-01');
+  });
+
+  await t.test('PATCH /:id with only weight leaves the stored date unchanged', async () => {
+    const user = await db.createTestUser();
+    const { body: created } = await post(baseUrl, user, { weight: 150, date: '2024-01-01' });
+    const id = created.data.id;
+
+    const { status } = await patch(baseUrl, user, id, { weight: 175 });
+    assert.equal(status, 200);
+
+    const { body: listBody } = await get(baseUrl, user);
+    assert.equal(listBody.data[0].weight, 175);
+    assert.equal(new Date(listBody.data[0].date).toISOString().slice(0, 10), '2024-01-01');
+  });
+
+  await t.test('PATCH /:id with only date leaves the stored weight unchanged', async () => {
+    const user = await db.createTestUser();
+    const { body: created } = await post(baseUrl, user, { weight: 150, date: '2024-01-01' });
+    const id = created.data.id;
+
+    const { status } = await patch(baseUrl, user, id, { date: '2024-03-01' });
+    assert.equal(status, 200);
+
+    const { body: listBody } = await get(baseUrl, user);
+    assert.equal(listBody.data[0].weight, 150);
+    assert.equal(new Date(listBody.data[0].date).toISOString().slice(0, 10), '2024-03-01');
+  });
+
+  await t.test('PATCH /:id rejects a body with neither weight nor date', async () => {
+    const user = await db.createTestUser();
+    const { body: created } = await post(baseUrl, user, { weight: 150, date: '2024-01-01' });
+
+    const { status, body } = await patch(baseUrl, user, created.data.id, {});
+    assert.equal(status, 400);
+    assert.equal(body.message, 'Request body must include weight and/or date');
+  });
+
+  await t.test('PATCH /:id rejects a zero or negative weight', async () => {
+    const user = await db.createTestUser();
+    const { body: created } = await post(baseUrl, user, { weight: 150, date: '2024-01-01' });
+    for (const weight of [0, -5]) {
+      const { status, body } = await patch(baseUrl, user, created.data.id, { weight });
+      assert.equal(status, 400);
+      assert.equal(body.message, 'weight must be a positive number');
+    }
+  });
+
+  await t.test('PATCH /:id rejects a weight sent as a numeric string', async () => {
+    const user = await db.createTestUser();
+    const { body: created } = await post(baseUrl, user, { weight: 150, date: '2024-01-01' });
+
+    const { status, body } = await patch(baseUrl, user, created.data.id, { weight: '160' });
+    assert.equal(status, 400);
+    assert.equal(body.message, 'weight must be a positive number');
+  });
+
+  await t.test('PATCH /:id returns 400, not 500, for a malformed date', async () => {
+    // Unlike POST /, which lets an Invalid Date reach the NOT NULL `date`
+    // column and 500s, PATCH validates the date string before writing.
+    const user = await db.createTestUser();
+    const { body: created } = await post(baseUrl, user, { weight: 150, date: '2024-01-01' });
+
+    const { status, body } = await patch(baseUrl, user, created.data.id, { date: 'not-a-date' });
+    assert.equal(status, 400);
+    assert.equal(body.message, 'date must be a valid ISO 8601 date string');
+  });
+
+  await t.test('PATCH /:id 404s for a non-existent id', async () => {
+    const user = await db.createTestUser();
+    const { status, body } = await patch(baseUrl, user, 999999, { weight: 160 });
+    assert.equal(status, 404);
+    assert.equal(body.message, 'No body weight entry with id 999999 found for this user');
+  });
+
+  await t.test('PATCH /:id 404s when the id belongs to another user, indistinguishably from a non-existent id', async () => {
+    const userA = await db.createTestUser();
+    const userB = await db.createTestUser();
+    const { body: created } = await post(baseUrl, userB, { weight: 200, date: '2024-01-01' });
+    const id = created.data.id;
+
+    const { status, body } = await patch(baseUrl, userA, id, { weight: 999 });
+    assert.equal(status, 404);
+    assert.equal(body.message, `No body weight entry with id ${id} found for this user`);
+
+    // confirm it wasn't actually modified out from under userB
+    const { body: listBody } = await get(baseUrl, userB);
+    assert.equal(listBody.data[0].weight, 200);
+  });
+
+  await t.test('PATCH /:id rejects a non-integer id before touching the database', async () => {
+    const user = await db.createTestUser();
+    const { status, body } = await patch(baseUrl, user, 'abc', { weight: 160 });
+    assert.equal(status, 400);
+    assert.equal(body.message, 'Request parameter id must be a positive integer');
   });
 });

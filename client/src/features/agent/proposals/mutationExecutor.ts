@@ -2,10 +2,6 @@
 // propose_mutation itself is echo-only (services/agent/tools/mutations.ts) —
 // the client is the one REST call away from actually changing data, exactly
 // like propose_entry/propose_custom_food's confirm handlers.
-//
-// Not every (resource, op) pair the schema allows has a matching REST
-// endpoint today (body_weight_entry.update and habit_tally.delete have none)
-// -- those throw a clear error rather than silently pretending to succeed.
 import clientApi from '../../../api/clientApi.js';
 import type { MutationInput } from './mutationTypes';
 
@@ -18,7 +14,8 @@ export async function executeMutation(input: MutationInput): Promise<void> {
       await clientApi.delete(`/body-weight/${input.id}`);
       return;
     case 'body_weight_entry.update':
-      throw new Error('Updating a body weight entry is not supported yet.');
+      await clientApi.patch(`/body-weight/${input.id}`, { weight: input.weight, date: input.date });
+      return;
 
     case 'habit.create':
       await clientApi.post('/habits', { name: input.name });
@@ -53,7 +50,8 @@ export async function executeMutation(input: MutationInput): Promise<void> {
       });
       return;
     case 'habit_tally.delete':
-      throw new Error('Deleting a habit tally is not supported yet.');
+      await clientApi.delete(`/habits/${encodeURIComponent(String(input.habit_name))}/${input.date}`);
+      return;
 
     case 'section.create':
       await clientApi.post('/sections', { label: input.label });

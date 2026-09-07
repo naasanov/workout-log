@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import handleSqlError from '../utils/handleSqlError';
-import { validateId } from '../utils/validation';
+import { validateId, isValidISO } from '../utils/validation';
 import { parseISO } from 'date-fns';
 import { authenticateToken } from './auth';
 import { User } from '../types';
@@ -43,6 +43,41 @@ router.post('/', async (req, res): Promise<any> => {
             data: { id },
             message: `Successfully logged body weight`
         });
+    } catch (error) {
+        return handleSqlError(error, res);
+    }
+});
+
+// PATCH an entry (only if it belongs to the user); partial update, merging
+// whichever of weight/date is supplied with the entry's stored values.
+router.patch('/:id', async (req, res): Promise<any> => {
+    const { uuid }: User = res.locals.user;
+    const id = req.params.id;
+    if (!validateId(id, res)) return;
+
+    const { weight, date } = req.body;
+
+    if (weight !== undefined && (typeof weight !== 'number' || weight <= 0)) {
+        return res.status(400).json({ message: 'weight must be a positive number' });
+    }
+    if (weight === undefined && date === undefined) {
+        return res.status(400).json({ message: 'Request body must include weight and/or date' });
+    }
+
+    let parsedDate: Date | undefined;
+    if (date !== undefined) {
+        if (!isValidISO(date)) {
+            return res.status(400).json({ message: 'date must be a valid ISO 8601 date string' });
+        }
+        parsedDate = new Date(parseISO(date));
+    }
+
+    try {
+        const updated = await store.updateEntry(uuid, Number(id), { weight, date: parsedDate });
+        if (!updated) {
+            return res.status(404).json({ message: `No body weight entry with id ${id} found for this user` });
+        }
+        return res.status(200).json({ message: `Successfully updated body weight entry with id ${id}` });
     } catch (error) {
         return handleSqlError(error, res);
     }

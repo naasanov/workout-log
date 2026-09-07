@@ -206,4 +206,26 @@ router.patch('/:habitName/:date', async (req, res): Promise<any> => {
     }
 });
 
+// DELETE a specific date's tally (registry not checked, matching the other
+// tally endpoints). Two path segments here can never collide with the
+// single-segment DELETE /:id registry route above.
+router.delete('/:habitName/:date', async (req, res): Promise<any> => {
+    const { uuid }: User = res.locals.user;
+    const { habitName, date } = req.params;
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).json({ message: 'date must be in YYYY-MM-DD format' });
+    }
+
+    try {
+        const deleted = await store.deleteTally(uuid, habitName, date);
+        if (!deleted) {
+            return res.status(404).json({ message: `No tally found for ${habitName} on ${date}` });
+        }
+        return res.status(200).json({ message: `Successfully deleted tally for ${habitName} on ${date}` });
+    } catch (error) {
+        return handleSqlError(error, res);
+    }
+});
+
 export default router;
