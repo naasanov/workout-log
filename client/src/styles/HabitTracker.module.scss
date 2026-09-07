@@ -641,10 +641,13 @@
 }
 
 // ── Confirm delete dialog ──────────────────────────────────────────────────────
+// z-index 1000 (hard-modal tier, matching Modal.module.scss): a blocking
+// confirmation dialog must sit above the chat FAB/sheet (997-999), not the
+// page-chrome tier, or the FAB floats over it.
 .confirmOverlay {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 1000;
   background-color: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;

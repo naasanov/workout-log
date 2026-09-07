@@ -1,9 +1,24 @@
 @use "variables" as vars;
+
+// Shared bottom clearance for every tab's outermost container: clears the
+// floating chat FAB (56px tall, bottom: 20px + safe-area) plus a 20px gap
+// above it, and the iOS home-indicator safe area beneath it. Declared once
+// here (this file loads on every tab) and reused via var() wherever else a
+// container needs to clear the same FAB.
+:root {
+  --bottom-clearance: calc(96px + env(safe-area-inset-bottom, 0px));
+}
+
 .container {
   padding: 2rem 10%;
-  padding-bottom: 100px;
+  padding-bottom: var(--bottom-clearance);
   @media (max-width: vars.$mobile-width) {
-    padding: 2rem 20px;
+    // Horizontal/top only — a shorthand `padding` here would silently
+    // clobber the padding-bottom set above since this rule comes later in
+    // the cascade at equal specificity.
+    padding-left: 20px;
+    padding-right: 20px;
+    padding-top: 2rem;
   }
 }
 
