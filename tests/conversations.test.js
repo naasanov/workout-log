@@ -285,10 +285,88 @@ test('conversations store', async (t) => {
     const listB = await store.listConversations(userB.uuid);
     assert.deepEqual(listA.map((c) => c.id), [idA]);
     assert.deepEqual(listB.map((c) => c.id), [idB]);
+    // Each user's list row carries only their own message count/preview.
+    assert.equal(listA[0].message_count, 1);
+    assert.equal(listA[0].preview, 'from A');
+    assert.equal(listB[0].message_count, 1);
+    assert.equal(listB[0].preview, 'from B');
 
     const { messages: messagesA } = await store.getConversation(userA.uuid, idA);
     assert.equal(messagesA.length, 1);
     assert.equal(messagesA[0].message_id, 'a1');
+  });
+
+  // ---- listConversations: message_count and preview ----
+
+  await t.test('listConversations reports the correct message count for a conversation with several messages', async () => {
+    const user = await createUser();
+    const id = await store.createConversation(user.uuid);
+    await store.appendMessage(user.uuid, id, 'm1', 'user', [{ type: 'text', text: 'first' }]);
+    await store.appendMessage(user.uuid, id, 'm2', 'assistant', [{ type: 'text', text: 'second' }]);
+    await store.appendMessage(user.uuid, id, 'm3', 'user', [{ type: 'text', text: 'third' }]);
+
+    const [conv] = await store.listConversations(user.uuid);
+    assert.equal(conv.message_count, 3);
+  });
+
+  await t.test('listConversations still lists a conversation with zero messages, with a count of 0', async () => {
+    const user = await createUser();
+    const id = await store.createConversation(user.uuid);
+
+    const list = await store.listConversations(user.uuid);
+    assert.equal(list.length, 1);
+    assert.equal(list[0].id, id);
+    assert.equal(list[0].message_count, 0);
+    assert.equal(list[0].preview, null);
+  });
+
+  await t.test('listConversations previews the most recent message, not the first', async () => {
+    const user = await createUser();
+    const id = await store.createConversation(user.uuid);
+    await store.appendMessage(user.uuid, id, 'm1', 'user', [{ type: 'text', text: 'the opening message' }]);
+    await store.appendMessage(user.uuid, id, 'm2', 'assistant', [{ type: 'text', text: 'the latest reply' }]);
+
+    const [conv] = await store.listConversations(user.uuid);
+    assert.equal(conv.preview, 'the latest reply');
+  });
+
+  await t.test('listConversations degrades to a null preview when the last message has no text part', async () => {
+    const user = await createUser();
+    const id = await store.createConversation(user.uuid);
+    await store.appendMessage(user.uuid, id, 'm1', 'user', [{ type: 'text', text: 'hello there' }]);
+    await store.appendMessage(user.uuid, id, 'm2', 'assistant', [
+      { type: 'tool-search_foods', toolCallId: 'c1', state: 'output-available', input: { query: 'apple' }, output: {} },
+    ]);
+
+    const [conv] = await store.listConversations(user.uuid);
+    assert.equal(conv.message_count, 2);
+    assert.equal(conv.preview, null);
+    assert.notEqual(conv.preview, 'null');
+  });
+
+  await t.test('listConversations skips a leading non-text part to preview the first text part of the last message', async () => {
+    const user = await createUser();
+    const id = await store.createConversation(user.uuid);
+    await store.appendMessage(user.uuid, id, 'm1', 'user', [{ type: 'text', text: 'question' }]);
+    await store.appendMessage(user.uuid, id, 'm2', 'assistant', [
+      { type: 'reasoning', text: 'thinking it over' },
+      { type: 'text', text: 'here is the answer' },
+    ]);
+
+    const [conv] = await store.listConversations(user.uuid);
+    assert.equal(conv.preview, 'here is the answer');
+  });
+
+  await t.test('listConversations truncates a long preview rather than returning the whole message', async () => {
+    const user = await createUser();
+    const id = await store.createConversation(user.uuid);
+    await store.appendMessage(user.uuid, id, 'm1', 'user', [{ type: 'text', text: 'hi' }]);
+    const longText = 'x'.repeat(5000);
+    await store.appendMessage(user.uuid, id, 'm2', 'assistant', [{ type: 'text', text: longText }]);
+
+    const [conv] = await store.listConversations(user.uuid);
+    assert.ok(conv.preview.length < 200, 'preview must be far shorter than the source message');
+    assert.ok(conv.preview.endsWith('…'), 'a truncated preview is marked with an ellipsis');
   });
 
   // ---- Proposal resolutions ----

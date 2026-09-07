@@ -37,6 +37,11 @@ export interface Conversation {
   expires_at: string | null;
   created_at: string;
   updated_at: string;
+  /** Only present on rows from GET /chat/conversations (the list endpoint),
+   *  which joins these in server-side; other endpoints answer with a full
+   *  messages array instead and leave these unset. */
+  message_count?: number;
+  preview?: string | null;
 }
 
 /** A stored chat message row as returned by the server. */
@@ -70,6 +75,23 @@ export async function fetchConversation(id: number): Promise<ConversationWithMes
 export async function startNewConversation(): Promise<ConversationWithMessages> {
   const res = await clientApi.post('/chat/conversations');
   return res.data.data;
+}
+
+/** List every conversation the caller owns, most recently updated first. */
+export async function fetchConversations(): Promise<Conversation[]> {
+  const res = await clientApi.get('/chat/conversations');
+  return res.data.data;
+}
+
+/** Reactivate an archived conversation, resetting its expiry and archiving whatever else is active. */
+export async function continueConversation(id: number): Promise<ConversationWithMessages> {
+  const res = await clientApi.post(`/chat/conversations/${id}/continue`);
+  return res.data.data;
+}
+
+/** Permanently delete a conversation, its messages, and its resolutions. */
+export async function deleteConversation(id: number): Promise<void> {
+  await clientApi.delete(`/chat/conversations/${id}`);
 }
 
 // ---- Proposal resolutions ----
