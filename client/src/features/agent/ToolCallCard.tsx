@@ -37,6 +37,11 @@ const TOOL_LABEL_MAP: Record<string, string> = {
   web_search_preview: 'Web search',
   propose_entry: 'Propose entry',
   propose_custom_food: 'Save custom food',
+  propose_mutation: 'Propose change',
+  describe_resource: 'Look up field detail',
+  query_series: 'Query data',
+  list_resources: 'List records',
+  get_resource: 'Look up record',
 };
 
 /** Convert snake_case / camelCase to Title Case as a fallback. */
