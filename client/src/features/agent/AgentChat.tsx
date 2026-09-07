@@ -696,6 +696,14 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
     return Math.round(window.innerHeight * EXPANDED_HEIGHT_VH / 100);
   }, []);
 
+  // Cancels the synthetic click a touch tap fires after pointerup, once this
+  // button has unmounted in favor of the sheet's overlay. Must run on the
+  // native touchstart: pointerup/pointerdown don't suppress it, and React's own touchstart handlers are passive.
+  const attachFabTouchStartGuard = useCallback((node: HTMLButtonElement | null) => {
+    if (!node) return;
+    node.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+  }, []);
+
   const handleDragPointerDown = useCallback((e: React.PointerEvent) => {
     const currentHeight = expanded ? getExpandedPx() : PEEK_HEIGHT;
     dragStartYRef.current = e.clientY;
@@ -956,6 +964,7 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
       {!isExpanded && (
         <button
           type="button"
+          ref={attachFabTouchStartGuard}
           className={styles.floatingChatBtn}
           aria-label={`Open ${srLabel} chat`}
           onPointerDown={(e: React.PointerEvent<HTMLButtonElement>) => {
@@ -1008,7 +1017,8 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
             setDraggingHeight(null);
           }}
           onClick={(e) => {
-            // Prevent click from firing after a drag that didn't cross threshold
+            // Backstop for any click that still reaches this button, such as
+            // a real mouse click. Keeps it from bubbling past the FAB.
             e.stopPropagation();
           }}
         >
