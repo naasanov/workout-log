@@ -45,8 +45,11 @@ export interface ToolRendererProps {
    * Records this proposal's outcome — persists to the server (best-effort)
    * and updates the local resolution map. `kind` is a free-form resource tag
    * (e.g. "entry", "section.delete") stored alongside the resolution.
+   * `result` is an optional structured outcome (e.g. `{ id }`, or an array
+   * of those for a batch) that feeds the agent's next turn — see
+   * routes/chat.ts's POST /conversations/:id/resolutions.
    */
-  resolve: (status: 'confirmed' | 'denied', kind: string, displayName?: string | null) => void;
+  resolve: (status: 'confirmed' | 'denied', kind: string, displayName?: string | null, result?: unknown) => void;
 }
 
 export type ToolRendererComponent = (props: ToolRendererProps) => React.ReactNode;

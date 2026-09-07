@@ -117,13 +117,19 @@ export async function fetchResolutions(conversationId: number): Promise<Proposal
   return rows.map(r => ({ toolCallId: r.tool_call_id, kind: r.kind, status: r.status, displayName: r.display_name }));
 }
 
-/** Record a single proposal's resolution. */
+/**
+ * Record a single proposal's resolution. `result` is an optional structured
+ * outcome of a confirmed write (e.g. `{ id }`, or an array of those for a
+ * batch) that the server surfaces back to the agent next turn — see
+ * routes/chat.ts's POST /conversations/:id/resolutions.
+ */
 export async function saveResolution(
   conversationId: number,
   toolCallId: string,
   kind: string,
   status: 'confirmed' | 'denied',
   displayName: string | null = null,
+  result?: unknown,
 ): Promise<void> {
-  await clientApi.post(`/chat/conversations/${conversationId}/resolutions`, { toolCallId, kind, status, displayName });
+  await clientApi.post(`/chat/conversations/${conversationId}/resolutions`, { toolCallId, kind, status, displayName, result });
 }

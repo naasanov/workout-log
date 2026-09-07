@@ -30,7 +30,7 @@ export interface ChatMessageProps {
   isStreaming: boolean;
   context: AgentChatContext;
   resolutions: Map<string, ProposalResolutionState>;
-  resolveProposal: (toolCallId: string, status: 'confirmed' | 'denied', kind: string, displayName?: string | null) => void;
+  resolveProposal: (toolCallId: string, status: 'confirmed' | 'denied', kind: string, displayName?: string | null, result?: unknown) => void;
   /** Archived-conversation read-only view: never mounts an actionable
    *  proposal card (confirm/deny only makes sense in a live chat); an
    *  unresolved proposal instead renders as a plain step in the timeline. */
@@ -155,7 +155,7 @@ export default function ChatMessage({
               toolCallId={toolCallId}
               context={context}
               resolution={undefined}
-              resolve={(status, kind, displayName) => resolveProposal(toolCallId, status, kind, displayName ?? null)}
+              resolve={(status, kind, displayName, result) => resolveProposal(toolCallId, status, kind, displayName ?? null, result)}
             />
           </div>
         );

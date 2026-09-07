@@ -20,6 +20,11 @@ export interface MutationInput {
   [field: string]: unknown;
 }
 
+/** A batch proposal's shape: propose_mutation's alternate `{ mutations }` input. */
+export interface MutationBatchInput {
+  mutations: MutationInput[];
+}
+
 /** Split "resource.op" into its parts; op is undefined if the type is malformed. */
 export function parseMutationType(type: string): { resource: string; op: MutationOp | undefined } {
   const dot = type.indexOf('.');
@@ -60,7 +65,16 @@ export const CASCADE_COUNT_LABELS: Record<string, string> = {
 // them as a field — an explicit set here rather than checks scattered across
 // render sites, so a field added later fails safe (hidden by default). The
 // values stay in the payload; mutationExecutor.ts needs them for the URL.
-export const HIDDEN_ID_FIELDS = new Set(['id', 'section_id', 'movement_id', 'variation_id']);
+// `ref` is included too: it's a batch's own bookkeeping name (see
+// schemas/mutations.ts), never data about the record itself, and a
+// section_id/movement_id holding a "ref:<name>" pointer is hidden the same
+// way a real id is — nothing about either means anything to the user.
+// replace_placeholder rides along for the same reason: it steers whether the
+// write patches an exercise's default set or adds one, which is execution
+// detail, not something the user is deciding on.
+export const HIDDEN_ID_FIELDS = new Set([
+  'id', 'section_id', 'movement_id', 'variation_id', 'ref', 'replace_placeholder',
+]);
 
 // A create proposal that references a parent resource carries that parent's
 // display name in this field (see schemas/mutations.ts), keyed by mutation

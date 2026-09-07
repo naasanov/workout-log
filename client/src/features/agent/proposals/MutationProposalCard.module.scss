@@ -114,3 +114,51 @@
     background-color: rgba(vars.$surface-border, 0.2);
   }
 }
+
+.batchList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.batchItem {
+  border: 1px solid rgba(vars.$surface-border, 0.4);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.batchItemHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.batchItemTitle {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: vars.$sarabun-spacing;
+  color: vars.$text;
+  text-transform: capitalize;
+}
+
+.batchItemDone {
+  color: vars.$primary;
+  flex-shrink: 0;
+}
+
+.batchItemFailed {
+  color: vars.$error;
+  flex-shrink: 0;
+}
+
+.batchItemSkipped {
+  font-size: 11px;
+  color: rgba(vars.$text, 0.5);
+  letter-spacing: vars.$sarabun-spacing;
+  flex-shrink: 0;
+}

@@ -286,11 +286,12 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
     status: 'confirmed' | 'denied',
     kind: string,
     displayName: string | null = null,
+    result?: unknown,
   ) => {
     setResolutions(prev => new Map([...prev, [toolCallId, { kind, status, displayName }]]));
     if (status === 'denied') setPendingDenialCount(prev => prev + 1);
     if (conversationId !== null) {
-      saveResolution(conversationId, toolCallId, kind, status, displayName).catch(() => {});
+      saveResolution(conversationId, toolCallId, kind, status, displayName, result).catch(() => {});
     }
   }, [conversationId]);
 
