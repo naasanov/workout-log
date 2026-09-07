@@ -88,3 +88,37 @@ export async function deleteEntry(userUuid: string, id: number): Promise<boolean
   );
   return result.affectedRows > 0;
 }
+
+/**
+ * Update weight and/or date on an entry, scoped to the user, with merge
+ * semantics: a field left out of `fields` keeps its stored value, matching
+ * putGoals in services/nutrition/store.ts. Returns false if no row matched
+ * (not found / not owned) or if `fields` has nothing to write.
+ */
+export async function updateEntry(
+  userUuid: string,
+  id: number,
+  fields: { weight?: number; date?: Date },
+): Promise<boolean> {
+  const setClauses: string[] = [];
+  const values: unknown[] = [];
+
+  if (fields.weight !== undefined) {
+    setClauses.push('weight = ?');
+    values.push(fields.weight);
+  }
+  if (fields.date !== undefined) {
+    setClauses.push('date = ?');
+    values.push(fields.date);
+  }
+  if (setClauses.length === 0) return false;
+
+  values.push(id, userUuid);
+  const [result] = await pool.query<ResultSetHeader>(
+    `UPDATE body_weight
+     SET ${setClauses.join(', ')}
+     WHERE id = ? AND user_uuid = UUID_TO_BIN(?)`,
+    values,
+  );
+  return result.affectedRows > 0;
+}

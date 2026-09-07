@@ -300,3 +300,21 @@ export async function updateTally(
   );
   return result.affectedRows > 0;
 }
+
+/**
+ * Delete a single tally row for a habit_name+date, scoped to the user
+ * (registry not checked, matching every other tally function here).
+ * Returns false if no matching row exists.
+ */
+export async function deleteTally(
+  userUuid: string,
+  habitName: string,
+  date: string,
+): Promise<boolean> {
+  const [result] = await pool.query<ResultSetHeader>(
+    `DELETE FROM habit_tallies
+     WHERE user_uuid = UUID_TO_BIN(?) AND habit_name = ? AND date = ?`,
+    [userUuid, habitName, date],
+  );
+  return result.affectedRows > 0;
+}
