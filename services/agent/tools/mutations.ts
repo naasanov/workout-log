@@ -11,7 +11,7 @@
 import { tool } from 'ai';
 import type { ToolSet } from 'ai';
 import { z } from 'zod';
-import { mutationInputSchema, RESOURCE_NAMES, RESOURCE_DESCRIPTIONS, ResourceName } from '../../../schemas/mutations';
+import { proposeMutationInputSchema, RESOURCE_NAMES, RESOURCE_DESCRIPTIONS, ResourceName } from '../../../schemas/mutations';
 
 /**
  * Minimal context this module needs. Deliberately NOT imported from
@@ -35,8 +35,8 @@ export function mutationTools(_ctx: MutationToolContext): ToolSet {
   return {
     propose_mutation: tool({
       description:
-        'Propose creating, updating, or deleting ONE record for a simple resource: body weight entries, the habit registry, habit tallies, sections, movements, variations, or nutrition goals. Set `type` to "<resource>.<op>" (e.g. "body_weight_entry.create", "section.delete"). Never use this for food entries or custom foods/meals -- use propose_entry / propose_custom_food instead. Call describe_resource first if you need more detail than a field name gives you. A delete must include enough context (label/name, and for section/movement/habit the cascade counts) for the user to see what is being destroyed. This only proposes the change -- the user reviews and confirms in the UI, and the client performs the write.',
-      inputSchema: mutationInputSchema,
+        'Propose creating, updating, or deleting records for simple resources: body weight entries, the habit registry, habit tallies, sections, movements, variations, or nutrition goals. Set `type` to "<resource>.<op>" (e.g. "body_weight_entry.create", "section.delete") for ONE change, or pass `{ mutations: [...] }` -- an ordered list of the same shapes -- to bundle several related changes into ONE confirm card (e.g. a section plus its exercises plus their first sets). A later batch item may reference an earlier item\'s new record by giving that earlier item a `ref` and using "ref:<name>" in place of a real id (section_id/movement_id) -- see the batching guidance in your instructions for the full contract, including how to edit a new exercise\'s placeholder variation instead of duplicating it. Never use this for food entries or custom foods/meals -- use propose_entry / propose_custom_food instead. Call describe_resource first if you need more detail than a field name gives you. A delete must include enough context (label/name, and for section/movement/habit the cascade counts) for the user to see what is being destroyed. This only proposes the change(s) -- the user reviews and confirms once in the UI, and the client performs the write(s).',
+      inputSchema: proposeMutationInputSchema,
       execute: async (args) => JSON.parse(JSON.stringify(args)),
     }),
 

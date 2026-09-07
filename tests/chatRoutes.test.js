@@ -335,8 +335,26 @@ test('chat routes', async (t) => {
     const { status, body } = await get(baseUrl, user, `/conversations/${id}/resolutions`);
     assert.equal(status, 200);
     assert.deepEqual(body.data, [
-      { tool_call_id: 'call_abc', kind: 'entry', status: 'confirmed', display_name: 'Logged: Apple' },
+      { tool_call_id: 'call_abc', kind: 'entry', status: 'confirmed', display_name: 'Logged: Apple', result: null },
     ]);
+  });
+
+  await t.test('POST /conversations/:id/resolutions accepts and round-trips a structured result', async () => {
+    const user = await createUser();
+    const id = await store.createConversation(user.uuid);
+
+    const postResult = await post(baseUrl, user, `/conversations/${id}/resolutions`, {
+      toolCallId: 'call_batch_1',
+      kind: 'batch',
+      status: 'confirmed',
+      displayName: 'Push Day: Bench Press',
+      result: [{ ref: 'sec1', id: 501 }, { ref: 'ex1', id: 502 }],
+    });
+    assert.equal(postResult.status, 204);
+
+    const { status, body } = await get(baseUrl, user, `/conversations/${id}/resolutions`);
+    assert.equal(status, 200);
+    assert.deepEqual(body.data[0].result, [{ ref: 'sec1', id: 501 }, { ref: 'ex1', id: 502 }]);
   });
 
   await t.test('POST /conversations/:id/resolutions accepts any resource kind, not just nutrition\'s original two', async () => {

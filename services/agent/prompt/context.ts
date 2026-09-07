@@ -4,6 +4,18 @@
 // separately and placed last by ./index.ts rather than inlined earlier.
 import type { recentEntries } from '../../nutrition/store';
 
+/**
+ * One confirmed propose_mutation resolution worth surfacing back to the
+ * model -- a trimmed view of services/conversations/store.ts's
+ * ProposalResolutionRow (just the fields the prompt renders), so this module
+ * doesn't need to depend on the conversations store's full row shape.
+ */
+export interface ConfirmedResult {
+  kind: string;
+  display_name: string | null;
+  result: unknown;
+}
+
 export interface VolatileContextInput {
   /** ISO-8601 date string: YYYY-MM-DD — the day the user is currently viewing */
   selectedDate: string;
@@ -22,6 +34,14 @@ export interface VolatileContextInput {
    * system prompt so the agent reconsiders — kept out of the visible user message.
    */
   deniedProposalCount?: number;
+  /**
+   * Confirmed propose_mutation resolutions carrying a structured result
+   * (e.g. `{ id }`, or one such entry per batch item), most recent last.
+   * Fetched server-side from proposal_resolutions for this conversation
+   * (see routes/chat.ts) rather than tracked by the client, since it must
+   * survive a reload the way deniedProposalCount need not.
+   */
+  confirmedResults?: ConfirmedResult[];
 }
 
 /** Build a compact text summary of recent entries for the system prompt context block. */
@@ -45,6 +65,7 @@ export function buildVolatileContext({
   recentEntries,
   autoConfirm,
   deniedProposalCount,
+  confirmedResults,
 }: VolatileContextInput): string {
   let block = `\
 TODAY'S DATE: ${selectedDate}
@@ -74,6 +95,13 @@ ${summariseEntries(recentEntries)}`;
   const denied = deniedProposalCount ?? 0;
   if (denied > 0) {
     block += `\n\nIMPORTANT: The user just DENIED your ${denied > 1 ? 'previous proposals' : 'previous proposal'} (the propose_entry/propose_custom_food card${denied > 1 ? 's' : ''} above). Do not simply re-send the same proposal — reconsider your approach based on their latest message, and adjust the food, portion, or macros accordingly before proposing again.`;
+  }
+
+  if (confirmedResults && confirmedResults.length > 0) {
+    const lines = confirmedResults
+      .map((r) => `  • ${r.kind}${r.display_name ? ` "${r.display_name}"` : ''}: ${JSON.stringify(r.result)}`)
+      .join('\n');
+    block += `\n\n**Recently confirmed changes:**\n${lines}`;
   }
 
   return block;

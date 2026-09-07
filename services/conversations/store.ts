@@ -54,12 +54,23 @@ export interface StoredChatMessage {
  * 'body_weight_entry.delete') rather than a closed union -- one resolution
  * mechanism now covers proposals from any resource, not just nutrition's
  * original two kinds. See migrations/024_generalize_proposal_kind.sql.
+ *
+ * `result` is whatever structured outcome the client's write produced --
+ * typically `{ id }` for a single mutation, or an array of one such object
+ * per item for a confirmed batch (see services/agent/tools/mutations.ts and
+ * migrations/025_proposal_resolution_result.sql). Null for a denial, or for
+ * a write with nothing worth echoing back.
  */
 export interface ProposalResolutionRow {
   tool_call_id: string;
   kind: string;
   status: 'confirmed' | 'denied';
   display_name: string | null;
+  // Optional (rather than required-but-nullable) so the legacy date-keyed
+  // reader in services/nutrition/transcripts.ts -- which never selects this
+  // column -- keeps satisfying this type without itself being touched here.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  result?: any;
 }
 
 function toConversation(row: RowDataPacket): Conversation {
@@ -329,12 +340,30 @@ export async function markInterrupted(rowId: number): Promise<void> {
   }
 }
 
-/** Fetch every proposal resolution recorded for a conversation. Returns [] on any error. */
+/**
+ * Parse a JSON column value defensively: mysql2 returns a native JSON column
+ * already parsed, but guard against a driver that hands back the raw string
+ * (mirrors services/tabPreferences.ts's parseTabArray for the same reason).
+ */
+function parseJsonColumn(value: unknown): unknown {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch every proposal resolution recorded for a conversation, oldest first.
+ * Returns [] on any error.
+ */
 export async function getResolutions(conversationId: number): Promise<ProposalResolutionRow[]> {
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT tool_call_id, kind, status, display_name
-       FROM proposal_resolutions WHERE conversation_id = ?`,
+      `SELECT tool_call_id, kind, status, display_name, result
+       FROM proposal_resolutions WHERE conversation_id = ? ORDER BY id ASC`,
       [conversationId],
     );
     return rows.map((row) => ({
@@ -342,6 +371,7 @@ export async function getResolutions(conversationId: number): Promise<ProposalRe
       kind: row.kind as string,
       status: row.status as 'confirmed' | 'denied',
       display_name: (row.display_name as string | null) ?? null,
+      result: parseJsonColumn(row.result),
     }));
   } catch (err) {
     console.error('[conversations] getResolutions failed:', err);
@@ -355,6 +385,11 @@ export async function getResolutions(conversationId: number): Promise<ProposalRe
  * The upsert key stays (user_uuid, date, tool_call_id) for legacy rows;
  * a dateless conversation instead relies on conversation_id + tool_call_id
  * being unique in practice (one proposal card per toolCallId per chat).
+ *
+ * `result` is an arbitrary JSON-serializable value describing what the
+ * confirmed write actually did (e.g. `{ id: 42 }`, or an array of those for
+ * a batch) -- see ProposalResolutionRow's doc comment. Left null for a
+ * denial or when the caller has nothing structured to report.
  */
 export async function saveResolution(
   userUuid: string,
@@ -364,14 +399,17 @@ export async function saveResolution(
   status: 'confirmed' | 'denied',
   displayName: string | null,
   date: string | null = null,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  result: any = null,
 ): Promise<void> {
+  const resultJson = result === null || result === undefined ? null : JSON.stringify(result);
   try {
     if (date !== null) {
       await pool.query(
-        `INSERT INTO proposal_resolutions (user_uuid, date, conversation_id, tool_call_id, kind, status, display_name)
-         VALUES (UUID_TO_BIN(?), ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE kind = VALUES(kind), status = VALUES(status), display_name = VALUES(display_name), conversation_id = VALUES(conversation_id)`,
-        [userUuid, date, conversationId, toolCallId, kind, status, displayName],
+        `INSERT INTO proposal_resolutions (user_uuid, date, conversation_id, tool_call_id, kind, status, display_name, result)
+         VALUES (UUID_TO_BIN(?), ?, ?, ?, ?, ?, ?, CAST(? AS JSON))
+         ON DUPLICATE KEY UPDATE kind = VALUES(kind), status = VALUES(status), display_name = VALUES(display_name), result = VALUES(result), conversation_id = VALUES(conversation_id)`,
+        [userUuid, date, conversationId, toolCallId, kind, status, displayName, resultJson],
       );
       return;
     }
@@ -383,14 +421,14 @@ export async function saveResolution(
     );
     if (existing.length > 0) {
       await pool.query(
-        `UPDATE proposal_resolutions SET kind = ?, status = ?, display_name = ? WHERE id = ?`,
-        [kind, status, displayName, existing[0].id],
+        `UPDATE proposal_resolutions SET kind = ?, status = ?, display_name = ?, result = CAST(? AS JSON) WHERE id = ?`,
+        [kind, status, displayName, resultJson, existing[0].id],
       );
     } else {
       await pool.query(
-        `INSERT INTO proposal_resolutions (user_uuid, conversation_id, tool_call_id, kind, status, display_name)
-         VALUES (UUID_TO_BIN(?), ?, ?, ?, ?, ?)`,
-        [userUuid, conversationId, toolCallId, kind, status, displayName],
+        `INSERT INTO proposal_resolutions (user_uuid, conversation_id, tool_call_id, kind, status, display_name, result)
+         VALUES (UUID_TO_BIN(?), ?, ?, ?, ?, ?, CAST(? AS JSON))`,
+        [userUuid, conversationId, toolCallId, kind, status, displayName, resultJson],
       );
     }
   } catch (err) {

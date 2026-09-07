@@ -198,7 +198,7 @@ function Workouts() {
           srLabel={isNutritionTab ? 'Nutrition AI' : undefined}
           composerPlaceholder={isNutritionTab
             ? 'Describe what you ate…'
-            : 'Message the assistant, attach a photo, or scan a barcode…'}
+            : 'Message the assistant'}
         />
       )}
       {user && nutritionChatModals}

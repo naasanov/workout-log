@@ -1,7 +1,7 @@
 // Composes the assembled system prompt from separate stable/volatile pieces.
 import { CORE_PROMPT } from './core';
 import { NUTRITION_DOMAIN_PROMPT, UNC_DINING_PROMPT } from './nutrition';
-import { buildVolatileContext, VolatileContextInput } from './context';
+import { buildVolatileContext, VolatileContextInput, ConfirmedResult } from './context';
 
 export interface BuildSystemPromptInput extends VolatileContextInput {
   uncEnabled: boolean;
@@ -30,3 +30,4 @@ export function buildSystemPrompt(input: BuildSystemPromptInput): string {
 }
 
 export { CORE_PROMPT, NUTRITION_DOMAIN_PROMPT, UNC_DINING_PROMPT };
+export type { ConfirmedResult };

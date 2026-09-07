@@ -10,6 +10,16 @@ import * as store from '../services/conversations/store';
 const router = Router();
 router.use(authenticateToken);
 
+// Caps how large a resolution's `result` JSON can be -- it is echoed back
+// into a future system prompt (see buildVolatileContext), so an unbounded
+// blob from a misbehaving client would otherwise inflate every later turn.
+const RESULT_JSON_MAX_LENGTH = 4000;
+
+// How many recent confirmed results to fold into the prompt (see
+// buildVolatileContext's "Recently confirmed changes" block) -- bounds
+// prompt growth for a long-running conversation with many confirmed writes.
+const MAX_CONFIRMED_RESULTS_IN_PROMPT = 20;
+
 // Conversations are owned directly by user_uuid (no ownership chain to walk),
 // but every id-scoped route still confirms the row belongs to the caller
 // before acting on it, and reports 404 rather than 403 on a mismatch so ids
@@ -182,11 +192,15 @@ router.post('/conversations/:id/resolutions', async (req, res): Promise<any> => 
   if (!validateId(req.params.id, res)) return;
   const id = Number(req.params.id);
 
-  const { toolCallId, kind, status, displayName } = req.body as {
+  const { toolCallId, kind, status, displayName, result } = req.body as {
     toolCallId?: unknown;
     kind?: unknown;
     status?: unknown;
     displayName?: unknown;
+    // Structured outcome of the confirmed write (e.g. { id }, or an array of
+    // those for a batch) -- see store.ts's ProposalResolutionRow doc comment.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    result?: any;
   };
   if (typeof toolCallId !== 'string' || toolCallId.length === 0 || toolCallId.length > 64) {
     return res.status(400).json({ message: 'toolCallId must be a non-empty string of at most 64 characters' });
@@ -203,10 +217,13 @@ router.post('/conversations/:id/resolutions', async (req, res): Promise<any> => 
   if (displayName !== undefined && displayName !== null && typeof displayName !== 'string') {
     return res.status(400).json({ message: 'displayName must be a string or null' });
   }
+  if (result !== undefined && result !== null && JSON.stringify(result).length > RESULT_JSON_MAX_LENGTH) {
+    return res.status(400).json({ message: `result must serialize to at most ${RESULT_JSON_MAX_LENGTH} characters` });
+  }
 
   try {
     if (!(await requireOwnedConversation(uuid, id, res))) return;
-    await store.saveResolution(uuid, id, toolCallId, kind, status, (displayName as string | null) ?? null);
+    await store.saveResolution(uuid, id, toolCallId, kind, status, (displayName as string | null) ?? null, null, result ?? null);
     return res.status(204).send();
   } catch (error) {
     return handleSqlError(error, res);
@@ -239,6 +256,17 @@ router.post('/', async (req, res): Promise<any> => {
   try {
     const conversationId = await resolveActiveConversationId(uuid);
 
+    // Confirmed propose_mutation resolutions that carry a structured result
+    // (see store.ts's ProposalResolutionRow) feed the next turn's prompt so
+    // the agent learns what it actually created -- see buildVolatileContext.
+    // Fetched server-side (unlike deniedProposalCount) since it must survive
+    // a reload rather than living only in the client's in-memory state.
+    const resolutions = await store.getResolutions(conversationId).catch(() => []);
+    const confirmedResults = resolutions
+      .filter((r) => r.status === 'confirmed' && r.result !== null && r.result !== undefined)
+      .slice(-MAX_CONFIRMED_RESULTS_IN_PROMPT)
+      .map((r) => ({ kind: r.kind, display_name: r.display_name, result: r.result }));
+
     // Persist the last user message immediately (best-effort)
     const lastUserMsg = messages.length > 0 ? messages[messages.length - 1] : null;
     if (lastUserMsg && lastUserMsg.role === 'user') {
@@ -255,6 +283,7 @@ router.post('/', async (req, res): Promise<any> => {
       messages: messages as Parameters<typeof streamChat>[0]['messages'],
       effort,
       deniedProposalCount,
+      confirmedResults,
     });
 
     // Build the UI message stream ONCE. Its onEnd callback persists the assistant

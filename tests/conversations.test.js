@@ -379,7 +379,7 @@ test('conversations store', async (t) => {
     let rows = await store.getResolutions(id);
     assert.equal(rows.length, 1);
     assert.deepEqual(rows[0], {
-      tool_call_id: 'call_abc', kind: 'entry', status: 'confirmed', display_name: 'Logged: Apple',
+      tool_call_id: 'call_abc', kind: 'entry', status: 'confirmed', display_name: 'Logged: Apple', result: null,
     });
 
     await store.saveResolution(user.uuid, id, 'call_abc', 'entry', 'denied', null);
@@ -387,6 +387,26 @@ test('conversations store', async (t) => {
     assert.equal(rows.length, 1);
     assert.equal(rows[0].status, 'denied');
     assert.equal(rows[0].display_name, null);
+  });
+
+  await t.test('saveResolution + getResolutions round-trip a structured result', async () => {
+    const user = await createUser();
+    const id = await store.createConversation(user.uuid);
+
+    await store.saveResolution(
+      user.uuid, id, 'call_batch_1', 'batch', 'confirmed', 'Push Day: Bench Press',
+      null, [{ ref: 'sec1', id: 10 }, { ref: 'ex1', id: 22 }],
+    );
+
+    const rows = await store.getResolutions(id);
+    assert.equal(rows.length, 1);
+    assert.deepEqual(rows[0].result, [{ ref: 'sec1', id: 10 }, { ref: 'ex1', id: 22 }]);
+
+    // Re-saving without a result (e.g. the same toolCallId denied instead)
+    // clears the previously stored result rather than leaving it stale.
+    await store.saveResolution(user.uuid, id, 'call_batch_1', 'batch', 'denied', null);
+    const after = await store.getResolutions(id);
+    assert.equal(after[0].result, null);
   });
 
   await t.test('proposal resolutions are isolated per conversation, including the same toolCallId in two different chats', async () => {

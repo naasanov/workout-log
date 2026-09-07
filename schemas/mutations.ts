@@ -26,6 +26,23 @@ const localDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 const habitNameSchema = z.string().min(1).max(100);
 
+// ---- Batch references ----
+// A batch item may name itself with `ref` so a LATER item in the same batch
+// can point at the record it will create instead of a real id, which does
+// not exist yet at propose time. A pointer is the string "ref:<name>" so it
+// shares a field with a literal numeric id without ambiguity (real ids are
+// numbers; only this one string shape means "resolve me").
+
+const refNameSchema = z
+  .string()
+  .regex(/^[a-zA-Z][a-zA-Z0-9_]{0,31}$/, 'ref must start with a letter and contain only letters, digits, or underscores (max 32 chars)');
+
+const refPointerSchema = z
+  .string()
+  .regex(/^ref:[a-zA-Z][a-zA-Z0-9_]{0,31}$/, 'a ref pointer must look like "ref:<name>"');
+
+const idOrRefSchema = z.union([idSchema, refPointerSchema]);
+
 // ---- Body weight entries ----
 
 export const bodyWeightCreateSchema = z.object({
@@ -103,6 +120,9 @@ export const habitTallyDeleteSchema = z.object({
 export const sectionCreateSchema = z.object({
   type: z.literal('section.create'),
   label: labelSchema,
+  // Names this item so a later movement.create in the same batch can point
+  // at the section this creates via "ref:<name>" instead of a real id.
+  ref: refNameSchema.optional(),
 });
 
 export const sectionUpdateSchema = z.object({
@@ -129,13 +149,18 @@ export const sectionDeleteSchema = z.object({
 
 export const movementCreateSchema = z.object({
   type: z.literal('movement.create'),
-  section_id: idSchema,
+  // Either a real section id, or "ref:<name>" naming a section.create item
+  // earlier in the same batch (see idOrRefSchema above).
+  section_id: idOrRefSchema,
   // The owning section's display name, required so the confirm card can
-  // show "<exercise> in <section name>" rather than a bare section id.
-  // The model already has this in hand from the list_resources call that
-  // produced section_id.
+  // show "<exercise> in <section name>" rather than a bare section id. The
+  // model already has this in hand from the list_resources call that
+  // produced section_id, or from the section.create item it just wrote.
   section_name: labelSchema,
   label: labelSchema,
+  // Names this item so a later variation.create in the same batch can point
+  // at the exercise this creates via "ref:<name>" instead of a real id.
+  ref: refNameSchema.optional(),
 });
 
 export const movementUpdateSchema = z.object({
@@ -156,17 +181,30 @@ export const movementDeleteSchema = z.object({
 
 export const variationCreateSchema = z.object({
   type: z.literal('variation.create'),
-  movement_id: idSchema,
+  // Either a real movement (exercise) id, or "ref:<name>" naming a
+  // movement.create item earlier in the same batch (see idOrRefSchema above).
+  movement_id: idOrRefSchema,
   // The owning exercise's display name (the API calls it a movement, but
   // every user-facing surface says "exercise"), required so the confirm
   // card can show "<variation> in <exercise name>" rather than a bare
   // movement id. The model already has this from the list_resources call
-  // that produced movement_id.
+  // that produced movement_id, or from the movement.create item it just wrote.
   exercise_name: labelSchema,
   label: labelSchema,
   weight: z.number().nonnegative().optional(),
   reps: z.number().int().nonnegative().optional(),
   date: dateStringSchema.optional(),
+  // Names this item for a later batch item to reference (rarely needed --
+  // variations aren't usually parents of anything else -- but kept for
+  // consistency with the other two create schemas).
+  ref: refNameSchema.optional(),
+  // True only for the FIRST variation added to an exercise that was just
+  // created (this batch, or an earlier confirmed turn) and has not been
+  // edited since. Every movement.create auto-inserts one placeholder
+  // variation labelled "Variation" -- setting this tells the executor to
+  // PATCH that placeholder instead of inserting a second variation. Never
+  // set it for a second or later variation on the same exercise.
+  replace_placeholder: z.boolean().optional(),
 });
 
 export const variationUpdateSchema = z.object({
@@ -228,6 +266,91 @@ export const mutationInputSchema = z.discriminatedUnion('type', [
 ]);
 export type MutationInput = z.infer<typeof mutationInputSchema>;
 export type MutationType = MutationInput['type'];
+
+// ---- Batches ----
+// propose_mutation accepts either ONE mutation (the shape above, unchanged)
+// or { mutations: [...] } -- an ORDERED list executed together under a
+// single confirmation. Both shapes are accepted (rather than always wrapping
+// in an array) so the common single-change case stays exactly as terse as it
+// was, while a multi-change proposal (e.g. logging a whole workout) gets one
+// card instead of one per change.
+//
+// The executor MUST run a batch's items in array order and resolve each
+// "ref:<name>" pointer to the real id produced by the earlier item whose
+// `ref` equals <name> -- refs only ever point backward, which the validation
+// below also enforces, so a single left-to-right pass always has what it
+// needs.
+
+export const MUTATION_BATCH_MAX_ITEMS = 40;
+
+// Fields that MAY hold a ref pointer instead of a real id, and which
+// producing item type they must resolve against. Kept to exactly the two
+// parent-id fields that motivate batching (section -> exercise -> variation)
+// rather than generalized to every id-shaped field.
+const REF_FIELD_RULES: Partial<Record<MutationType, { field: 'section_id' | 'movement_id'; expects: MutationType }>> = {
+  'movement.create': { field: 'section_id', expects: 'section.create' },
+  'variation.create': { field: 'movement_id', expects: 'movement.create' },
+};
+
+function parseRefPointer(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const match = /^ref:([a-zA-Z][a-zA-Z0-9_]{0,31})$/.exec(value);
+  return match ? match[1] : null;
+}
+
+export const mutationBatchSchema = z
+  .object({
+    mutations: z.array(mutationInputSchema).min(1).max(MUTATION_BATCH_MAX_ITEMS),
+  })
+  .superRefine((batch, ctx) => {
+    // Maps a ref name to the item type that defined it. Populated strictly
+    // left-to-right, AFTER an item's own ref pointer(s) are checked -- so a
+    // self-reference or a forward reference is rejected the same way an
+    // unknown ref is: the name simply isn't in this map yet.
+    const definedRefs = new Map<string, MutationType>();
+
+    batch.mutations.forEach((item, index) => {
+      const rule = REF_FIELD_RULES[item.type];
+      if (rule) {
+        const fieldValue = (item as unknown as Record<string, unknown>)[rule.field];
+        const refName = parseRefPointer(fieldValue);
+        if (refName !== null) {
+          const definedAs = definedRefs.get(refName);
+          if (definedAs === undefined) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['mutations', index, rule.field],
+              message: `Unknown ref "${refName}" -- refs must name an earlier batch item's "ref" field.`,
+            });
+          } else if (definedAs !== rule.expects) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['mutations', index, rule.field],
+              message: `ref "${refName}" points at a "${definedAs}" item, but ${item.type} needs a "${rule.expects}" ref.`,
+            });
+          }
+        }
+      }
+
+      const ref = (item as unknown as Record<string, unknown>).ref;
+      if (typeof ref === 'string') {
+        if (definedRefs.has(ref)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['mutations', index, 'ref'],
+            message: `Duplicate ref "${ref}" -- each ref name must be unique within the batch.`,
+          });
+        } else {
+          definedRefs.set(ref, item.type);
+        }
+      }
+    });
+  });
+export type MutationBatchInput = z.infer<typeof mutationBatchSchema>;
+
+// The tool's actual inputSchema: one mutation, or a batch of them.
+export const proposeMutationInputSchema = z.union([mutationInputSchema, mutationBatchSchema]);
+export type ProposeMutationInput = z.infer<typeof proposeMutationInputSchema>;
 
 // ---- describe_resource metadata ----
 // Hand-authored rather than derived from the zod shapes above, since the
@@ -299,6 +422,7 @@ export const RESOURCE_DESCRIPTIONS: Record<ResourceName, ResourceDescription> = 
       { name: 'is_open', type: 'boolean', required: false, notes: 'Whether the section is expanded in the UI.' },
       { name: 'movement_count', type: 'integer >= 0', required: false, notes: 'Delete only: movements destroyed alongside it.' },
       { name: 'variation_count', type: 'integer >= 0', required: false, notes: 'Delete only: variations (across all its movements) destroyed alongside it.' },
+      { name: 'ref', type: 'string, letters/digits/underscore, max 32 chars', required: false, notes: 'Create only, in a batch: names this item so a later movement.create can target it via section_id: "ref:<name>".' },
     ],
   },
   movement: {
@@ -306,10 +430,11 @@ export const RESOURCE_DESCRIPTIONS: Record<ResourceName, ResourceDescription> = 
     ops: ['create', 'update', 'delete'],
     fields: [
       { name: 'id', type: 'integer > 0', required: false, notes: 'Required for update/delete.' },
-      { name: 'section_id', type: 'integer > 0', required: false, notes: 'Required for create; the owning section.' },
-      { name: 'section_name', type: 'string, 1-50 chars', required: false, notes: 'Required for create: the owning section\'s display name, from list_resources. Shown to the user in place of section_id.' },
+      { name: 'section_id', type: 'integer > 0, or "ref:<name>"', required: false, notes: 'Required for create; the owning section. In a batch, "ref:<name>" targets an earlier section.create item\'s ref.' },
+      { name: 'section_name', type: 'string, 1-50 chars', required: false, notes: 'Required for create: the owning section\'s display name, from list_resources or from the section.create item. Shown to the user in place of section_id.' },
       { name: 'label', type: 'string, 1-50 chars', required: true },
       { name: 'variation_count', type: 'integer >= 0', required: false, notes: 'Delete only: variations destroyed alongside it.' },
+      { name: 'ref', type: 'string, letters/digits/underscore, max 32 chars', required: false, notes: 'Create only, in a batch: names this item so a later variation.create can target it via movement_id: "ref:<name>".' },
     ],
   },
   variation: {
@@ -317,13 +442,14 @@ export const RESOURCE_DESCRIPTIONS: Record<ResourceName, ResourceDescription> = 
     ops: ['create', 'update', 'delete'],
     fields: [
       { name: 'id', type: 'integer > 0', required: false, notes: 'Required for update/delete.' },
-      { name: 'movement_id', type: 'integer > 0', required: false, notes: 'Required for create; the owning exercise.' },
-      { name: 'exercise_name', type: 'string, 1-50 chars', required: false, notes: 'Required for create: the owning exercise\'s display name, from list_resources. Shown to the user in place of movement_id.' },
+      { name: 'movement_id', type: 'integer > 0, or "ref:<name>"', required: false, notes: 'Required for create; the owning exercise. In a batch, "ref:<name>" targets an earlier movement.create item\'s ref.' },
+      { name: 'exercise_name', type: 'string, 1-50 chars', required: false, notes: 'Required for create: the owning exercise\'s display name, from list_resources or from the movement.create item. Shown to the user in place of movement_id.' },
       { name: 'label', type: 'string, 1-50 chars', required: false },
       { name: 'weight', type: 'number >= 0 or null', required: false },
       { name: 'reps', type: 'integer >= 0', required: false },
       { name: 'date', type: 'YYYY-MM-DD or ISO datetime', required: false },
       { name: 'notes', type: 'string, <=2000 chars, or null', required: false, notes: 'update only.' },
+      { name: 'replace_placeholder', type: 'boolean', required: false, notes: 'Create only: true for the exercise\'s first variation, to edit its auto-created placeholder instead of adding a second one.' },
     ],
   },
   nutrition_goals: {

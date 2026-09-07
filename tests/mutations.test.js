@@ -80,7 +80,7 @@ test('mutation proposal tools', async (t) => {
   }
 
   await db.setupTestDb();
-  const { mutationInputSchema, RESOURCE_NAMES } = db.requireTs('schemas/mutations.ts');
+  const { mutationInputSchema, mutationBatchSchema, proposeMutationInputSchema, RESOURCE_NAMES } = db.requireTs('schemas/mutations.ts');
   const { mutationTools } = db.requireTs('services/agent/tools/mutations.ts');
   const conversations = db.requireTs('services/conversations/store.ts');
   const nutritionStore = db.requireTs('services/nutrition/store.ts');
@@ -122,6 +122,103 @@ test('mutation proposal tools', async (t) => {
       assert.equal(parsed.success, false);
     });
   }
+
+  // ---- Batches: propose_mutation({ mutations: [...] }) ----
+
+  await t.test('a single mutation still validates and echoes as a bare object through the tool\'s actual input schema', async () => {
+    const payload = { type: 'section.create', label: 'Push Day' };
+    const parsed = proposeMutationInputSchema.safeParse(payload);
+    assert.equal(parsed.success, true, parsed.success ? '' : JSON.stringify(parsed.error?.issues));
+
+    const output = await tools.propose_mutation.execute(payload);
+    assert.deepEqual(output, payload);
+  });
+
+  await t.test('a section + exercise + variation batch validates, resolving refs to the right parent type', async () => {
+    const batch = {
+      mutations: [
+        { type: 'section.create', label: 'Push Day', ref: 'sec1' },
+        { type: 'movement.create', section_id: 'ref:sec1', section_name: 'Push Day', label: 'Bench Press', ref: 'ex1' },
+        {
+          type: 'variation.create', movement_id: 'ref:ex1', exercise_name: 'Bench Press',
+          label: 'Barbell', weight: 135, reps: 5, replace_placeholder: true,
+        },
+      ],
+    };
+    const parsed = mutationBatchSchema.safeParse(batch);
+    assert.equal(parsed.success, true, parsed.success ? '' : JSON.stringify(parsed.error?.issues));
+
+    // Also accepted through the tool's actual (single-or-batch) input schema.
+    const viaUnion = proposeMutationInputSchema.safeParse(batch);
+    assert.equal(viaUnion.success, true);
+
+    const output = await tools.propose_mutation.execute(batch);
+    assert.deepEqual(output, batch);
+  });
+
+  await t.test('a batch rejects a ref pointer naming an item that has not appeared yet (forward ref)', async () => {
+    const batch = {
+      mutations: [
+        { type: 'movement.create', section_id: 'ref:sec1', section_name: 'Push Day', label: 'Bench Press' },
+        { type: 'section.create', label: 'Push Day', ref: 'sec1' },
+      ],
+    };
+    assert.equal(mutationBatchSchema.safeParse(batch).success, false);
+  });
+
+  await t.test('a batch rejects a ref pointer naming an item of the wrong kind', async () => {
+    const batch = {
+      mutations: [
+        { type: 'section.create', label: 'Push Day', ref: 'sec1' },
+        // movement_id's ref must point at a movement.create, not a section.create.
+        { type: 'variation.create', movement_id: 'ref:sec1', exercise_name: 'Bench Press', label: 'Barbell' },
+      ],
+    };
+    assert.equal(mutationBatchSchema.safeParse(batch).success, false);
+  });
+
+  await t.test('a batch rejects an unknown ref name entirely', async () => {
+    const batch = {
+      mutations: [
+        { type: 'movement.create', section_id: 'ref:doesnotexist', section_name: 'Push Day', label: 'Bench Press' },
+      ],
+    };
+    assert.equal(mutationBatchSchema.safeParse(batch).success, false);
+  });
+
+  await t.test('a batch rejects two items declaring the same ref name', async () => {
+    const batch = {
+      mutations: [
+        { type: 'section.create', label: 'Push Day', ref: 'sec1' },
+        { type: 'section.create', label: 'Pull Day', ref: 'sec1' },
+      ],
+    };
+    assert.equal(mutationBatchSchema.safeParse(batch).success, false);
+  });
+
+  await t.test('a batch with a literal numeric parent id (no ref) still validates normally', async () => {
+    const batch = {
+      mutations: [
+        { type: 'movement.create', section_id: 3, section_name: 'Push Day', label: 'Bench Press' },
+        { type: 'variation.create', movement_id: 4, exercise_name: 'Bench Press', label: 'Barbell', weight: 135, reps: 5 },
+      ],
+    };
+    assert.equal(mutationBatchSchema.safeParse(batch).success, true);
+  });
+
+  await t.test('a batch rejects an empty mutations array', async () => {
+    assert.equal(mutationBatchSchema.safeParse({ mutations: [] }).success, false);
+  });
+
+  await t.test('a batch rejects a malformed item nested inside an otherwise valid batch', async () => {
+    const batch = {
+      mutations: [
+        { type: 'section.create', label: 'Push Day', ref: 'sec1' },
+        { type: 'movement.create', section_id: 'ref:sec1', section_name: '', label: 'Bench Press' }, // section_name empty
+      ],
+    };
+    assert.equal(mutationBatchSchema.safeParse(batch).success, false);
+  });
 
   // ---- describe_resource ----
 
@@ -169,6 +266,28 @@ test('mutation proposal tools', async (t) => {
     assert.equal(rows[0].kind, 'section.delete');
     assert.equal(rows[0].status, 'confirmed');
     assert.equal(rows[0].display_name, 'Deleted "Push Day"');
+  });
+
+  await t.test('a confirmed batch\'s structured result (created ids, keyed by ref) round-trips through the resolutions store', async () => {
+    const user = await db.createTestUser();
+    const conversationId = await conversations.createConversation(user.uuid);
+
+    // Shape the client executor is expected to send after confirming the
+    // section+exercise+variation batch above: one entry per item, in order,
+    // carrying whichever ref named it plus the id the write actually produced.
+    const result = [
+      { ref: 'sec1', id: 501 },
+      { ref: 'ex1', id: 502 },
+      { id: 503 },
+    ];
+    await conversations.saveResolution(
+      user.uuid, conversationId, 'call_batch_1', 'batch', 'confirmed', 'Push Day: Bench Press', null, result,
+    );
+
+    const rows = await conversations.getResolutions(conversationId);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].kind, 'batch');
+    assert.deepEqual(rows[0].result, result);
   });
 
   await t.test('saving a second resolution for the same tool_call_id overwrites it (upsert)', async () => {

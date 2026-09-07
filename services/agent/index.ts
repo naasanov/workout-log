@@ -7,7 +7,7 @@ import { openai } from '@ai-sdk/openai';
 import * as store from '../nutrition/store';
 import { recordUsage } from '../nutrition/usage';
 import { getUserFlags } from '../flags';
-import { buildSystemPrompt } from './prompt';
+import { buildSystemPrompt, ConfirmedResult } from './prompt';
 import { assembleTools, ToolContext, ToolModule, readToolModules } from './tools/registry';
 import { nutritionTools } from './tools/nutrition';
 import { mutationTools } from './tools/mutations';
@@ -41,6 +41,8 @@ export interface ChatOptions {
    * system prompt so the agent reconsiders — kept out of the visible user message.
    */
   deniedProposalCount?: number;
+  /** Recently confirmed propose_mutation results, fetched server-side for this conversation -- see routes/chat.ts. */
+  confirmedResults?: ConfirmedResult[];
 }
 
 /**
@@ -153,6 +155,7 @@ export async function streamChat({
   effort,
   autoConfirm,
   deniedProposalCount,
+  confirmedResults,
 }: ChatOptions) {
   // Fetch context in parallel — degrade gracefully if DB not available.
   // getUserFlags never throws on its own (see services/flags.ts), but the .catch
@@ -186,6 +189,7 @@ export async function streamChat({
     recentEntries: recent,
     autoConfirm,
     deniedProposalCount,
+    confirmedResults,
   });
 
   // #216: convert message-by-message (instead of the whole array at once) so
