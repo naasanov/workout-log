@@ -5,6 +5,13 @@
  * features/agent/AgentChat.tsx) plus modal JSX (the barcode scanner
  * overlay, and a tap-to-preview card for a pending scan) meant to render as
  * siblings of <AgentChat/>, not inside the sheet.
+ *
+ * Wired into the chat on every tab, not only nutrition's — a photo or a
+ * scanned barcode is useful regardless of which tab is active, since the
+ * agent has nutrition tools no matter which tab you're on. It still lives
+ * under `features/nutrition` (not `features/agent`) because the barcode
+ * path does real nutrition-domain work: looking a code up against Open
+ * Food Facts and shaping the result into a `data-barcodeAttachment` part.
  */
 import { useCallback, useRef, useState } from 'react';
 import { Camera, Images, ScanBarcode, X } from 'lucide-react';

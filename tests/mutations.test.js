@@ -39,11 +39,11 @@ const VALID_PAYLOADS = [
   { type: 'section.update', id: 3, label: 'Push Day (updated)', is_open: false },
   { type: 'section.delete', id: 3, label: 'Push Day', movement_count: 4, variation_count: 9 },
 
-  { type: 'movement.create', section_id: 3, label: 'Bench Press' },
+  { type: 'movement.create', section_id: 3, section_name: 'Push Day', label: 'Bench Press' },
   { type: 'movement.update', id: 4, label: 'Incline Bench Press' },
   { type: 'movement.delete', id: 4, label: 'Bench Press', variation_count: 3 },
 
-  { type: 'variation.create', movement_id: 4, label: 'Barbell', weight: 135, reps: 5, date: '2024-01-01' },
+  { type: 'variation.create', movement_id: 4, exercise_name: 'Bench Press', label: 'Barbell', weight: 135, reps: 5, date: '2024-01-01' },
   { type: 'variation.update', id: 5, weight: 145, reps: 5, notes: 'Felt strong' },
   { type: 'variation.delete', id: 5, label: 'Barbell', weight: 145, reps: 5 },
 
@@ -61,6 +61,10 @@ const MALFORMED_PAYLOADS = [
   { type: 'section.create', label: 'x'.repeat(51) }, // label too long
   { type: 'section.delete', id: 3, label: 'Push Day' }, // missing cascade counts
   { type: 'movement.create', label: 'Bench Press' }, // missing section_id
+  { type: 'movement.create', section_id: 3, label: 'Bench Press' }, // missing section_name
+  { type: 'movement.create', section_id: 3, section_name: '', label: 'Bench Press' }, // section_name must be non-empty
+  { type: 'variation.create', movement_id: 4, label: 'Barbell' }, // missing exercise_name
+  { type: 'variation.create', movement_id: 4, exercise_name: '', label: 'Barbell' }, // exercise_name must be non-empty
   { type: 'variation.update', id: 5, reps: -1 }, // reps must be >= 0
   { type: 'nutrition_goals.update', calories: -5 }, // calories must be >= 0
   { type: 'habit.delete', id: 1.5, name: 'Meditate', tally_count: 0 }, // id must be an integer

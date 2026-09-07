@@ -130,6 +130,11 @@ export const sectionDeleteSchema = z.object({
 export const movementCreateSchema = z.object({
   type: z.literal('movement.create'),
   section_id: idSchema,
+  // The owning section's display name, required so the confirm card can
+  // show "<exercise> in <section name>" rather than a bare section id.
+  // The model already has this in hand from the list_resources call that
+  // produced section_id.
+  section_name: labelSchema,
   label: labelSchema,
 });
 
@@ -152,6 +157,12 @@ export const movementDeleteSchema = z.object({
 export const variationCreateSchema = z.object({
   type: z.literal('variation.create'),
   movement_id: idSchema,
+  // The owning exercise's display name (the API calls it a movement, but
+  // every user-facing surface says "exercise"), required so the confirm
+  // card can show "<variation> in <exercise name>" rather than a bare
+  // movement id. The model already has this from the list_resources call
+  // that produced movement_id.
+  exercise_name: labelSchema,
   label: labelSchema,
   weight: z.number().nonnegative().optional(),
   reps: z.number().int().nonnegative().optional(),
@@ -296,6 +307,7 @@ export const RESOURCE_DESCRIPTIONS: Record<ResourceName, ResourceDescription> = 
     fields: [
       { name: 'id', type: 'integer > 0', required: false, notes: 'Required for update/delete.' },
       { name: 'section_id', type: 'integer > 0', required: false, notes: 'Required for create; the owning section.' },
+      { name: 'section_name', type: 'string, 1-50 chars', required: false, notes: 'Required for create: the owning section\'s display name, from list_resources. Shown to the user in place of section_id.' },
       { name: 'label', type: 'string, 1-50 chars', required: true },
       { name: 'variation_count', type: 'integer >= 0', required: false, notes: 'Delete only: variations destroyed alongside it.' },
     ],
@@ -305,7 +317,8 @@ export const RESOURCE_DESCRIPTIONS: Record<ResourceName, ResourceDescription> = 
     ops: ['create', 'update', 'delete'],
     fields: [
       { name: 'id', type: 'integer > 0', required: false, notes: 'Required for update/delete.' },
-      { name: 'movement_id', type: 'integer > 0', required: false, notes: 'Required for create; the owning movement.' },
+      { name: 'movement_id', type: 'integer > 0', required: false, notes: 'Required for create; the owning exercise.' },
+      { name: 'exercise_name', type: 'string, 1-50 chars', required: false, notes: 'Required for create: the owning exercise\'s display name, from list_resources. Shown to the user in place of movement_id.' },
       { name: 'label', type: 'string, 1-50 chars', required: false },
       { name: 'weight', type: 'number >= 0 or null', required: false },
       { name: 'reps', type: 'integer >= 0', required: false },

@@ -11,7 +11,14 @@ import styles from './MutationProposalCard.module.scss';
 import { registerToolRenderer } from '../registry';
 import type { ToolRendererProps } from '../registry';
 import { executeMutation } from './mutationExecutor';
-import { CASCADE_COUNT_FIELDS, CASCADE_COUNT_LABELS, parseMutationType, resourceLabel } from './mutationTypes';
+import {
+  CASCADE_COUNT_FIELDS,
+  CASCADE_COUNT_LABELS,
+  HIDDEN_ID_FIELDS,
+  PARENT_NAME_FIELDS,
+  parseMutationType,
+  resourceLabel,
+} from './mutationTypes';
 import type { MutationInput } from './mutationTypes';
 
 function humanizeKey(key: string): string {
@@ -25,9 +32,23 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
+// "<label> in <parent name>" for a create proposal that references a parent
+// (movement.create's section, variation.create's exercise) — null when this
+// type has no such relationship, or either half is missing.
+function relationshipLine(input: MutationInput, op: string | undefined): string | null {
+  if (op !== 'create') return null;
+  const parentField = PARENT_NAME_FIELDS[input.type];
+  if (!parentField) return null;
+  const childLabel = input.label as string | undefined;
+  const parentName = input[parentField] as string | undefined;
+  if (!childLabel || !parentName) return null;
+  return `${childLabel} in ${parentName}`;
+}
+
 function summaryLine(input: MutationInput, op: string | undefined): string {
   const label = resourceLabel(parseMutationType(input.type).resource);
-  const name = (input.label ?? input.name ?? input.habit_name) as string | undefined;
+  const relationship = relationshipLine(input, op);
+  const name = relationship ?? ((input.label ?? input.name ?? input.habit_name) as string | undefined);
   const suffix = name ? `: ${name}` : '';
   if (op === 'create') return `Created ${label}${suffix}`;
   if (op === 'delete') return `Deleted ${label}${suffix}`;
@@ -45,7 +66,18 @@ function MutationProposalCard({ part, resolve }: ToolRendererProps) {
   const { resource, op } = parseMutationType(input?.type ?? '');
   const title = `${op ?? 'change'} ${resourceLabel(resource)}`;
 
-  const fieldEntries = Object.entries(input ?? {}).filter(([key]) => key !== 'type');
+  // A create-with-parent proposal (movement.create, variation.create) shows
+  // "<label> in <parent name>" as its own line instead of separate id/name
+  // rows, so those two fields are pulled out of the generic field list.
+  const relationship = relationshipLine(input, op);
+  const parentField = PARENT_NAME_FIELDS[input?.type ?? ''];
+
+  const fieldEntries = Object.entries(input ?? {}).filter(([key]) => {
+    if (key === 'type') return false;
+    if (HIDDEN_ID_FIELDS.has(key)) return false;
+    if (relationship && (key === 'label' || key === parentField)) return false;
+    return true;
+  });
   const cascadeEntries = fieldEntries.filter(([key]) => CASCADE_COUNT_FIELDS.has(key) && Number(input[key]) > 0);
   const plainEntries = fieldEntries.filter(([key]) => !CASCADE_COUNT_FIELDS.has(key));
 
@@ -69,6 +101,8 @@ function MutationProposalCard({ part, resolve }: ToolRendererProps) {
   return (
     <div className={styles.card}>
       <p className={styles.title}>{title}</p>
+
+      {relationship && <p className={styles.relationship}>{relationship}</p>}
 
       {plainEntries.length > 0 && (
         <div className={styles.fields}>

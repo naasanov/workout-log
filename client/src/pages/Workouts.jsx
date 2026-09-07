@@ -43,10 +43,9 @@ function Workouts() {
   // active. Nutrition is the only tab with a per-day concept today.
   const [nutritionSelectedDate, setNutritionSelectedDate] = useState(null);
 
-  // Nutrition's camera/barcode composer plugin — always called (Rules of
-  // Hooks) but only wired into the one global AgentChat instance while the
-  // nutrition tab is active, so its buttons never leak onto other tabs'
-  // composers.
+  // Nutrition's camera/barcode composer plugin, wired into the single
+  // global AgentChat instance on every tab: scanning a barcode or attaching
+  // a photo is useful regardless of which tab is active.
   const { plugin: nutritionComposerPlugin, modals: nutritionChatModals } = useNutritionComposerExtras();
 
   const tabParam = searchParams.get('tab');
@@ -192,13 +191,17 @@ function Workouts() {
           open={false}
           onClose={handleChatClose}
           context={chatContext}
-          composerPlugin={isNutritionTab ? nutritionComposerPlugin : undefined}
-          emptyHint={isNutritionTab ? 'Describe what you ate, scan a barcode, or attach a photo of your food.' : undefined}
+          composerPlugin={nutritionComposerPlugin}
+          emptyHint={isNutritionTab
+            ? 'Describe what you ate, scan a barcode, or attach a photo of your food.'
+            : 'Ask me anything, or attach a photo or scan a barcode to log food.'}
           srLabel={isNutritionTab ? 'Nutrition AI' : undefined}
-          composerPlaceholder={isNutritionTab ? 'Describe what you ate…' : undefined}
+          composerPlaceholder={isNutritionTab
+            ? 'Describe what you ate…'
+            : 'Message the assistant, attach a photo, or scan a barcode…'}
         />
       )}
-      {user && isNutritionTab && nutritionChatModals}
+      {user && nutritionChatModals}
     </>
   );
 }

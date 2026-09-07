@@ -29,12 +29,15 @@ export function parseMutationType(type: string): { resource: string; op: Mutatio
   return { resource, op: (op === 'create' || op === 'update' || op === 'delete') ? op : undefined };
 }
 
+// The API resource is `movement`, but every user-facing surface in the app
+// calls one an exercise (see Section.jsx's Add Exercise), so proposals say
+// exercise too rather than exposing the internal name.
 export const RESOURCE_LABELS: Record<string, string> = {
   body_weight_entry: 'body weight entry',
   habit: 'habit',
   habit_tally: 'habit tally',
   section: 'section',
-  movement: 'movement',
+  movement: 'exercise',
   variation: 'variation',
   nutrition_goals: 'nutrition goals',
 };
@@ -48,7 +51,22 @@ export function resourceLabel(resource: string): string {
 export const CASCADE_COUNT_FIELDS = new Set(['movement_count', 'variation_count', 'tally_count']);
 
 export const CASCADE_COUNT_LABELS: Record<string, string> = {
-  movement_count: 'movement(s)',
+  movement_count: 'exercise(s)',
   variation_count: 'variation(s)',
   tally_count: 'tally row(s)',
+};
+
+// Database ids never mean anything to a user, so no proposal card renders
+// them as a field — an explicit set here rather than checks scattered across
+// render sites, so a field added later fails safe (hidden by default). The
+// values stay in the payload; mutationExecutor.ts needs them for the URL.
+export const HIDDEN_ID_FIELDS = new Set(['id', 'section_id', 'movement_id', 'variation_id']);
+
+// A create proposal that references a parent resource carries that parent's
+// display name in this field (see schemas/mutations.ts), keyed by mutation
+// type. Rendered as "<label> in <parent name>" instead of a disconnected
+// id/name pair.
+export const PARENT_NAME_FIELDS: Record<string, string> = {
+  'movement.create': 'section_name',
+  'variation.create': 'exercise_name',
 };
