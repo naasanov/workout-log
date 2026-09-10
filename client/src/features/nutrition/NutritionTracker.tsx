@@ -8,7 +8,7 @@ import ConfirmModal from '../../components/ConfirmModal.jsx';
 import type { EntryEditorMode, EntryRow, Meal } from './types';
 import { MEALS, MEAL_LABELS } from './types';
 import styles from './NutritionTracker.module.scss';
-import { MoreVertical, ChevronLeft, ChevronRight, Target, BookMarked } from 'lucide-react';
+import { MoreVertical, ChevronLeft, ChevronRight, Target, BookMarked, Undo2 } from 'lucide-react';
 
 // ---- Helpers ----
 
@@ -106,7 +106,7 @@ function EntryMenu({ entry, onEdit, onDelete, onSaveAsMeal }: EntryMenuProps) {
       <button
         ref={btnRef}
         className={styles.dotsBtn}
-        onClick={() => setOpen(v => !v)}
+        onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
         aria-label={`Options for ${entry.name}`}
         aria-haspopup="true"
         aria-expanded={open}
@@ -119,7 +119,7 @@ function EntryMenu({ entry, onEdit, onDelete, onSaveAsMeal }: EntryMenuProps) {
           <button
             className={styles.entryDropdownItem}
             role="menuitem"
-            onClick={() => { setOpen(false); onEdit(entry); }}
+            onClick={e => { e.stopPropagation(); setOpen(false); onEdit(entry); }}
           >
             Edit
           </button>
@@ -127,7 +127,7 @@ function EntryMenu({ entry, onEdit, onDelete, onSaveAsMeal }: EntryMenuProps) {
             <button
               className={styles.entryDropdownItem}
               role="menuitem"
-              onClick={() => { setOpen(false); onSaveAsMeal(entry); }}
+              onClick={e => { e.stopPropagation(); setOpen(false); onSaveAsMeal(entry); }}
             >
               Save as meal
             </button>
@@ -135,7 +135,7 @@ function EntryMenu({ entry, onEdit, onDelete, onSaveAsMeal }: EntryMenuProps) {
           <button
             className={`${styles.entryDropdownItem} ${styles.entryDropdownItemDanger}`}
             role="menuitem"
-            onClick={() => { setOpen(false); onDelete(entry); }}
+            onClick={e => { e.stopPropagation(); setOpen(false); onDelete(entry); }}
           >
             Delete
           </button>
@@ -363,8 +363,9 @@ export default function NutritionTracker({ onSelectedDateChange }: NutritionTrac
             className={styles.todayBtn}
             onClick={() => setSelectedDate(getTodayLocalDate())}
             aria-label="Jump to today"
+            title="Jump to today"
           >
-            Today
+            <Undo2 className={styles.todayIcon} size={16} aria-hidden="true" />
           </button>
         )}
 
@@ -409,8 +410,14 @@ export default function NutritionTracker({ onSelectedDateChange }: NutritionTrac
           <ProgressBar value={totals.calories} goal={goals.calories} />
         )}
 
-        {/* Macro bars — only for macros that have a goal */}
-        {totals && (
+        {/* Macro bars, only for macros that have a goal. #332: omit the row
+            entirely (not just its contents) when no macro goal is set, so an
+            empty row doesn't add extra space below the calories number. */}
+        {totals &&
+          (goals.protein_g != null ||
+            goals.carbs_g != null ||
+            goals.fat_g != null ||
+            goals.fiber_g != null) && (
           <div className={styles.macrosRow}>
             {goals.protein_g != null && (
               <div className={styles.macroItem}>
@@ -481,7 +488,21 @@ export default function NutritionTracker({ onSelectedDateChange }: NutritionTrac
           <div className={styles.mealHeader}>{mealLabel(meal)}</div>
 
           {mealEntries.map(entry => (
-            <div key={entry.id} className={styles.entryRow}>
+            <div
+              key={entry.id}
+              className={styles.entryRow}
+              role="button"
+              tabIndex={0}
+              onClick={() => openEditEditor(entry)}
+              onKeyDown={e => {
+                // #326: only react to Enter/Space that originate on the row
+                // itself, not on the three-dots button or its dropdown items.
+                if (e.target !== e.currentTarget) return;
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
+                openEditEditor(entry);
+              }}
+            >
               {/* #72: three-dots menu at top-right; name wraps up to 2 lines */}
               <div className={styles.entryTop}>
                 <span className={styles.entryName}>{entry.name}</span>
