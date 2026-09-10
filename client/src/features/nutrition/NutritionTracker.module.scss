@@ -276,6 +276,7 @@
 }
 
 // ---- Entry row ----
+// #326: the whole row opens the entry editor, not just the three-dots menu.
 .entryRow {
   background-color: vars.$surface;
   border-radius: 12px;
@@ -285,6 +286,18 @@
   // #201: 8px (not 4px) so .dotsBtn's 8px negative-margin overflow (below,
   // see .dotsBtn) never reaches into .macroChips' tap area.
   gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  @media (hover: hover) {
+    &:hover {
+      background-color: color-mix(in srgb, vars.$primary 6%, vars.$surface);
+    }
+  }
+
+  &:active {
+    background-color: color-mix(in srgb, vars.$primary 12%, vars.$surface);
+  }
 }
 
 // #72: Entry top row — name on left (wraps up to 2 lines), three-dots on right
