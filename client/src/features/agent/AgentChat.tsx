@@ -45,6 +45,7 @@ import {
   useImperativeHandle,
 } from 'react';
 import { useChat } from '@ai-sdk/react';
+import { useQueryClient } from '@tanstack/react-query';
 import { DefaultChatTransport } from 'ai';
 import type { UIMessage } from 'ai';
 import ChatMessage from './ChatMessage';
@@ -57,6 +58,7 @@ import {
   startNewConversation,
   fetchResolutions,
   saveResolution,
+  CONVERSATION_LIST_KEY,
 } from './api';
 import type { StoredChatMessage, ProposalResolution } from './api';
 import type { AgentChatContext, ProposalResolutionState } from './registry';
@@ -248,6 +250,19 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
     }),
     messages: initialMessages,
   });
+
+  // The history tab lists conversations by title and recency, which change when
+  // the active chat switches and when the server stores a turn: the user message
+  // before streaming starts, the reply once it ends.
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (conversationId === null) return;
+    queryClient.invalidateQueries({ queryKey: CONVERSATION_LIST_KEY });
+  }, [conversationId, queryClient]);
+  useEffect(() => {
+    if (status === 'submitted') return;
+    queryClient.invalidateQueries({ queryKey: CONVERSATION_LIST_KEY });
+  }, [status, queryClient]);
 
   // ---- Proposal resolution state ----
   // Unified across every proposal-capable tool (propose_entry,

@@ -39,6 +39,9 @@ export interface Conversation {
   updated_at: string;
 }
 
+/** React Query key for the conversation list, shared by the chat sheet and the history tab. */
+export const CONVERSATION_LIST_KEY = ['chatHistory', 'conversations'] as const;
+
 export interface ConversationList {
   conversations: Conversation[];
   /** Days an archived chat is kept before it is purged. */

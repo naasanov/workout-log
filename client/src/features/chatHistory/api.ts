@@ -3,6 +3,7 @@
 // (its first message), so the list needs no per-row fetch.
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
+  CONVERSATION_LIST_KEY,
   fetchConversations,
   fetchConversation,
   continueConversation as continueConversationApi,
@@ -10,7 +11,7 @@ import {
 } from '../agent/api';
 
 export const chatHistoryKeys = {
-  list: ['chatHistory', 'conversations'] as const,
+  list: CONVERSATION_LIST_KEY,
   detail: (id: number) => ['chatHistory', 'conversation', id] as const,
 };
 
