@@ -7,8 +7,9 @@ export function stripCitationTokens(text: string): string {
   return text
     // Remove PUA-delimited citation spans. Models (e.g. some OpenAI runs) emit
     // characters in U+E200-U+E2FF as open/close delimiters around tokens like
-    // "turn1view1". Strip the delimiters and any content they enclose.
-    .replace(/[-][^-]*[-]/g, '')
+    // "turn1view1". Strip the delimiters and any content they enclose. Written
+    // as \u escapes because the literal characters are invisible and easily lost.
+    .replace(/[-][^-]*[-]/g, '')
     // Also strip bare cite-token patterns that may appear without PUA delimiters,
     // e.g. citeturn1view1 or citeturn0search5.
     .replace(/cite\w*turn\d+\w*/gi, '')
@@ -22,6 +23,9 @@ export function stripCitationTokens(text: string): string {
     // when the run sat between two words, so no double space is left behind.
     .replace(/ ?(?:turn\d+[a-z]+\d+)+ ?/gi, m =>
       m.startsWith(' ') && m.endsWith(' ') ? ' ' : '')
+    // A span like citeturn0search1 has three delimiters, so the
+    // pair match above leaves the last one behind; drop any stragglers.
+    .replace(/[-]/g, '')
     // Trailing whitespace only. A global multi-space collapse here would flatten
     // nested list indentation, markdown hard breaks, and indented code blocks in
     // the assistant's markdown before ReactMarkdown ever parses it.
