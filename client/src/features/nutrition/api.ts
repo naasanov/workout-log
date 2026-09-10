@@ -230,7 +230,7 @@ export async function clearTranscript(date: string): Promise<void> {
 // Server-side persistence for propose_entry / propose_custom_food accept/deny
 // state, so a re-fetched transcript doesn't render an already-resolved
 // proposal as pending again. localStorage remains the fast optimistic path in
-// NutritionChat.tsx; these calls are the source-of-truth writes/reads.
+// AgentChat.tsx; these calls are the source-of-truth writes/reads.
 export type ProposalResolution = {
   toolCallId: string;
   kind: 'entry' | 'custom_food';

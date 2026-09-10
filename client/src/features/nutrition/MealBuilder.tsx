@@ -109,7 +109,8 @@ export interface MealBuilderProps {
   /**
    * Proposal mode: when provided, pre-fill from agent's propose_custom_food args
    * and suppress autosave. The Save button calls onConfirmProposal(payload) instead
-   * of writing to the DB. Used by NutritionChat inline card.
+   * of writing to the DB. Used as the inline card for the propose_custom_food
+   * tool renderer (see NutritionToolRenderers.tsx).
    */
   proposalArgs?: ProposeCustomFoodArgs;
   onConfirmProposal?: (payload: CustomFoodInput) => void;

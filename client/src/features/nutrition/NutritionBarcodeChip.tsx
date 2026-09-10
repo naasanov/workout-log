@@ -6,7 +6,7 @@
  */
 import { useState } from 'react';
 import { ImageOff, ScanBarcode } from 'lucide-react';
-import styles from './NutritionChat.module.scss';
+import styles from './NutritionComposer.module.scss';
 import { registerPartRenderer } from '../agent/registry';
 import type { PartRendererProps } from '../agent/registry';
 import BarcodeAttachmentCard from './BarcodeAttachmentCard';
