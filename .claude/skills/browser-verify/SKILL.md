@@ -184,10 +184,13 @@ signup/cleanup needed; `lib/browser.mjs` defaults to it.
 - **Tabs are a query param, not a route.** The nutrition tracker is at
   `/?tab=nutrition`; navigating to `/nutrition` renders the app shell with no
   tracker in it and every selector then times out for the wrong reason.
-- **Nutrition entry rows are not clickable.** Editing an entry is behind the
-  row's three-dots `EntryMenu`: click the first `button` inside
-  `[class*=entryRow]`, then the `Edit` item. Clicking the entry name does
-  nothing and looks like a broken selector.
+- **Tapping a nutrition entry row opens its editor.** `[class*=entryRow]` is
+  `role="button"` (Enter/Space work too). The row's three-dots `EntryMenu`
+  (first `button` inside the row) still offers Edit / Save as meal / Delete,
+  and its clicks stop propagation, so opening the menu does not open the editor.
+- **The IngredientSheet's confirm button reads "Done", not "Add", when "Add
+  ingredient" reuses the editor's existing empty row** (the default new-entry
+  state). Match `button[class*="doneBtn"]` rather than its text.
 - **`entryInputSchema` wants `localDate`, not `date`**, plus a top-level
   `source` (`'manual'` for fixtures). Seeding with `date` fails validation.
 - **Seed the entry's date from the LOCAL calendar day, not
@@ -247,12 +250,12 @@ signup/cleanup needed; `lib/browser.mjs` defaults to it.
   waits real headroom (15-20s); it's fast on every subsequent load against
   the same long-lived process.
 - **`div[class*="_sheet_"]` matches TWO elements** on the nutrition tab:
-  NutritionChat's own composer sheet (`_sheet_vydzr_*`, first in DOM) and the
+  the AI chat's own composer sheet (`features/agent/AgentChat`, first in DOM) and the
   portaled IngredientSheet dialog (`_sheet_1ofci_*`). A bare `querySelector`
   gets the chat's. Anchor off content instead —
   `document.querySelector('input[aria-label="Ingredient name"]').closest('[role=dialog]')`.
 - **There are TWO `<BarcodeScanner>` instances**, and the same shadowing trap:
-  NutritionChat renders a scan button + scanner inline in `MAIN`, which
+  the AI chat composer (`NutritionComposerExtras`) renders a scan button + scanner inline in `MAIN`, which
   precede the body-appended dialog portal in DOM order. So a bare
   `button[aria-label="Scan barcode"]` / `button[aria-label="Close barcode
   scanner"]` resolves to the *chat's*, not the sheet's. Worse, while a Radix
@@ -307,6 +310,22 @@ signup/cleanup needed; `lib/browser.mjs` defaults to it.
   expands, and every selector for something inside the expanded header (the
   #297 Reconnect button, Clear, Collapse) times out looking like a wrong
   selector. Focus it and press Enter instead.
+- **Open the chat with a real click on its FAB, and measure only once it is
+  expanded.** `button[aria-label="Open <Tab> AI chat"]` (e.g. `Open Nutrition
+  AI chat`) needs `page.mouse.click(x, y)` at its center plus ~1.5s for the
+  height animation; `el.click()` left the sheet collapsed. A collapsed sheet is
+  `height: 0; overflow: hidden`, yet messages inside it still report real
+  rects and `checkVisibility()` true, so DOM measurements "pass" on a chat
+  nobody can see. Screenshot to confirm.
+- **Render arbitrary chat messages without an AI turn** by intercepting the
+  hydrate call: `page.route('**/api/chat/active', ...)`, `route.fetch()`, push
+  `{ id, role, parts: [{ type: 'text', text }], interrupted: false, created_at }`
+  onto `body.data.messages`, then `route.fulfill({ response, json: body })`.
+  Nothing is persisted, so there is no cleanup.
+- **`npm test` / `npm run verify` take only `DB_NAME`.** `scripts/testDb.js`
+  defaults the DB user to `root`/`root` because it creates and drops schemas.
+  Copying the server boot line's `DB_USERNAME=dev DB_PASSWORD=dev` onto a test
+  run makes every DB-backed test fail with `ER_DBACCESS_DENIED_ERROR`.
 - **`page.mouse.click(x, y)` at an element's center is the right tool when
   the question is "can a user actually hit this".** `el.click()` bypasses hit
   testing and will succeed on an element something else covers, which is
