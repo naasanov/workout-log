@@ -46,32 +46,32 @@
   height: 16px;
 }
 
-// #264: compact "jump to today" pill, only rendered when off today. Keeps the
-// 44px touch target of .arrowBtn but trims the horizontal padding so it can't
-// push the row into overflow at 320px alongside the two arrows + shrinkable
-// date input.
+// #264/#331: "jump to today" icon button, only rendered when off today.
+// Matches .arrowBtn's footprint (size, border, radius, icon color) so the
+// date-nav row reads as one consistent set of icon buttons.
 .todayBtn {
-  flex-shrink: 0;
+  min-width: 44px;
   min-height: 44px;
-  padding: 0 10px;
   background: transparent;
   border: 2px solid rgba(vars.$surface-border, 0.7);
   border-radius: 10px;
   color: vars.$text;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 
   &:active {
     background-color: rgba(vars.$primary, 0.12);
     border-color: vars.$primary-border;
   }
+}
 
-  @media (max-width: 360px) {
-    padding: 0 6px;
-    font-size: 12px;
-  }
+.todayIcon {
+  display: block;
+  width: vars.$icon-size;
+  height: vars.$icon-size;
 }
 
 .dateInput {

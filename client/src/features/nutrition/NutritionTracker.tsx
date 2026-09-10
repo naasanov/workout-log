@@ -8,7 +8,7 @@ import ConfirmModal from '../../components/ConfirmModal.jsx';
 import type { EntryEditorMode, EntryRow, Meal } from './types';
 import { MEALS, MEAL_LABELS } from './types';
 import styles from './NutritionTracker.module.scss';
-import { MoreVertical, ChevronLeft, ChevronRight, Target, BookMarked } from 'lucide-react';
+import { MoreVertical, ChevronLeft, ChevronRight, Target, BookMarked, Undo2 } from 'lucide-react';
 
 // ---- Helpers ----
 
@@ -363,8 +363,9 @@ export default function NutritionTracker({ onSelectedDateChange }: NutritionTrac
             className={styles.todayBtn}
             onClick={() => setSelectedDate(getTodayLocalDate())}
             aria-label="Jump to today"
+            title="Jump to today"
           >
-            Today
+            <Undo2 className={styles.todayIcon} size={16} aria-hidden="true" />
           </button>
         )}
 
