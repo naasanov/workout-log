@@ -57,8 +57,8 @@ export interface ChatOptions {
  *
  * This mirrors exactly what the removed `lookup_barcode` tool used to return
  * (a FoodSearchResult-shaped product: name/source/source_ref/per100g/
- * serving_grams), so the model treats it as already-retrieved grounding for a
- * `lookup_barcode` call it never actually makes (that tool no longer exists).
+ * serving_grams/serving_description), so the model treats it as already-retrieved
+ * grounding for a `lookup_barcode` call it never actually makes (that tool no longer exists).
  *
  * #216 fix: EVERY user message's barcode attachment(s) are replayed, not just
  * the most recent message's. Previously only the last message was inspected,
@@ -75,6 +75,9 @@ interface BarcodeAttachmentProduct {
   source_ref: string;
   per100g: Record<string, number | null | undefined>;
   serving_grams?: number | null;
+  // Open Food Facts' human-readable serving text (e.g. "3 slices (63 g)").
+  // Absent on attachments persisted before this field existed.
+  serving_description?: string | null;
   portions?: unknown;
 }
 

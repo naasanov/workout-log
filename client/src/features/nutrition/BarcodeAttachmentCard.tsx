@@ -87,6 +87,12 @@ export default function BarcodeAttachmentCard({ open, data, onClose }: BarcodeAt
               </label>
             </div>
 
+            {data.product.serving_description ? (
+              <p className={styles.rowHint} style={{ marginBottom: 12 }}>
+                Serving: {data.product.serving_description}
+              </p>
+            ) : null}
+
             <div className={styles.macrosSection}>
               <span className={styles.macrosSectionLabel}>Macros</span>
               <div className={styles.macrosGrid}>

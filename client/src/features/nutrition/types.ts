@@ -43,6 +43,9 @@ export interface FoodSearchResult {
   // Display label for the serving per_serving is measured in (e.g. "1/2 cup").
   serving_label?: string | null;
   serving_grams?: number | null;
+  // Open Food Facts' human-readable serving text (e.g. "3 slices (63 g)"),
+  // when the source publishes one. Null/absent when OFF has no serving_size.
+  serving_description?: string | null;
   // Serving sizes attached inline for the top result(s) (#8).
   portions?: FoodPortion[] | null;
   // For custom items: disambiguate food vs meal for badge display.

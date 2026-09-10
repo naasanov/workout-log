@@ -20,8 +20,13 @@ const USER_AGENT = 'WorkoutLogApp/1.0 (nutrition tracker; contact: admin@example
 // Devanagari, CJK, Hangul, Thai). Used to drop OFF results with no English name at all.
 const NON_LATIN_SCRIPT = /[Ѐ-ӿ؀-ۿऀ-ॿ぀-ヿ一-鿿가-힯฀-๿]/;
 
+// FoodSearchResult plus Open Food Facts' human-readable serving text (e.g.
+// "3 slices (63 g)"). Kept local to this file rather than on the shared
+// FoodSearchResult type, since only OFF-sourced results ever set it.
+type OffFoodResult = FoodSearchResult & { serving_description?: string | null };
+
 // In-memory cache: source_ref → FoodSearchResult
-const cache = new Map<string, FoodSearchResult>();
+const cache = new Map<string, OffFoodResult>();
 
 // In-memory cache for portions: "source:ref" → FoodPortion[]
 const portionsCache = new Map<string, FoodPortion[]>();
@@ -41,6 +46,14 @@ function getUsdaApiKey(): string {
     );
   }
   return 'DEMO_KEY';
+}
+
+/** Trim Open Food Facts' human-readable serving string (e.g. "3 slices (63 g)");
+ *  null when missing or empty, so a count-of-units serving is never silently
+ *  collapsed to a bare "serving" with no idea what one unit actually is. */
+function describeServing(raw: unknown): string | null {
+  const trimmed = typeof raw === 'string' ? raw.trim() : '';
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 /** Normalize a string to a set of lowercase tokens. */
@@ -167,7 +180,7 @@ async function searchOFF(query: string): Promise<FoodSearchResult[]> {
     const url =
       `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}` +
       `&search_simple=1&action=process&json=1&page_size=5&lc=en&cc=us` +
-      `&fields=product_name,product_name_en,nutriments,serving_quantity,countries_tags`;
+      `&fields=product_name,product_name_en,nutriments,serving_quantity,serving_size,countries_tags`;
     const resp = await fetch(url, {
       headers: { 'User-Agent': USER_AGENT },
       signal: AbortSignal.timeout(8000),
@@ -195,7 +208,7 @@ async function searchOFF(query: string): Promise<FoodSearchResult[]> {
         const calories = n['energy-kcal_100g'] ?? n['energy_100g'];
         if (calories === undefined || calories === null) continue;
         const sourceRef = p.id ?? p._id ?? `off-${encodeURIComponent(name)}`;
-        const result: FoodSearchResult = {
+        const result: OffFoodResult = {
           name,
           source: 'off',
           source_ref: String(sourceRef),
@@ -210,6 +223,7 @@ async function searchOFF(query: string): Promise<FoodSearchResult[]> {
             sodium_mg: n['sodium_100g'] != null ? Number(n['sodium_100g']) * 1000 : null,
           },
           serving_grams: p.serving_quantity ? Number(p.serving_quantity) : null,
+          serving_description: describeServing(p.serving_size),
         };
         cache.set(String(sourceRef), result);
         const countriesTags: string[] = Array.isArray(p.countries_tags) ? p.countries_tags : [];
@@ -522,7 +536,7 @@ export async function lookupBarcode(code: string): Promise<FoodSearchResult | nu
   if (cached) return cached;
 
   try {
-    const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,nutriments,serving_quantity`;
+    const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,nutriments,serving_quantity,serving_size`;
     const resp = await fetch(url, {
       headers: { 'User-Agent': USER_AGENT },
       signal: AbortSignal.timeout(8000),
@@ -537,7 +551,7 @@ export async function lookupBarcode(code: string): Promise<FoodSearchResult | nu
     const caloriesRaw = n['energy-kcal_100g'] ?? n['energy_100g'];
     if (caloriesRaw === undefined || caloriesRaw === null) return null;
 
-    const result: FoodSearchResult = {
+    const result: OffFoodResult = {
       name: name || `Product ${code}`,
       source: 'off',
       source_ref: code,
@@ -552,6 +566,7 @@ export async function lookupBarcode(code: string): Promise<FoodSearchResult | nu
         sodium_mg: n['sodium_100g'] != null ? Number(n['sodium_100g']) * 1000 : null,
       },
       serving_grams: p.serving_quantity ? Number(p.serving_quantity) : null,
+      serving_description: describeServing(p.serving_size),
     };
 
     cache.set(`off-barcode-${code}`, result);
