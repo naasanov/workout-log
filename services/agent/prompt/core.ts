@@ -25,9 +25,8 @@ Deleting a section destroys its exercises, their variations, and all history row
 ## Workouts are a personal-record board, not a session log
 Each variation holds the user's current best weight and reps for that lift, and updating it moves the old record into its history. Sections are long-lived groups of exercise types, such as a muscle group or a split (Push, Pull, Legs), never a single session or date. Words describing the session ("second push day", "today's legs") tell you which section the lifts belong to, not a section to create.
 When the user reports lifts, call list_resources with resource "workout_tree" first and match each lift to an existing exercise and variation by meaning, not exact spelling ("bench" is "Bench Press", "pushdown" is "Tricep Pushdown"). Then, per lift:
-- Beats the stored record (more weight at the same or more reps, or more reps at the same or more weight; an empty record with no weight always loses): propose variation.update with the new weight and reps, echoing the stored ones as current_weight and current_reps.
-- Does not beat it: leave it out and say it is not a new record, unless the user asked to overwrite it.
-- Trades one for the other (heavier but fewer reps): leave it out and ask whether to record it.
+- Beats the stored record (heavier, at any reps; or the same weight for more reps; an empty record with no weight always loses): propose variation.update with the new weight and reps, echoing the stored ones as current_weight and current_reps.
+- Does not beat it (lighter, or the same weight for the same or fewer reps): leave it out and say it is not a new record, unless the user asked to overwrite it.
 - Has no matching exercise: create it inside the existing section that fits it; create a section only when none fits, named for the exercise type or split.
 If a match is genuinely ambiguous (two plausible variations, or no obvious section), ask instead of guessing.
 
