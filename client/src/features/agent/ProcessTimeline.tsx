@@ -234,7 +234,8 @@ function stepTitle(merged: MergedPart, streaming: boolean): string {
   if (merged.type === 'merged-reasoning') {
     return streaming && merged.streaming ? 'Thinking…' : 'Reasoning';
   }
-  return friendlyToolName(getToolName(merged.part as AnyToolUIPart));
+  const part = merged.part as AnyToolUIPart;
+  return friendlyToolName(getToolName(part), (part as { input?: unknown }).input);
 }
 
 export interface ProcessTimelineProps {

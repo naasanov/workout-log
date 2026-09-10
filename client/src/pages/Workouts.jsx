@@ -194,7 +194,7 @@ function Workouts() {
           composerPlugin={nutritionComposerPlugin}
           emptyHint={isNutritionTab
             ? 'Describe what you ate, scan a barcode, or attach a photo of your food.'
-            : 'Ask me anything, or attach a photo or scan a barcode to log food.'}
+            : 'Ask about your workouts, body weight, habits, or nutrition.'}
           srLabel={isNutritionTab ? 'Nutrition AI' : undefined}
           composerPlaceholder={isNutritionTab
             ? 'Describe what you ate…'

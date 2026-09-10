@@ -76,11 +76,25 @@ export const HIDDEN_ID_FIELDS = new Set([
   'id', 'section_id', 'movement_id', 'variation_id', 'ref', 'replace_placeholder',
 ]);
 
-// A create proposal that references a parent resource carries that parent's
-// display name in this field (see schemas/mutations.ts), keyed by mutation
-// type. Rendered as "<label> in <parent name>" instead of a disconnected
-// id/name pair.
+// A proposal on a child resource carries its parent's display name in this
+// field (see schemas/mutations.ts), keyed by resource. Used for the summary
+// sent back to the agent ("Bench Press in Push").
 export const PARENT_NAME_FIELDS: Record<string, string> = {
-  'movement.create': 'section_name',
-  'variation.create': 'exercise_name',
+  movement: 'section_name',
+  variation: 'exercise_name',
 };
+
+// Card labels for fields whose key names the parent rather than the value.
+export const FIELD_LABELS: Record<string, string> = {
+  section_name: 'section',
+  exercise_name: 'exercise',
+  habit_name: 'habit',
+};
+
+// Where a record sits and what it is called lead the card, in this order;
+// every other field follows in payload order.
+export const LEADING_FIELDS = ['section_name', 'exercise_name', 'habit_name', 'label', 'name'];
+
+// update proposals echo a field's stored value as current_<field>; the card
+// pairs it with <field> to render "weight: 115 → 135".
+export const CURRENT_VALUE_PREFIX = 'current_';

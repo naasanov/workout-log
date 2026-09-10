@@ -233,15 +233,20 @@ async function runMutationItem(input: MutationInput, refMap: Map<string, number>
       });
       return res.data.data.variationId;
     }
-    case 'variation.update':
+    case 'variation.update': {
+      // A variation's date marks when its record last changed, so a new
+      // weight or reps stamps now unless the proposal names a date, the same
+      // as editing the lift by hand in Variation.jsx.
+      const recordChanged = input.weight !== undefined || input.reps !== undefined;
       await clientApi.patch(`/variations/${input.id}`, {
         label: input.label,
         weight: input.weight,
         reps: input.reps,
-        date: input.date,
+        date: input.date ?? (recordChanged ? new Date().toISOString() : undefined),
         notes: input.notes,
       });
       return input.id as number;
+    }
     case 'variation.delete':
       await clientApi.delete(`/variations/${input.id}`);
       return input.id as number;

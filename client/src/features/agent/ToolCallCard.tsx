@@ -52,8 +52,52 @@ function toTitleCase(name: string): string {
     .replace(/\b\w/g, c => c.toUpperCase());
 }
 
-export function friendlyToolName(rawName: string): string {
-  return TOOL_LABEL_MAP[rawName] ?? toTitleCase(rawName);
+// list_resources / get_resource / describe_resource are one tool each on the
+// server, discriminated by `resource`; the label names that resource instead.
+const RESOURCE_PLURAL: Record<string, string> = {
+  workout_tree: 'workouts',
+  section: 'sections',
+  movement: 'exercises',
+  variation: 'variations',
+  variation_history: 'variation history',
+  body_weight: 'body weight entries',
+  body_weight_entry: 'body weight entries',
+  habit: 'habits',
+  habit_tally: 'habit tallies',
+  nutrition_goals: 'nutrition goals',
+};
+
+const RESOURCE_SINGULAR: Record<string, string> = {
+  section: 'section',
+  movement: 'exercise',
+  variation: 'variation',
+  body_weight_entry: 'body weight entry',
+  habit: 'habit',
+  habit_tally: 'habit tally',
+  nutrition_goals: 'nutrition goals',
+};
+
+function resourceToolLabel(rawName: string, resource: string): string | null {
+  if (rawName === 'list_resources') {
+    const plural = RESOURCE_PLURAL[resource];
+    return plural ? `List ${plural}` : null;
+  }
+  if (rawName === 'get_resource') {
+    const singular = RESOURCE_SINGULAR[resource];
+    return singular ? `Look up ${singular}` : null;
+  }
+  if (rawName === 'describe_resource') {
+    const singular = RESOURCE_SINGULAR[resource];
+    return singular ? `Look up ${singular} fields` : null;
+  }
+  return null;
+}
+
+/** Friendly label for a tool call; pass its input to name the resource a generic read targets. */
+export function friendlyToolName(rawName: string, input?: unknown): string {
+  const resource = isRecord(input) && typeof input.resource === 'string' ? input.resource : null;
+  const byResource = resource ? resourceToolLabel(rawName, resource) : null;
+  return byResource ?? TOOL_LABEL_MAP[rawName] ?? toTitleCase(rawName);
 }
 
 // ---- Item 13: detect empty input ----
@@ -260,13 +304,13 @@ export default function ToolCallCard({ part }: ToolCallCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   const rawToolName = getToolName(part as ToolUIPart | DynamicToolUIPart);
-  const displayName = friendlyToolName(rawToolName);
+  const input = (part as { input?: unknown }).input as unknown;
+  const displayName = friendlyToolName(rawToolName, input);
 
   const isRunning = part.state === 'input-streaming' || part.state === 'input-available';
   const isDone = part.state === 'output-available';
   const isError = part.state === 'output-error';
 
-  const input = (part as { input?: unknown }).input as unknown;
   const output = isDone ? (part as { output: unknown }).output : undefined;
   const errorText = isError ? (part as { errorText: string }).errorText : undefined;
 

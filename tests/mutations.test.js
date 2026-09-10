@@ -24,11 +24,11 @@ const db = require('../scripts/testDb');
 // through propose_mutation's execute (which only echoes validated args).
 const VALID_PAYLOADS = [
   { type: 'body_weight_entry.create', weight: 150.5, date: '2024-01-01' },
-  { type: 'body_weight_entry.update', id: 1, weight: 152 },
+  { type: 'body_weight_entry.update', id: 1, current_weight: 150, current_date: '2024-01-01', weight: 152 },
   { type: 'body_weight_entry.delete', id: 1, weight: 150, date: '2024-01-01' },
 
   { type: 'habit.create', name: 'Meditate' },
-  { type: 'habit.update', id: 2, name: 'Meditate daily', ignore_empty_days: true },
+  { type: 'habit.update', id: 2, current_name: 'Meditate', name: 'Meditate daily', ignore_empty_days: true },
   { type: 'habit.delete', id: 2, name: 'Meditate', tally_count: 5 },
 
   { type: 'habit_tally.create', habit_name: 'Meditate', date: '2024-01-01', count: 1 },
@@ -36,16 +36,16 @@ const VALID_PAYLOADS = [
   { type: 'habit_tally.delete', habit_name: 'Meditate', date: '2024-01-01', count: 2 },
 
   { type: 'section.create', label: 'Push Day' },
-  { type: 'section.update', id: 3, label: 'Push Day (updated)', is_open: false },
+  { type: 'section.update', id: 3, current_label: 'Push Day', label: 'Push Day (updated)', is_open: false },
   { type: 'section.delete', id: 3, label: 'Push Day', movement_count: 4, variation_count: 9 },
 
   { type: 'movement.create', section_id: 3, section_name: 'Push Day', label: 'Bench Press' },
-  { type: 'movement.update', id: 4, label: 'Incline Bench Press' },
-  { type: 'movement.delete', id: 4, label: 'Bench Press', variation_count: 3 },
+  { type: 'movement.update', id: 4, section_name: 'Push Day', current_label: 'Bench Press', label: 'Incline Bench Press' },
+  { type: 'movement.delete', id: 4, section_name: 'Push Day', label: 'Bench Press', variation_count: 3 },
 
   { type: 'variation.create', movement_id: 4, exercise_name: 'Bench Press', label: 'Barbell', weight: 135, reps: 5, date: '2024-01-01' },
-  { type: 'variation.update', id: 5, weight: 145, reps: 5, notes: 'Felt strong' },
-  { type: 'variation.delete', id: 5, label: 'Barbell', weight: 145, reps: 5 },
+  { type: 'variation.update', id: 5, exercise_name: 'Bench Press', current_label: 'Barbell', current_weight: 135, current_reps: 5, weight: 145, reps: 5, notes: 'Felt strong' },
+  { type: 'variation.delete', id: 5, exercise_name: 'Bench Press', label: 'Barbell', weight: 145, reps: 5 },
 
   { type: 'nutrition_goals.update', calories: 2000, protein_g: null },
 ];
@@ -65,7 +65,15 @@ const MALFORMED_PAYLOADS = [
   { type: 'movement.create', section_id: 3, section_name: '', label: 'Bench Press' }, // section_name must be non-empty
   { type: 'variation.create', movement_id: 4, label: 'Barbell' }, // missing exercise_name
   { type: 'variation.create', movement_id: 4, exercise_name: '', label: 'Barbell' }, // exercise_name must be non-empty
-  { type: 'variation.update', id: 5, reps: -1 }, // reps must be >= 0
+  { type: 'variation.update', id: 5, exercise_name: 'Bench Press', current_label: 'Barbell', reps: -1 }, // reps must be >= 0
+  // update/delete proposals must name what they target, since the card never shows ids
+  { type: 'variation.update', id: 5, weight: 145, reps: 5 }, // missing exercise_name and current_label
+  { type: 'variation.delete', id: 5, label: 'Barbell' }, // missing exercise_name
+  { type: 'movement.update', id: 4, label: 'Incline Bench Press' }, // missing section_name and current_label
+  { type: 'movement.delete', id: 4, label: 'Bench Press', variation_count: 3 }, // missing section_name
+  { type: 'section.update', id: 3, label: 'Push Day (updated)' }, // missing current_label
+  { type: 'habit.update', id: 2, name: 'Meditate daily' }, // missing current_name
+  { type: 'body_weight_entry.update', id: 1, weight: 152 }, // missing current_weight and current_date
   { type: 'nutrition_goals.update', calories: -5 }, // calories must be >= 0
   { type: 'habit.delete', id: 1.5, name: 'Meditate', tally_count: 0 }, // id must be an integer
   { type: 'unknown_resource.create', foo: 'bar' }, // no matching union member

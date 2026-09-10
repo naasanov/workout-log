@@ -51,9 +51,14 @@ export const bodyWeightCreateSchema = z.object({
   date: dateStringSchema.optional(),
 });
 
+// update schemas carry the target's current values as current_<field>, echoed
+// from the read that produced the id, so the confirm card can show what is
+// changing ("weight: 185 -> 183") without ever showing the id.
 export const bodyWeightUpdateSchema = z.object({
   type: z.literal('body_weight_entry.update'),
   id: idSchema,
+  current_weight: z.number().positive(),
+  current_date: dateStringSchema,
   weight: z.number().positive().optional(),
   date: dateStringSchema.optional(),
 });
@@ -77,6 +82,7 @@ export const habitCreateSchema = z.object({
 export const habitUpdateSchema = z.object({
   type: z.literal('habit.update'),
   id: idSchema,
+  current_name: habitNameSchema,
   name: habitNameSchema.optional(),
   ignore_empty_days: z.boolean().optional(),
 });
@@ -128,6 +134,7 @@ export const sectionCreateSchema = z.object({
 export const sectionUpdateSchema = z.object({
   type: z.literal('section.update'),
   id: idSchema,
+  current_label: labelSchema,
   label: labelSchema.optional(),
   is_open: z.boolean().optional(),
 });
@@ -166,12 +173,15 @@ export const movementCreateSchema = z.object({
 export const movementUpdateSchema = z.object({
   type: z.literal('movement.update'),
   id: idSchema,
+  section_name: labelSchema,
+  current_label: labelSchema,
   label: labelSchema,
 });
 
 export const movementDeleteSchema = z.object({
   type: z.literal('movement.delete'),
   id: idSchema,
+  section_name: labelSchema,
   label: labelSchema,
   // Blast radius: deleting a movement cascades to its variations.
   variation_count: z.number().int().nonnegative(),
@@ -210,6 +220,11 @@ export const variationCreateSchema = z.object({
 export const variationUpdateSchema = z.object({
   type: z.literal('variation.update'),
   id: idSchema,
+  exercise_name: labelSchema,
+  current_label: labelSchema,
+  // The stored record being replaced, so the card reads "weight: 115 -> 135".
+  current_weight: z.number().nonnegative().nullable().optional(),
+  current_reps: z.number().int().nonnegative().optional(),
   label: labelSchema.optional(),
   weight: z.number().nonnegative().nullable().optional(),
   reps: z.number().int().nonnegative().optional(),
@@ -220,6 +235,7 @@ export const variationUpdateSchema = z.object({
 export const variationDeleteSchema = z.object({
   type: z.literal('variation.delete'),
   id: idSchema,
+  exercise_name: labelSchema,
   label: labelSchema,
   weight: z.number().nullable().optional(),
   reps: z.number().int().nonnegative().optional(),
@@ -389,6 +405,8 @@ export const RESOURCE_DESCRIPTIONS: Record<ResourceName, ResourceDescription> = 
     fields: [
       { name: 'id', type: 'integer > 0', required: false, notes: 'Required for update/delete.' },
       { name: 'weight', type: 'number > 0', required: true, notes: 'No unit is stored; whatever the user tracks in.' },
+      { name: 'current_weight', type: 'number > 0', required: false, notes: 'Required for update: the entry\'s weight before the change.' },
+      { name: 'current_date', type: 'YYYY-MM-DD or ISO datetime', required: false, notes: 'Required for update: the entry\'s date before the change.' },
       { name: 'date', type: 'YYYY-MM-DD or ISO datetime', required: false, notes: 'Defaults to now on create.' },
     ],
   },
@@ -398,6 +416,7 @@ export const RESOURCE_DESCRIPTIONS: Record<ResourceName, ResourceDescription> = 
     fields: [
       { name: 'id', type: 'integer > 0', required: false, notes: 'Required for update/delete.' },
       { name: 'name', type: 'string, 1-100 chars', required: true, notes: 'Unique per user; renaming cascades to that name\'s tallies.' },
+      { name: 'current_name', type: 'string', required: false, notes: 'Required for update: the habit\'s name before the change.' },
       { name: 'ignore_empty_days', type: 'boolean', required: false, notes: 'Excludes empty days from streak/average math.' },
       { name: 'tally_count', type: 'integer >= 0', required: false, notes: 'Delete only: tallies destroyed alongside the habit.' },
     ],
@@ -419,6 +438,7 @@ export const RESOURCE_DESCRIPTIONS: Record<ResourceName, ResourceDescription> = 
     fields: [
       { name: 'id', type: 'integer > 0', required: false, notes: 'Required for update/delete.' },
       { name: 'label', type: 'string, 1-50 chars', required: true },
+      { name: 'current_label', type: 'string', required: false, notes: 'Required for update: the section\'s label before the change.' },
       { name: 'is_open', type: 'boolean', required: false, notes: 'Whether the section is expanded in the UI.' },
       { name: 'movement_count', type: 'integer >= 0', required: false, notes: 'Delete only: movements destroyed alongside it.' },
       { name: 'variation_count', type: 'integer >= 0', required: false, notes: 'Delete only: variations (across all its movements) destroyed alongside it.' },
@@ -431,8 +451,9 @@ export const RESOURCE_DESCRIPTIONS: Record<ResourceName, ResourceDescription> = 
     fields: [
       { name: 'id', type: 'integer > 0', required: false, notes: 'Required for update/delete.' },
       { name: 'section_id', type: 'integer > 0, or "ref:<name>"', required: false, notes: 'Required for create; the owning section. In a batch, "ref:<name>" targets an earlier section.create item\'s ref.' },
-      { name: 'section_name', type: 'string, 1-50 chars', required: false, notes: 'Required for create: the owning section\'s display name, from list_resources or from the section.create item. Shown to the user in place of section_id.' },
+      { name: 'section_name', type: 'string, 1-50 chars', required: true, notes: 'The owning section\'s display name, from list_resources or from the section.create item. Shown to the user in place of section_id.' },
       { name: 'label', type: 'string, 1-50 chars', required: true },
+      { name: 'current_label', type: 'string', required: false, notes: 'Required for update: the exercise\'s label before the change.' },
       { name: 'variation_count', type: 'integer >= 0', required: false, notes: 'Delete only: variations destroyed alongside it.' },
       { name: 'ref', type: 'string, letters/digits/underscore, max 32 chars', required: false, notes: 'Create only, in a batch: names this item so a later variation.create can target it via movement_id: "ref:<name>".' },
     ],
@@ -443,11 +464,14 @@ export const RESOURCE_DESCRIPTIONS: Record<ResourceName, ResourceDescription> = 
     fields: [
       { name: 'id', type: 'integer > 0', required: false, notes: 'Required for update/delete.' },
       { name: 'movement_id', type: 'integer > 0, or "ref:<name>"', required: false, notes: 'Required for create; the owning exercise. In a batch, "ref:<name>" targets an earlier movement.create item\'s ref.' },
-      { name: 'exercise_name', type: 'string, 1-50 chars', required: false, notes: 'Required for create: the owning exercise\'s display name, from list_resources or from the movement.create item. Shown to the user in place of movement_id.' },
+      { name: 'exercise_name', type: 'string, 1-50 chars', required: true, notes: 'The owning exercise\'s display name, from list_resources or from the movement.create item. Shown to the user in place of movement_id.' },
       { name: 'label', type: 'string, 1-50 chars', required: false },
+      { name: 'current_label', type: 'string', required: false, notes: 'Required for update: the variation\'s label before the change.' },
+      { name: 'current_weight', type: 'number >= 0 or null', required: false, notes: 'Update only: the stored weight being replaced.' },
+      { name: 'current_reps', type: 'integer >= 0', required: false, notes: 'Update only: the stored reps being replaced.' },
       { name: 'weight', type: 'number >= 0 or null', required: false },
       { name: 'reps', type: 'integer >= 0', required: false },
-      { name: 'date', type: 'YYYY-MM-DD or ISO datetime', required: false },
+      { name: 'date', type: 'YYYY-MM-DD or ISO datetime', required: false, notes: 'Defaults to now when weight or reps change.' },
       { name: 'notes', type: 'string, <=2000 chars, or null', required: false, notes: 'update only.' },
       { name: 'replace_placeholder', type: 'boolean', required: false, notes: 'Create only: true for the exercise\'s first variation, to edit its auto-created placeholder instead of adding a second one.' },
     ],

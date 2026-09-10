@@ -148,11 +148,11 @@ try {
   if (!before.batchCardFound) throw new Error('FAIL: no card found with title "Apply 3 changes"');
 
   const cardText = before.batchCardText;
-  if (!cardText.includes(`${MOVEMENT_LABEL} in ${SECTION_LABEL}`)) {
-    throw new Error(`FAIL: expected relationship line "${MOVEMENT_LABEL} in ${SECTION_LABEL}" — got: ${cardText}`);
+  if (!cardText.includes(`section:${SECTION_LABEL}label:${MOVEMENT_LABEL}`)) {
+    throw new Error(`FAIL: expected exercise rows "section: ${SECTION_LABEL}", "label: ${MOVEMENT_LABEL}" — got: ${cardText}`);
   }
-  if (!cardText.includes(`${VARIATION_LABEL} in ${MOVEMENT_LABEL}`)) {
-    throw new Error(`FAIL: expected relationship line "${VARIATION_LABEL} in ${MOVEMENT_LABEL}" — got: ${cardText}`);
+  if (!cardText.includes(`exercise:${MOVEMENT_LABEL}label:${VARIATION_LABEL}`)) {
+    throw new Error(`FAIL: expected variation rows "exercise: ${MOVEMENT_LABEL}", "label: ${VARIATION_LABEL}" — got: ${cardText}`);
   }
   if (!cardText.includes(SECTION_LABEL)) throw new Error(`FAIL: section label not shown — ${cardText}`);
   if (/ref:/i.test(cardText)) throw new Error(`FAIL: a raw "ref:" pointer leaked into the card text — ${cardText}`);

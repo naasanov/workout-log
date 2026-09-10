@@ -18,15 +18,18 @@ import type { MutationItemResult } from './mutationExecutor';
 import {
   CASCADE_COUNT_FIELDS,
   CASCADE_COUNT_LABELS,
+  CURRENT_VALUE_PREFIX,
+  FIELD_LABELS,
   HIDDEN_ID_FIELDS,
+  LEADING_FIELDS,
   PARENT_NAME_FIELDS,
   parseMutationType,
   resourceLabel,
 } from './mutationTypes';
 import type { MutationInput, MutationBatchInput } from './mutationTypes';
 
-function humanizeKey(key: string): string {
-  return key.replace(/_/g, ' ');
+function fieldLabel(key: string): string {
+  return FIELD_LABELS[key] ?? key.replace(/_/g, ' ');
 }
 
 function formatValue(value: unknown): string {
@@ -40,56 +43,65 @@ function isBatchInput(input: unknown): input is MutationBatchInput {
   return !!input && typeof input === 'object' && Array.isArray((input as { mutations?: unknown }).mutations);
 }
 
-// "<label> in <parent name>" for a create proposal that references a parent
-// (movement.create's section, variation.create's exercise) — null when this
-// type has no such relationship, or either half is missing.
-function relationshipLine(input: MutationInput, op: string | undefined): string | null {
-  if (op !== 'create') return null;
-  const parentField = PARENT_NAME_FIELDS[input.type];
-  if (!parentField) return null;
-  const childLabel = input.label as string | undefined;
-  const parentName = input[parentField] as string | undefined;
-  if (!childLabel || !parentName) return null;
-  return `${childLabel} in ${parentName}`;
-}
-
 function summaryLine(input: MutationInput, op: string | undefined): string {
-  const label = resourceLabel(parseMutationType(input.type).resource);
-  const relationship = relationshipLine(input, op);
-  const name = relationship ?? ((input.label ?? input.name ?? input.habit_name) as string | undefined);
-  const suffix = name ? `: ${name}` : '';
+  const { resource } = parseMutationType(input.type);
+  const name = (input.label ?? input.current_label ?? input.name ?? input.current_name ?? input.habit_name) as string | undefined;
+  const parentField = PARENT_NAME_FIELDS[resource];
+  const parentName = parentField ? input[parentField] as string | undefined : undefined;
+  const suffix = name ? `: ${name}${parentName ? ` in ${parentName}` : ''}` : '';
+  const label = resourceLabel(resource);
   if (op === 'create') return `Created ${label}${suffix}`;
   if (op === 'delete') return `Deleted ${label}${suffix}`;
   return `Updated ${label}${suffix}`;
 }
 
-// The field list shared by both the single-mutation and per-batch-item
-// views: every payload field except type/hidden-ids, with the parent
-// relationship (if any) pulled out into its own line above.
-function MutationFields({ input }: { input: MutationInput }) {
-  const { op } = parseMutationType(input.type);
-  const relationship = relationshipLine(input, op);
-  const parentField = PARENT_NAME_FIELDS[input.type ?? ''];
+interface FieldRow {
+  key: string;
+  value: string;
+}
 
-  const fieldEntries = Object.entries(input ?? {}).filter(([key]) => {
-    if (key === 'type') return false;
-    if (HIDDEN_ID_FIELDS.has(key)) return false;
-    if (relationship && (key === 'label' || key === parentField)) return false;
-    return true;
-  });
-  const cascadeEntries = fieldEntries.filter(([key]) => CASCADE_COUNT_FIELDS.has(key) && Number(input[key]) > 0);
-  const plainEntries = fieldEntries.filter(([key]) => !CASCADE_COUNT_FIELDS.has(key));
+// One row per user-meaningful field: ids and bookkeeping hidden, a
+// current_<field> merged into its <field> row as "old → new", and the
+// record's location and name first.
+function fieldRows(input: MutationInput): FieldRow[] {
+  const visible = Object.keys(input ?? {}).filter(key =>
+    key !== 'type' && !HIDDEN_ID_FIELDS.has(key) && !CASCADE_COUNT_FIELDS.has(key));
+
+  const rows = new Map<string, FieldRow>();
+  for (const key of visible) {
+    const base = key.startsWith(CURRENT_VALUE_PREFIX) ? key.slice(CURRENT_VALUE_PREFIX.length) : key;
+    if (rows.has(base)) continue;
+    const current = input[CURRENT_VALUE_PREFIX + base];
+    const next = input[base];
+    const hasCurrent = current !== undefined;
+    const hasNext = next !== undefined;
+    let value: string;
+    if (hasCurrent && hasNext && current !== next) value = `${formatValue(current)} → ${formatValue(next)}`;
+    else value = formatValue(hasNext ? next : current);
+    rows.set(base, { key: base, value });
+  }
+
+  const rank = (key: string) => {
+    const index = LEADING_FIELDS.indexOf(key);
+    return index === -1 ? LEADING_FIELDS.length : index;
+  };
+  return [...rows.values()].sort((a, b) => rank(a.key) - rank(b.key));
+}
+
+// The field list shared by both the single-mutation and per-batch-item views.
+function MutationFields({ input }: { input: MutationInput }) {
+  const rows = fieldRows(input);
+  const cascadeEntries = Object.entries(input ?? {})
+    .filter(([key, value]) => CASCADE_COUNT_FIELDS.has(key) && Number(value) > 0);
 
   return (
     <>
-      {relationship && <p className={styles.relationship}>{relationship}</p>}
-
-      {plainEntries.length > 0 && (
+      {rows.length > 0 && (
         <div className={styles.fields}>
-          {plainEntries.map(([key, value]) => (
+          {rows.map(({ key, value }) => (
             <div key={key} className={styles.field}>
-              <span className={styles.fieldKey}>{humanizeKey(key)}:</span>
-              <span className={styles.fieldValue}>{formatValue(value)}</span>
+              <span className={styles.fieldKey}>{fieldLabel(key)}:</span>
+              <span className={styles.fieldValue}>{value}</span>
             </div>
           ))}
         </div>
@@ -266,6 +278,10 @@ function MutationProposalCard({ part, resolve }: ToolRendererProps) {
     ? (part as { output: unknown }).output
     : (part as { input: unknown }).input);
 
+  // A one-item batch has no refs to resolve, so it reads as the single change it is.
+  if (isBatchInput(rawInput) && rawInput.mutations.length === 1) {
+    return <SingleMutationCard input={rawInput.mutations[0]} resolve={resolve} />;
+  }
   if (isBatchInput(rawInput)) {
     return <BatchMutationCard mutations={rawInput.mutations} resolve={resolve} />;
   }
