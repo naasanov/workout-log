@@ -410,8 +410,14 @@ export default function NutritionTracker({ onSelectedDateChange }: NutritionTrac
           <ProgressBar value={totals.calories} goal={goals.calories} />
         )}
 
-        {/* Macro bars — only for macros that have a goal */}
-        {totals && (
+        {/* Macro bars — only for macros that have a goal. #332: omit the row
+            entirely (not just its contents) when no macro goal is set, so an
+            empty row doesn't add extra space below the calories number. */}
+        {totals &&
+          (goals.protein_g != null ||
+            goals.carbs_g != null ||
+            goals.fat_g != null ||
+            goals.fiber_g != null) && (
           <div className={styles.macrosRow}>
             {goals.protein_g != null && (
               <div className={styles.macroItem}>
