@@ -1,6 +1,5 @@
-// Unit tests for services/nutrition/providers.ts's lookupBarcode, covering #329:
-// the agent proposed "1 serving" of cheese instead of 1/3 because Open Food
-// Facts' serving_size string (e.g. "3 slices (63 g)") was never fetched.
+// lookupBarcode surfaces Open Food Facts' serving_size text ("3 slices (63 g)")
+// as serving_description, so the agent can scale a serving to a unit count (#329).
 // Stubs globalThis.fetch, so no database or network access is needed.
 'use strict';
 
