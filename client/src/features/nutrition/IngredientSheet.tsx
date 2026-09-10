@@ -698,8 +698,9 @@ export default function IngredientSheet({
               Radix's DismissableLayer treats anything outside Content's DOM
               subtree as "outside the dialog" and swallows pointer input on it
               (that's what made the scanner's Cancel button untappable here,
-              even though the identical component works fine in NutritionChat
-              where it isn't nested in a Radix dialog at all). */}
+              even though the identical component works fine in
+              NutritionComposerExtras where it isn't nested in a Radix dialog
+              at all). */}
           {barcodeOpen && (
             <BarcodeScanner
               onDetected={handleBarcodeDetected}

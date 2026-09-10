@@ -2,7 +2,7 @@
  * AgentChat — the generic AI chat bottom sheet, usable from any tab.
  *
  * Thread identity is a server-side conversation (GET/POST /api/chat/*), not
- * a calendar day: a domain wrapper (e.g. NutritionChat) supplies a `context`
+ * a calendar day: the mounting page (see Workouts.jsx) supplies a `context`
  * object (tab/selectedDate/focusedResource) that rides along on every send
  * so the agent can resolve vague references, but it is not what identifies
  * the thread. Tool-call rendering is fully pluggable — see registry.tsx —

@@ -5,7 +5,7 @@
  * helpers a production incident found littering the timeline with no UI
  * ever reading them back (2,114 stored calculator calls in one case).
  *
- * Importing this module for its side effect (see NutritionChat.tsx) is what
+ * Importing this module for its side effect (see Workouts.jsx) is what
  * makes propose_entry/propose_custom_food render as confirm cards instead
  * of falling back to the generic ToolCallCard.
  */

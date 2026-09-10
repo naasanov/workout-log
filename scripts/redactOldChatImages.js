@@ -80,8 +80,8 @@
 //
 // --- Cutoff design: why images use HOURS and tool payloads use DAYS --------
 //
-// The stored transcript is not just for display — client/src/features/
-// nutrition/NutritionChat.tsx hydrates useChat's `initialMessages` straight
+// The stored transcript is not just for display: client/src/features/
+// agent/AgentChat.tsx hydrates useChat's `initialMessages` straight
 // from GET /chat/transcript, and those messages get posted back to the model
 // on the next turn. So the stored transcript IS the model's context after a
 // page reload, and retention here has to respect an in-progress conversation:

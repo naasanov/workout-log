@@ -570,7 +570,7 @@
   letter-spacing: vars.$sarabun-spacing;
 }
 
-// Proposal mode — inline card in NutritionChat thread (no overlay/backdrop)
+// Proposal mode: inline card in the agent chat thread (no overlay/backdrop)
 .proposalWrap {
   // No overlay; renders in-flow in the chat message list
   display: block;

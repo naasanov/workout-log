@@ -2,7 +2,7 @@
  * MyFoodsSheet — Full-screen bottom-sheet library of the user's custom foods & meals.
  *
  * Features:
- * - Follows the NutritionChat custom sheet pattern (NOT Radix Dialog)
+ * - Follows AgentChat's custom sheet pattern (NOT Radix Dialog)
  * - Search box filtering the library
  * - MEALS and FOODS sections with New Meal / New Food buttons
  * - Row tap → opens MealBuilder to edit

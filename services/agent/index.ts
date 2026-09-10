@@ -49,7 +49,7 @@ export interface ChatOptions {
  * Task C / #216 — barcode-attachment grounding.
  *
  * The client attaches a scanned barcode as a `data-barcodeAttachment` UI
- * message part (see client/src/features/nutrition/NutritionChat.tsx). Data
+ * message part (see client/src/features/nutrition/NutritionComposerExtras.tsx). Data
  * parts (`type` starting with `data-`) are UI-only: `convertToModelMessages`
  * silently drops them from the converted user turn (there's no `convertDataPart`
  * option passed below), so the model never sees the raw part — only the

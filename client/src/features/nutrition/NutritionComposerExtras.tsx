@@ -15,7 +15,7 @@
  */
 import { useCallback, useRef, useState } from 'react';
 import { Camera, Images, ScanBarcode, X } from 'lucide-react';
-import styles from './NutritionChat.module.scss';
+import styles from './NutritionComposer.module.scss';
 import type { ComposerPlugin, AgentMessagePart } from '../agent/AgentChat';
 import { downscaleImage } from './imageDownscale';
 import { lookupBarcode } from './api';
