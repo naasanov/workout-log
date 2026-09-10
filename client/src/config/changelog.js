@@ -11,6 +11,17 @@
 
 export const CHANGELOG = [
   {
+    date: '2026-09-10',
+    title: 'An AI assistant on every tab, plus chat history',
+    items: [
+      'The AI assistant now works from every tab, not just nutrition',
+      'Ask it to add, change, or delete your workouts, body weight, habits, and goals, then confirm with a single tap',
+      'List the sets from a workout and it updates only the lifts that beat your current records',
+      'Ask how a lift, your body weight, or your eating has been trending over time',
+      'A new Chat History tab lets you look back at, continue, or delete past chats',
+    ],
+  },
+  {
     date: '2026-09-02',
     title: 'Changelog polish, sturdier feedback drafts, and fewer false sign-outs',
     items: [
