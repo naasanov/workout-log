@@ -37,6 +37,11 @@ const TOOL_LABEL_MAP: Record<string, string> = {
   web_search_preview: 'Web search',
   propose_entry: 'Propose entry',
   propose_custom_food: 'Save custom food',
+  propose_mutation: 'Propose change',
+  describe_resource: 'Look up field detail',
+  query_series: 'Query data',
+  list_resources: 'List records',
+  get_resource: 'Look up record',
 };
 
 /** Convert snake_case / camelCase to Title Case as a fallback. */
@@ -47,8 +52,52 @@ function toTitleCase(name: string): string {
     .replace(/\b\w/g, c => c.toUpperCase());
 }
 
-export function friendlyToolName(rawName: string): string {
-  return TOOL_LABEL_MAP[rawName] ?? toTitleCase(rawName);
+// list_resources / get_resource / describe_resource are one tool each on the
+// server, discriminated by `resource`; the label names that resource instead.
+const RESOURCE_PLURAL: Record<string, string> = {
+  workout_tree: 'workouts',
+  section: 'sections',
+  movement: 'exercises',
+  variation: 'variations',
+  variation_history: 'variation history',
+  body_weight: 'body weight entries',
+  body_weight_entry: 'body weight entries',
+  habit: 'habits',
+  habit_tally: 'habit tallies',
+  nutrition_goals: 'nutrition goals',
+};
+
+const RESOURCE_SINGULAR: Record<string, string> = {
+  section: 'section',
+  movement: 'exercise',
+  variation: 'variation',
+  body_weight_entry: 'body weight entry',
+  habit: 'habit',
+  habit_tally: 'habit tally',
+  nutrition_goals: 'nutrition goals',
+};
+
+function resourceToolLabel(rawName: string, resource: string): string | null {
+  if (rawName === 'list_resources') {
+    const plural = RESOURCE_PLURAL[resource];
+    return plural ? `List ${plural}` : null;
+  }
+  if (rawName === 'get_resource') {
+    const singular = RESOURCE_SINGULAR[resource];
+    return singular ? `Look up ${singular}` : null;
+  }
+  if (rawName === 'describe_resource') {
+    const singular = RESOURCE_SINGULAR[resource];
+    return singular ? `Look up ${singular} fields` : null;
+  }
+  return null;
+}
+
+/** Friendly label for a tool call; pass its input to name the resource a generic read targets. */
+export function friendlyToolName(rawName: string, input?: unknown): string {
+  const resource = isRecord(input) && typeof input.resource === 'string' ? input.resource : null;
+  const byResource = resource ? resourceToolLabel(rawName, resource) : null;
+  return byResource ?? TOOL_LABEL_MAP[rawName] ?? toTitleCase(rawName);
 }
 
 // ---- Item 13: detect empty input ----
@@ -255,18 +304,24 @@ export default function ToolCallCard({ part }: ToolCallCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   const rawToolName = getToolName(part as ToolUIPart | DynamicToolUIPart);
-  const displayName = friendlyToolName(rawToolName);
+  const input = (part as { input?: unknown }).input as unknown;
+  const displayName = friendlyToolName(rawToolName, input);
 
   const isRunning = part.state === 'input-streaming' || part.state === 'input-available';
   const isDone = part.state === 'output-available';
   const isError = part.state === 'output-error';
 
-  const input = (part as { input?: unknown }).input as unknown;
   const output = isDone ? (part as { output: unknown }).output : undefined;
   const errorText = isError ? (part as { errorText: string }).errorText : undefined;
 
   const hasEmptyInput = isEmptyInput(input);
   const resultItems = isDone ? extractResultItems(output) : null;
+
+  // The nightly retention job strips input/output off tool-* parts older
+  // than 7 days, leaving only { type, payloadTrimmed: true, toolCallId,
+  // state }. Show a quiet note instead of empty/skeletal Input/Output
+  // sections so an aged-out card still reads as intentional, not broken.
+  const payloadTrimmed = (part as { payloadTrimmed?: boolean }).payloadTrimmed === true;
 
   return (
     <div className={`${styles.card} ${isError ? styles.cardError : ''}`}>
@@ -300,38 +355,46 @@ export default function ToolCallCard({ part }: ToolCallCardProps) {
 
       {/* Animated expand/collapse */}
       <AnimatedBody expanded={expanded}>
-        {/* Item 13: skip input section if empty */}
-        {!hasEmptyInput && (
+        {payloadTrimmed ? (
           <div className={styles.section}>
-            <span className={styles.sectionLabel}>Input</span>
-            <PrettyJson value={input} />
+            <p className={styles.trimmedNote}>Details no longer available — this step aged out.</p>
           </div>
-        )}
-        {/* Food-search / UNC-dining tool outputs get a friendly badged list
-            (source badge + name + serving/location detail) instead of raw
-            JSON when the shape is recognized; anything else still falls back
-            to the plain PrettyJson dump. */}
-        {isDone && resultItems && resultItems.length > 0 && (
-          <div className={styles.section}>
-            <span className={styles.sectionLabel}>Results</span>
-            <ul className={styles.resultsList}>
-              {resultItems.map((item, i) => (
-                <ResultRow key={i} item={item} />
-              ))}
-            </ul>
-          </div>
-        )}
-        {isDone && !(resultItems && resultItems.length > 0) && (
-          <div className={styles.section}>
-            <span className={styles.sectionLabel}>Output</span>
-            <PrettyJson value={output} />
-          </div>
-        )}
-        {isError && (
-          <div className={styles.section}>
-            <span className={styles.sectionLabel}>Error</span>
-            <p className={styles.errorText}>{errorText}</p>
-          </div>
+        ) : (
+          <>
+            {/* Item 13: skip input section if empty */}
+            {!hasEmptyInput && (
+              <div className={styles.section}>
+                <span className={styles.sectionLabel}>Input</span>
+                <PrettyJson value={input} />
+              </div>
+            )}
+            {/* Food-search / UNC-dining tool outputs get a friendly badged list
+                (source badge + name + serving/location detail) instead of raw
+                JSON when the shape is recognized; anything else still falls back
+                to the plain PrettyJson dump. */}
+            {isDone && resultItems && resultItems.length > 0 && (
+              <div className={styles.section}>
+                <span className={styles.sectionLabel}>Results</span>
+                <ul className={styles.resultsList}>
+                  {resultItems.map((item, i) => (
+                    <ResultRow key={i} item={item} />
+                  ))}
+                </ul>
+              </div>
+            )}
+            {isDone && !(resultItems && resultItems.length > 0) && (
+              <div className={styles.section}>
+                <span className={styles.sectionLabel}>Output</span>
+                <PrettyJson value={output} />
+              </div>
+            )}
+            {isError && (
+              <div className={styles.section}>
+                <span className={styles.sectionLabel}>Error</span>
+                <p className={styles.errorText}>{errorText}</p>
+              </div>
+            )}
+          </>
         )}
       </AnimatedBody>
     </div>

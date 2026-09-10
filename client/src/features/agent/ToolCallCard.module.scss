@@ -226,6 +226,15 @@
   letter-spacing: 0.02em;
 }
 
+// Shown instead of Input/Output once the retention job has trimmed a tool
+// part's payload (see ToolCallCard.tsx's payloadTrimmed check).
+.trimmedNote {
+  margin: 0;
+  font-size: 12px;
+  font-style: italic;
+  color: rgba(vars.$text, 0.4);
+}
+
 .errorText {
   margin: 0;
   font-size: 13px;

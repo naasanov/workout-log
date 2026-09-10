@@ -1,8 +1,10 @@
 @use "../../styles/variables" as vars;
 // ---- Container ----
-// Extra bottom padding to keep content clear of the floating chat FAB (~80px)
+// Bottom clearance for the floating chat FAB comes from the page-level
+// container (Workouts.module.scss's --bottom-clearance) that wraps every
+// tab, so this only needs its own symmetric padding.
 .container {
-  padding: 16px 14px 96px;
+  padding: 16px 14px;
   display: flex;
   flex-direction: column;
   gap: 16px;

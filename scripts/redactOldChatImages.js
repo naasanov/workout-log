@@ -1,7 +1,7 @@
 // Nightly retention job for chat_messages. Keeps the table (and the DB as a
-// whole) under the JawsDB Kitefin free-tier 5 MB quota by (1) redacting old
-// embedded chat images and (2) trimming old tool-call payloads, then
-// reclaiming the freed InnoDB pages with OPTIMIZE TABLE.
+// whole) under the JawsDB storage quota (1 GB on the current plan) by
+// (1) redacting old embedded chat images and (2) trimming old tool-call
+// payloads, then reclaiming the freed InnoDB pages with OPTIMIZE TABLE.
 //
 // ============================================================================
 // !!! THIS JOB MUST BE REGISTERED WITH HEROKU SCHEDULER — IT DOES NOT SELF-
@@ -22,7 +22,8 @@
 //
 // Occurrence 1: chat photos (food photos, barcode-scan screenshots) were
 // stored as full base64 data URIs directly inside chat_messages.parts (JSON),
-// with no retention policy. That filled the 5MB quota and JawsDB responded by
+// with no retention policy. That filled the then-current 5 MB free-tier quota
+// (the plan is 1 GB now) and JawsDB responded by
 // REVOKING THE INSERT PRIVILEGE on the whole database (SELECT/UPDATE/DELETE/
 // ALTER/DROP were left intact). That takes the whole app down in a
 // non-obvious way: login fails because it INSERTs a refresh token, and
@@ -74,8 +75,8 @@
 //      full explanation of that catch-22). It fails loudly but non-fatally
 //      in that case rather than crashing the whole scheduled job.
 //   4. Measure and log DB size before/after (with the stats-cache gotcha
-//      above handled), and warn loudly if the DB is at/above 80% of the 5MB
-//      quota — this early warning is what was missing both times.
+//      above handled), and warn loudly if the DB is at/above 80% of the
+//      storage quota — this early warning is what was missing both times.
 //
 // --- Cutoff design: why images use HOURS and tool payloads use DAYS --------
 //
@@ -151,8 +152,10 @@ function toMysqlDatetime(date) {
   return date.toISOString().slice(0, 19).replace('T', ' ');
 }
 
-// The JawsDB Kitefin free-tier quota this whole job exists to protect.
-const QUOTA_BYTES = 5 * 1024 * 1024;
+// The JawsDB storage quota this job exists to protect, in bytes. Defaults to
+// the current plan's 1 GB; override with CHAT_DB_QUOTA_MB after a plan change
+// so the warn threshold below tracks the real limit.
+const QUOTA_BYTES = envPositiveInt('CHAT_DB_QUOTA_MB', 1024) * 1024 * 1024;
 // Warn once the DB is at/above this fraction of quota — early warning that
 // was missing both times this incident happened.
 const WARN_RATIO = 0.8;

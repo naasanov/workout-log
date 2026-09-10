@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { useDay, useGoals, useDeleteEntry } from './api';
 import EntryEditor from './EntryEditor';
 import NutritionGoalsModal from './NutritionGoalsModal';
-import NutritionChat from './NutritionChat';
 import MyFoodsSheet from './MyFoodsSheet';
 import MealBuilder from './MealBuilder';
 import ConfirmModal from '../../components/ConfirmModal.jsx';
@@ -226,8 +225,19 @@ function ActionsMenu({ onGoals, onMyFoods }: ActionsMenuProps) {
 
 // ---- Main component ----
 
-export default function NutritionTracker() {
+interface NutritionTrackerProps {
+  /** Notified with the currently viewed date on mount and every change, so
+   *  the page-level AgentChat (mounted once in Workouts.jsx, not here) can
+   *  include it in the nutrition tab's chat context. */
+  onSelectedDateChange?: (date: string) => void;
+}
+
+export default function NutritionTracker({ onSelectedDateChange }: NutritionTrackerProps) {
   const [selectedDate, setSelectedDate] = useState<string>(getTodayLocalDate);
+
+  useEffect(() => {
+    onSelectedDateChange?.(selectedDate);
+  }, [selectedDate, onSelectedDateChange]);
 
   // Editor state
   const [editorOpen, setEditorOpen] = useState(false);
@@ -235,9 +245,6 @@ export default function NutritionTracker() {
     kind: 'manual-add',
     date: selectedDate,
   });
-
-  // AI chat
-  const [chatOpen, setChatOpen] = useState(false);
 
   // Goals modal
   const [goalsModalOpen, setGoalsModalOpen] = useState(false);
@@ -508,12 +515,8 @@ export default function NutritionTracker() {
         onClose={handleEditorClose}
       />
 
-      {/* AI Chat bottom-sheet */}
-      <NutritionChat
-        open={chatOpen}
-        onClose={() => setChatOpen(false)}
-        selectedDate={selectedDate}
-      />
+      {/* AI Chat bottom-sheet is mounted once, page-level, in Workouts.jsx —
+          not here — so it survives switching away from this tab. */}
 
       {/* Goals modal */}
       <NutritionGoalsModal

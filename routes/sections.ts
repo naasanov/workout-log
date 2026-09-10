@@ -1,15 +1,18 @@
-import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { Router } from 'express';
-import pool from '../database';
 import handleSqlError from '../utils/handleSqlError';
 import { validateLabel, validateId, validateSection } from '../utils/validation';
 import SqlError from '../utils/sqlErrors';
 const { WRONG_TYPE_ERROR, NO_REFERENCE_ERROR, TOO_LONG_ERROR, WRONG_VALUE_ERROR } = SqlError;
 import { authenticateToken } from "./auth";
 import { User } from '../types';
+import * as store from '../services/workouts';
 
 const router = Router();
 router.use(authenticateToken);
+
+// Sections are the top-level owned resource, so every route below scopes its
+// query by user_uuid directly rather than through a join. Handlers report a
+// 404 rather than a 403 for another user's section to keep ids unenumerable.
 
 // POST
 router.post('/', async (req, res): Promise<any> => {
@@ -17,13 +20,10 @@ router.post('/', async (req, res): Promise<any> => {
     const label = req.body.label;
     if (!validateLabel(label, res)) return;
 
-    let result: ResultSetHeader;
+    let sectionId: number;
     try {
-        [result] = await pool.query<ResultSetHeader>(`
-            INSERT INTO sections (user_uuid, label)
-            VALUES (UUID_TO_BIN(?), ?)
-            `, [uuid, label])
-        }
+        sectionId = await store.createSection(uuid, label);
+    }
     catch (error) {
         return handleSqlError(error, res, {
             [WRONG_TYPE_ERROR]: [400, "Request parameter must be a 36 character, hyphen separated uuid"],
@@ -31,8 +31,7 @@ router.post('/', async (req, res): Promise<any> => {
             [TOO_LONG_ERROR]: [400, `Label must not exceed 50 characters`]
         })
     }
-    
-    const sectionId = result.insertId;
+
     res.status(201).json({
         data: { sectionId },
         message: `Successfullly created section with id ${sectionId}`
@@ -42,14 +41,9 @@ router.post('/', async (req, res): Promise<any> => {
 // GET many
 router.get('/user', async (req, res): Promise<any> => {
     const { uuid }: User = res.locals.user;
-    
-    let data: RowDataPacket[];
+
     try {
-        const [userExists] = await pool.query<RowDataPacket[]>(`
-            SELECT 1 FROM users
-            WHERE user_uuid = UUID_TO_BIN(?)
-        `, [uuid])
-        if (userExists.length === 0) {
+        if (!await store.userExists(uuid)) {
             return res.status(404).json({ message: `User with id ${uuid} does not exist` });
         }
     } catch (error) {
@@ -58,25 +52,16 @@ router.get('/user', async (req, res): Promise<any> => {
         });
     }
 
+    let data: store.SectionSummary[];
     try {
-        [data] = await pool.query<RowDataPacket[]>(`
-            SELECT 
-                section_id as id, 
-                label,
-                is_open AS showItems
-            FROM sections
-            WHERE user_uuid = UUID_TO_BIN(?)
-        `, [uuid])
+        data = await store.listSectionsForUser(uuid);
     }
     catch (error) {
         return handleSqlError(error, res);
     }
 
     res.status(200).json({
-        data: data.map(section => ({
-            ...section,
-            showItems: section.showItems === 1 // convert MySQL boolean to JS boolean
-        })),
+        data,
         message: `Successfully retrieved all sections for user with id ${uuid}`
     })
 })
@@ -84,15 +69,12 @@ router.get('/user', async (req, res): Promise<any> => {
 // GET one
 router.get('/section/:sectionId', async (req, res): Promise<any> => {
     const sectionId = req.params.sectionId;
-    if (!validateId(sectionId)) return;
-    
-    let data: RowDataPacket;
+    if (!validateId(sectionId, res)) return;
+
+    const { uuid }: User = res.locals.user;
+    let data: store.SectionDetail | null;
     try {
-        [[data]] = await pool.query<RowDataPacket[]>(`
-            SELECT section_id as id, label
-            FROM sections
-            WHERE section_id = ?
-        `, [sectionId]);
+        data = await store.getSectionById(uuid, sectionId);
     }
     catch (error) {
         return handleSqlError(error, res);
@@ -122,21 +104,17 @@ router.patch('/:sectionId', async (req, res): Promise<any> => {
     }
     if (!validateSection(req.body, res)) return;
 
-    let data: ResultSetHeader;
+    const { uuid }: User = res.locals.user;
+    let updated: boolean;
     try {
-        [data] = await pool.query<ResultSetHeader>(`
-            UPDATE sections
-            SET ?
-            WHERE section_id = ?
-            `, [req.body, sectionId]
-        )
+        updated = await store.updateSection(uuid, sectionId, req.body);
     } catch (error) {
         return handleSqlError(error, res, {
             [WRONG_VALUE_ERROR]: [400, "Request parameter section id must be an integer"]
         })
     }
 
-    if (data.affectedRows === 0) {
+    if (!updated) {
         return res.status(404).json({ message: `No section with id ${sectionId}` });
     }
 
@@ -148,20 +126,17 @@ router.delete('/:sectionId', async (req, res): Promise<any> => {
     const sectionId = req.params.sectionId;
     if (!validateId(sectionId, res)) return;
 
-    let data: ResultSetHeader;
+    const { uuid }: User = res.locals.user;
+    let deleted: boolean;
     try {
-        [data] = await pool.query<ResultSetHeader>(`
-            DELETE FROM sections
-            WHERE section_id = ?
-            `, [sectionId]
-        )
+        deleted = await store.deleteSection(uuid, sectionId);
     } catch (error) {
         return handleSqlError(error, res, {
             [WRONG_VALUE_ERROR]: [400, "Request parameter section id must be an integer"]
         });
     }
 
-    if (data.affectedRows === 0) {
+    if (!deleted) {
         return res.status(404).json({ message: `No section found with id ${sectionId}` });
     }
 

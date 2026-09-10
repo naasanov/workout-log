@@ -12,7 +12,11 @@
     "db:setup": "npm run migrate && npm run seed:dev",
     "redact-chat-images": "node scripts/redactOldChatImages.js",
     "backfill-feedback-issue-numbers": "node scripts/backfillFeedbackIssueNumbers.js",
-    "test": "node --test scripts/*.test.js",
+    "test": "node --test --test-concurrency=1 scripts/*.test.js tests/*.test.js",
+    "test:file": "node --test --test-concurrency=1",
+    "typecheck": "tsgo --noEmit",
+    "typecheck:client": "npm --prefix client run typecheck",
+    "verify": "npm run typecheck && npm run typecheck:client && npm test",
     "heroku-postbuild": "npm run build && cd client && npm install && npm run build"
   },
   "keywords": [],

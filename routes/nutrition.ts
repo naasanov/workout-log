@@ -279,7 +279,8 @@ router.get('/goals', async (req, res): Promise<any> => {
   }
 });
 
-// PUT /goals
+// PUT /goals — merge semantics: an absent field keeps its stored value,
+// an explicit null clears it (see services/nutrition/store.ts's putGoals).
 router.put('/goals', async (req, res): Promise<any> => {
   const { uuid }: User = res.locals.user;
   const parsed = goalsSchema.safeParse(req.body);

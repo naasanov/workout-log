@@ -1,0 +1,72 @@
+@use "../../styles/variables" as vars;
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.expiryNote {
+  letter-spacing: vars.$sarabun-spacing;
+  margin: 0 4px 4px;
+  font-size: 12px;
+  color: rgba(vars.$text, 0.45);
+}
+
+.groupHeading {
+  margin: 18px 4px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(vars.$text, 0.4);
+
+  &:first-child {
+    margin-top: 4px;
+  }
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.loading {
+  letter-spacing: vars.$sarabun-spacing;
+  padding: 40px 0;
+  text-align: center;
+  color: rgba(vars.$text, 0.5);
+  font-size: 14px;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 60px 20px;
+  color: rgba(vars.$text, 0.55);
+}
+
+.emptyIcon {
+  color: rgba(vars.$text, 0.3);
+  margin-bottom: 8px;
+}
+
+.emptyHeading {
+  letter-spacing: vars.$sarabun-spacing;
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: vars.$text;
+}
+
+.emptyBody {
+  letter-spacing: vars.$sarabun-spacing;
+  margin: 0;
+  font-size: 14px;
+  max-width: 320px;
+  line-height: 1.4;
+}

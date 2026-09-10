@@ -1,7 +1,8 @@
 import Movement from "./Movement.jsx";
 import Editable from "./Editable.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useQuery } from '@tanstack/react-query';
 import styles from "../styles/Workouts.module.scss";
 import CollapseButton from "./CollapseButton.jsx";
 import useAuth from '../hooks/useAuth.js';
@@ -89,38 +90,58 @@ function Section({ setSections, section }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const { withAuth } = useAuth();
 
+  // React-Query-backed (rather than a plain useEffect fetch into local
+  // state) so a chat-confirmed agent mutation elsewhere can invalidate
+  // ['movements'] and have this section's list actually refetch -- a plain
+  // imperative fetch keyed only on section.id never re-runs on its own.
+  // `movements` stays local state, synced from the query below, so the
+  // existing optimistic add/remove/rename handlers can keep updating it
+  // directly without waiting on a round trip (same pattern Workouts.jsx
+  // uses for its own `sections` local state).
+  const movementsQuery = useQuery({
+    queryKey: ['movements', 'section', section.id],
+    queryFn: async () => {
+      const res = await clientApi.get(`/movements/section/${section.id}`);
+      return res.data.data ?? [];
+    },
+    enabled: !!section.id,
+  });
+
   useEffect(() => {
-    const fetchMovements = async () => {
-      const res = await withAuth(() => clientApi.get(`/movements/section/${section.id}`));
-      setMovements(res?.data.data ?? [])
-    }
-    fetchMovements();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [section.id])
+    if (movementsQuery.data) setMovements(movementsQuery.data);
+  }, [movementsQuery.data]);
 
   // Fetch every movement's variations in one request rather than letting each Movement
   // fire its own — that fan-out was saturating the database connection pool on load.
+  // Same React-Query rationale as movementsQuery above: ['variations', ...] is
+  // what an agent-confirmed variation mutation invalidates.
   const movementIdsKey = movements.map(m => m.id).join(',');
-  useEffect(() => {
-    const ids = movementIdsKey.split(',').filter(id => /^\d+$/.test(id));
-    if (ids.length === 0) {
-      setVariationsByMovement({});
-      return;
-    }
+  const movementIds = useMemo(
+    () => movementIdsKey.split(',').filter(id => /^\d+$/.test(id)),
+    [movementIdsKey]
+  );
 
-    let cancelled = false;
-    const fetchVariations = async () => {
-      setVariationsByMovement(null);
-      const res = await withAuth(() => (
-        clientApi.get(`/variations/movements`, { params: { ids: ids.join(',') } })
-      ));
-      if (cancelled) return;
-      setVariationsByMovement(res?.data.data ?? 'error');
+  const variationsQuery = useQuery({
+    queryKey: ['variations', 'byMovementIds', movementIdsKey],
+    queryFn: async () => {
+      const res = await clientApi.get(`/variations/movements`, { params: { ids: movementIds.join(',') } });
+      return res.data.data ?? {};
+    },
+    enabled: movementIds.length > 0,
+  });
+
+  useEffect(() => {
+    if (movementIds.length === 0) {
+      setVariationsByMovement({});
+    } else if (variationsQuery.isError) {
+      setVariationsByMovement('error');
+    } else if (variationsQuery.data) {
+      setVariationsByMovement(variationsQuery.data);
+    } else {
+      setVariationsByMovement(null); // loading
     }
-    fetchVariations();
-    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [movementIdsKey])
+  }, [movementIds.length, variationsQuery.data, variationsQuery.isError])
 
   async function handleRemove() {
     setSections(prevSections => (

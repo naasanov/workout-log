@@ -1,19 +1,15 @@
-// Chat transcript persistence for the nutrition AI agent.
-// Stores AI SDK UIMessage objects (parts-based) keyed by (user_uuid, date).
-// All writes are best-effort — callers should not let failures break the stream.
+// Legacy (user_uuid, date)-keyed chat transcript API for routes/nutrition.ts.
+// Chat identity now lives in services/conversations/store.ts as a
+// conversation_id, unlinked from any date -- this module is a thin bridge
+// that resolves each date to "that day's conversation" so routes/nutrition.ts
+// (owned by a later wave) keeps working unmodified. All writes are
+// best-effort -- callers should not let failures break the stream.
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import pool from '../../database';
+import * as conversations from '../conversations/store';
 
-/** A stored chat message row as returned to the client. */
-export interface StoredChatMessage {
-  id: number;
-  message_id: string;
-  role: 'user' | 'assistant' | 'system';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  parts: any[];
-  interrupted: boolean;
-  created_at: string;
-}
+export type StoredChatMessage = conversations.StoredChatMessage;
+export type ProposalResolutionRow = conversations.ProposalResolutionRow;
 
 /**
  * Fetch all messages for a user+date, ordered by creation time.
@@ -45,25 +41,21 @@ export async function getTranscript(
 }
 
 /**
- * Append a message to the transcript. Returns the inserted row id, or null on failure.
- * Uses JSON.parse(JSON.stringify(...)) to strip any non-serialisable values.
+ * Append a message to the day's transcript. Resolves (user_uuid, date) to
+ * that day's conversation -- creating one, and archiving whatever
+ * conversation was previously active, the first time a date is seen. Returns
+ * the inserted row id, or null on failure.
  */
 export async function appendMessage(
   userUuid: string,
   date: string,
   messageId: string,
   role: 'user' | 'assistant' | 'system',
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  parts: any[],
+  parts: conversations.StoredChatMessage['parts'],
 ): Promise<number | null> {
   try {
-    const safeParts = JSON.parse(JSON.stringify(parts));
-    const [result] = await pool.query<ResultSetHeader>(
-      `INSERT INTO chat_messages (user_uuid, date, message_id, role, parts)
-       VALUES (UUID_TO_BIN(?), ?, ?, ?, ?)`,
-      [userUuid, date, messageId, role, JSON.stringify(safeParts)],
-    );
-    return result.insertId;
+    const conversationId = await conversations.getOrCreateConversationForDate(userUuid, date);
+    return await conversations.appendMessage(userUuid, conversationId, messageId, role, parts, date);
   } catch (err) {
     console.error('[transcripts] appendMessage failed:', err);
     return null;
@@ -75,28 +67,44 @@ export async function appendMessage(
  * Silently swallows errors.
  */
 export async function markInterrupted(rowId: number): Promise<void> {
-  try {
-    await pool.query(
-      `UPDATE chat_messages SET interrupted = 1 WHERE id = ?`,
-      [rowId],
-    );
-  } catch (err) {
-    console.error('[transcripts] markInterrupted failed:', err);
-  }
+  return conversations.markInterrupted(rowId);
 }
 
 /**
- * Delete all messages for a user+date. Returns the number of rows deleted.
+ * Delete all messages for a user+date, and the now-empty conversation they
+ * lived in (the legacy per-day model gives each date its own conversation).
+ * Returns the number of message rows deleted.
  */
 export async function clearTranscript(
   userUuid: string,
   date: string,
 ): Promise<number> {
   try {
+    const [convRows] = await pool.query<RowDataPacket[]>(
+      `SELECT DISTINCT conversation_id FROM chat_messages
+       WHERE user_uuid = UUID_TO_BIN(?) AND date = ? AND conversation_id IS NOT NULL`,
+      [userUuid, date],
+    );
+
     const [result] = await pool.query<ResultSetHeader>(
       `DELETE FROM chat_messages WHERE user_uuid = UUID_TO_BIN(?) AND date = ?`,
       [userUuid, date],
     );
+
+    for (const row of convRows) {
+      const conversationId = row.conversation_id as number;
+      const [[{ count }]] = await pool.query<RowDataPacket[]>(
+        `SELECT COUNT(*) as count FROM chat_messages WHERE conversation_id = ?`,
+        [conversationId],
+      );
+      if (count === 0) {
+        await pool.query(
+          `DELETE FROM conversations WHERE id = ? AND user_uuid = UUID_TO_BIN(?)`,
+          [conversationId, userUuid],
+        );
+      }
+    }
+
     return result.affectedRows;
   } catch (err) {
     console.error('[transcripts] clearTranscript failed:', err);
@@ -110,16 +118,10 @@ export async function clearTranscript(
 // tool_call_id). This is what makes an accepted proposal stay "Logged: <name>"
 // after the transcript is refetched from the DB (previously only localStorage
 // remembered this, so it was lost across devices / cleared storage / reload
-// races).
+// races). The canonical, conversation-keyed versions of these functions live
+// in services/conversations/store.ts; this module keeps the date-keyed shape
+// routes/nutrition.ts still calls.
 // ---------------------------------------------------------------------------
-
-/** A stored proposal resolution row as returned to the client. */
-export interface ProposalResolutionRow {
-  tool_call_id: string;
-  kind: 'entry' | 'custom_food';
-  status: 'confirmed' | 'denied';
-  display_name: string | null;
-}
 
 /**
  * Fetch all proposal resolutions for a user+date.
@@ -163,12 +165,8 @@ export async function saveResolution(
   displayName: string | null,
 ): Promise<void> {
   try {
-    await pool.query(
-      `INSERT INTO proposal_resolutions (user_uuid, date, tool_call_id, kind, status, display_name)
-       VALUES (UUID_TO_BIN(?), ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE kind = VALUES(kind), status = VALUES(status), display_name = VALUES(display_name)`,
-      [userUuid, date, toolCallId, kind, status, displayName],
-    );
+    const conversationId = await conversations.getOrCreateConversationForDate(userUuid, date);
+    await conversations.saveResolution(userUuid, conversationId, toolCallId, kind, status, displayName, date);
   } catch (err) {
     console.error('[transcripts] saveResolution failed:', err);
   }

@@ -28,6 +28,90 @@ function getConnectionConfig() {
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+// Splits a migration file into individual statements on top-level semicolons,
+// skipping semicolons inside `--` line comments, `/* */` block comments, and
+// single- or double-quoted string literals (doubled '' / "" and backslash
+// escapes are treated as staying inside the literal). Statements come back
+// trimmed with empties dropped. DELIMITER-based stored-procedure bodies are
+// out of scope and cause a loud failure rather than a silently mangled split.
+function splitStatements(sql) {
+  if (/^\s*DELIMITER\b/im.test(sql)) {
+    throw new Error('splitStatements does not support DELIMITER; this migration needs manual handling');
+  }
+
+  const statements = [];
+  let current = '';
+  let state = 'normal'; // normal | single | double | line-comment | block-comment
+  let i = 0;
+
+  while (i < sql.length) {
+    const ch = sql[i];
+    const next = sql[i + 1];
+
+    if (state === 'normal') {
+      if (ch === "'") {
+        state = 'single';
+        current += ch;
+        i += 1;
+      } else if (ch === '"') {
+        state = 'double';
+        current += ch;
+        i += 1;
+      } else if (ch === '-' && next === '-') {
+        state = 'line-comment';
+        current += ch + next;
+        i += 2;
+      } else if (ch === '/' && next === '*') {
+        state = 'block-comment';
+        current += ch + next;
+        i += 2;
+      } else if (ch === ';') {
+        const trimmed = current.trim();
+        if (trimmed) statements.push(trimmed);
+        current = '';
+        i += 1;
+      } else {
+        current += ch;
+        i += 1;
+      }
+    } else if (state === 'single' || state === 'double') {
+      const quote = state === 'single' ? "'" : '"';
+      if (ch === '\\' && next !== undefined) {
+        current += ch + next;
+        i += 2;
+      } else if (ch === quote && next === quote) {
+        current += ch + next;
+        i += 2;
+      } else if (ch === quote) {
+        state = 'normal';
+        current += ch;
+        i += 1;
+      } else {
+        current += ch;
+        i += 1;
+      }
+    } else if (state === 'line-comment') {
+      current += ch;
+      i += 1;
+      if (ch === '\n') state = 'normal';
+    } else {
+      // block-comment
+      if (ch === '*' && next === '/') {
+        current += ch + next;
+        i += 2;
+        state = 'normal';
+      } else {
+        current += ch;
+        i += 1;
+      }
+    }
+  }
+
+  const trimmed = current.trim();
+  if (trimmed) statements.push(trimmed);
+  return statements;
+}
+
 // The old web dyno is still serving traffic during the release phase, so its pool may be
 // holding every connection JawsDB allows us. Those free up quickly; retry instead of
 // failing the whole deploy on a transient spike.
@@ -62,7 +146,12 @@ async function run() {
   const [applied] = await conn.execute('SELECT filename FROM schema_migrations');
   const appliedSet = new Set(applied.map(r => r.filename));
 
-  const migrationsDir = path.join(__dirname, '../migrations');
+  // MIGRATIONS_DIR lets tests point this at scratch fixture files instead of
+  // the real migrations directory. Unset in production, so the Heroku release
+  // phase always uses the real ../migrations.
+  const migrationsDir = process.env.MIGRATIONS_DIR
+    ? path.resolve(process.env.MIGRATIONS_DIR)
+    : path.join(__dirname, '../migrations');
   const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
 
   for (const file of files) {
@@ -72,7 +161,7 @@ async function run() {
     }
 
     const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
-    const statements = sql.split(';').map(s => s.trim()).filter(Boolean);
+    const statements = splitStatements(sql);
 
     let failed = false;
     for (const stmt of statements) {
@@ -90,10 +179,16 @@ async function run() {
       }
     }
 
-    if (!failed) {
-      await conn.execute('INSERT INTO schema_migrations (filename) VALUES (?)', [file]);
-      console.log(`  apply ${file}`);
+    // Abort immediately rather than trying later files: migrations are ordered
+    // and later ones commonly depend on schema this one was supposed to create,
+    // so continuing would risk a confusing cascade of unrelated-looking errors.
+    if (failed) {
+      await conn.end();
+      throw new Error(`Migration ${file} failed; aborting before any later migration runs`);
     }
+
+    await conn.execute('INSERT INTO schema_migrations (filename) VALUES (?)', [file]);
+    console.log(`  apply ${file}`);
   }
 
   await conn.end();
@@ -108,4 +203,4 @@ if (require.main === module) {
   run().catch(err => { console.error(err); process.exit(1); });
 }
 
-module.exports = { getConnectionConfig, connectWithRetry };
+module.exports = { getConnectionConfig, connectWithRetry, splitStatements };

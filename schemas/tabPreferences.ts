@@ -4,9 +4,12 @@
 // these keys in client/src/config/tabs.js (kept in sync by hand).
 import { z } from 'zod';
 
-// The four top-level "tools". Order here is the default order for new/backfilled
+// The top-level "tools". Order here is the default order for new/backfilled
 // accounts. Keys must match the client's TABS in client/src/config/tabs.js.
-export const TAB_KEYS = ['workouts', 'body-weight', 'habits', 'nutrition'] as const;
+// Adding a key here is the only step needed for services/tabPreferences.ts to
+// adopt it for existing users on their next read (see known_tabs there) --
+// remember to also add it to the client's TABS list by hand.
+export const TAB_KEYS = ['workouts', 'body-weight', 'habits', 'nutrition', 'chat-history'] as const;
 export type TabKey = (typeof TAB_KEYS)[number];
 
 // PUT /users/tab-preferences body: an ordered, duplicate-free list of valid keys.

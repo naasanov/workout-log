@@ -1,0 +1,934 @@
+@use "../../styles/variables" as vars;
+// ---- Dim overlay — shown only when the sheet is expanded ----
+.overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.45);
+  z-index: 998;
+  animation: fadeIn 120ms ease;
+}
+
+// ---- Custom CSS bottom sheet ----
+// Always peeks at the bottom; animates `height` between peek and expanded.
+// sheetDragging disables transition so height tracks pointer in real time.
+.sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-width: 680px;
+  margin: 0 auto;
+  z-index: 999;
+  background-color: vars.$surface;
+  border-radius: 20px 20px 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: height 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  // safe-area-inset-bottom on the sheet itself ensures the entire sheet
+  // (including rounded corners) clears the home indicator on iPhone.
+  padding-bottom: env(safe-area-inset-bottom);
+
+  &:focus { outline: none; }
+}
+
+// PEEK_HEIGHT=0 — sheet is invisible when closed; the FAB replaces the sliver.
+.sheetPeek {
+  height: 0;
+  overflow: hidden;
+}
+
+// Expanded: full chat
+.sheetExpanded {
+  height: 88dvh;
+}
+
+// While dragging, disable transition so height tracks pointer exactly
+.sheetDragging {
+  transition: none !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+// ---- Drag handle ----
+// touch-action:none is critical — prevents browser scroll from competing.
+// Acts as drag handle for the pill strip at the top.
+// overscroll-behavior:none prevents iOS rubber-band from firing here.
+.dragHandleBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  // 44px min-height (Apple HIG touch target) so the handle is reliably
+  // grabbable; touch-action:none over that whole area (not just the 4px pill)
+  // claims more of the swipe from iOS's home-indicator gesture.
+  min-height: 44px;
+  padding: 18px 0 22px;
+  background: transparent;
+  border: none;
+  cursor: grab;
+  flex-shrink: 0;
+  // prevent touch scroll events on handle from propagating to page
+  touch-action: none;
+  overscroll-behavior: none;
+  outline: none;
+
+  &:active { cursor: grabbing; }
+}
+
+.dragHandle {
+  display: block;
+  width: 36px;
+  height: 4px;
+  background-color: rgba(vars.$surface-border, 0.6);
+  border-radius: 2px;
+}
+
+// Accessibility: visually hidden title
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+// ---- Header ----
+// The header also acts as a drag surface (pointer handlers on the element).
+// touch-action:none prevents the browser from stealing scroll events
+// when the user touches the header to drag the sheet.
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 10px;
+  border-bottom: 1px solid rgba(vars.$surface-border, 0.4);
+  flex-shrink: 0;
+  touch-action: none;
+  overscroll-behavior: none;
+  cursor: grab;
+
+  &:active { cursor: grabbing; }
+}
+
+.headerTitle {
+  flex: 1;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: vars.$sarabun-spacing;
+  color: vars.$text;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+// New-chat button
+.newChatBtn {
+  min-width: 36px;
+  min-height: 36px;
+  background: transparent;
+  border: none;
+  color: rgba(vars.$text, 0.4);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 0;
+  // Allow tap through even though parent has touch-action:none
+  touch-action: auto;
+
+  &:active {
+    color: vars.$primary;
+    background-color: rgba(vars.$primary, 0.1);
+  }
+}
+
+.newChatIcon {
+  display: block; // iOS Safari SVG fix
+  width: 16px;
+  height: 16px;
+}
+
+// Manual reconnect button — same touch target as .newChatBtn/.closeBtn
+// so it works as a real tap target on a bookmarked mobile home-screen site.
+.reconnectBtn {
+  min-width: 36px;
+  min-height: 36px;
+  background: transparent;
+  border: none;
+  color: rgba(vars.$text, 0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 0;
+  touch-action: auto;
+
+  &:active {
+    color: vars.$primary;
+    background-color: rgba(vars.$primary, 0.1);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.reconnectIcon {
+  display: block; // iOS Safari SVG fix
+}
+
+// Spins while a reconnect fetch is in flight, so a repeated tap reads as
+// "already working" instead of visually inert. 1s matches RECONNECT_MIN_SPIN_MS
+// so the spin always finishes a whole rotation and stops upright.
+.reconnectIconSpinning {
+  animation: spin 1s linear infinite;
+}
+
+.closeBtn {
+  min-width: 36px;
+  min-height: 36px;
+  background: transparent;
+  border: none;
+  color: rgba(vars.$text, 0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  touch-action: auto;
+
+  &:active {
+    background-color: rgba(vars.$text, 0.1);
+  }
+}
+
+.collapseSvg {
+  display: block; // iOS Safari SVG fix
+  flex-shrink: 0;
+}
+
+// ---- Message list ----
+// overflow-behavior:contain — scrolling doesn't bubble to body.
+// flex:1 + min-height:0 → collapses to 0 at peek, expands when expanded.
+.messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  // prevent body scroll bleed
+  overscroll-behavior: contain;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+// When the sheet is collapsed (peek state), disable scroll entirely
+// so touch events don't accidentally scroll hidden content.
+.messagesPeek {
+  overflow-y: hidden;
+  pointer-events: none;
+}
+
+.emptyHint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 24px 0;
+
+  p {
+    font-size: 15px;
+    color: rgba(vars.$text, 0.4);
+    letter-spacing: vars.$sarabun-spacing;
+    text-align: center;
+    max-width: 280px;
+    line-height: 1.5;
+    margin: 0;
+  }
+}
+
+// ---- Message groups ----
+.messageGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.messageGroupUser {
+  align-items: flex-end;
+}
+
+.messageGroupAssistant {
+  align-items: flex-start;
+}
+
+// ---- Chat bubbles ----
+.bubble {
+  max-width: min(80%, 500px);
+  border-radius: 16px;
+  padding: 10px 14px;
+  min-width: 0;
+  box-sizing: border-box;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.bubbleUser {
+  background-color: vars.$primary;
+  border-bottom-right-radius: 4px;
+}
+
+.bubbleAssistant {
+  background-color: rgba(vars.$surface-border, 0.25);
+  border-bottom-left-radius: 4px;
+}
+
+// Poll "working" indicator — assistant-side bubble reusing the streaming pulse
+// cue (same pulse dot as .reasoningSpinner). Shown while a dangling server-side
+// run is being polled and this client is not itself streaming.
+.workingBubble {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(80%, 500px);
+  background-color: rgba(vars.$surface-border, 0.25);
+  border-radius: 16px;
+  border-bottom-left-radius: 4px;
+  padding: 10px 14px;
+  box-sizing: border-box;
+  font-size: 14px;
+  letter-spacing: vars.$sarabun-spacing;
+  color: rgba(vars.$text, 0.6);
+}
+
+// Reuses the same pulsing dot animation as .reasoningSpinner / ToolCallCard.
+.workingSpinner {
+  display: block;
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: rgba(vars.$primary, 0.7);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.bubbleText {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  letter-spacing: vars.$sarabun-spacing;
+  color: vars.$text;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+
+  .bubbleUser & {
+    color: vars.$background;
+  }
+}
+
+// Markdown container in assistant bubbles
+.bubbleMarkdown {
+  font-size: 15px;
+  line-height: 1.5;
+  letter-spacing: vars.$sarabun-spacing;
+  color: vars.$text;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
+
+  p {
+    margin: 0 0 6px;
+    &:last-child { margin-bottom: 0; }
+  }
+
+  ul, ol {
+    margin: 4px 0 6px;
+    padding-left: 18px;
+    &:last-child { margin-bottom: 0; }
+  }
+
+  li {
+    margin-bottom: 2px;
+  }
+
+  h1, h2, h3, h4 {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 6px 0 3px;
+    &:first-child { margin-top: 0; }
+  }
+
+  strong { font-weight: 700; }
+  em { font-style: italic; }
+
+  code {
+    font-family: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
+    font-size: 13px;
+    background-color: rgba(vars.$background, 0.5);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+
+  pre {
+    margin: 4px 0 6px;
+    background-color: rgba(vars.$background, 0.5);
+    border-radius: 6px;
+    padding: 8px 10px;
+    overflow-x: auto;
+    font-size: 12px;
+    max-width: 100%;
+    box-sizing: border-box;
+
+    code {
+      background: none;
+      padding: 0;
+      font-size: 12px;
+    }
+  }
+
+  a {
+    color: vars.$primary;
+    text-decoration: underline;
+    word-break: break-all;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid rgba(vars.$surface-border, 0.4);
+    margin: 8px 0;
+  }
+
+  blockquote {
+    border-left: 3px solid rgba(vars.$primary-border, 0.5);
+    margin: 4px 0 6px 0;
+    padding-left: 10px;
+    color: rgba(vars.$text, 0.7);
+  }
+}
+
+// ---- Attached image in user message ----
+.attachedImage {
+  display: block; // iOS Safari SVG/img fix
+  max-width: min(200px, 60%);
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+// Collapsible cluster wrapping a run of tool-call/reasoning steps — reuses
+// the same toggle/body styling as .reasoning below (single muted line that
+// expands into its contained steps).
+.toolCluster {
+  max-width: min(80%, 500px);
+  min-width: 0;
+  box-sizing: border-box;
+  border-radius: 8px;
+  width: 100%;
+}
+
+// Single process-timeline control. Collapsed label sits in a clipped
+// viewport so the streaming step title can slide up into place ("conveyor")
+// as the current step changes.
+.timelineLabelViewport {
+  display: inline-flex;
+  overflow: hidden;
+  min-width: 0;
+  // Sized to content (not flex:1) so it shrinks under min-width:0 and long
+  // labels ellipsize instead of pushing the spinner dot far to the right.
+  flex: 0 1 auto;
+}
+
+.timelineLabel {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+// Live (streaming) label re-mounts per step and slides up into place.
+.timelineLabelLive {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  animation: stepSlideUp 0.28s ease;
+}
+
+@keyframes stepSlideUp {
+  from {
+    transform: translateY(80%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+// Auto-height expand/collapse via grid-template-rows 0fr→1fr. Unlike a clamped
+// max-height, the open row is sized to its natural content, so nested
+// ToolCallCard/ReasoningBubble expansions are never clipped (the thread scrolls).
+.timelineBody {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.22s ease;
+}
+
+.timelineBodyOpen {
+  grid-template-rows: 1fr;
+}
+
+.timelineBodyInner {
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  // Slight inset so the nested step list reads as "inside" the timeline.
+  padding-left: 4px;
+}
+
+// ---- Reasoning bubble ----
+// Collapsed state matches ToolCallCard's compact .header styling — single
+// muted line, chevron rotates, no visible border when collapsed. Body
+// animates open/close via max-height transition (same as ToolCallCard).
+.reasoning {
+  max-width: min(80%, 500px);
+  min-width: 0;
+  box-sizing: border-box;
+  border-radius: 8px;
+}
+
+.reasoningToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 2px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  min-height: 32px;
+  box-sizing: border-box;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: vars.$sarabun-spacing;
+  color: rgba(vars.$text, 0.45);
+}
+
+.reasoningChevron {
+  display: block; // iOS Safari SVG fix
+  flex-shrink: 0;
+  color: rgba(vars.$text, 0.3);
+  transition: transform 0.2s ease;
+}
+
+.reasoningChevronOpen {
+  transform: rotate(180deg);
+}
+
+.reasoningSpinner {
+  display: block;
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: rgba(vars.$primary, 0.7);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.reasoningBody {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.22s ease, opacity 0.18s ease;
+}
+
+.reasoningBodyOpen {
+  opacity: 1;
+  transition: max-height 0.22s ease, opacity 0.18s ease 0.04s;
+}
+
+.reasoningText {
+  border-left: 2px solid rgba(vars.$surface-border, 0.2);
+  margin-left: 2px;
+  padding: 4px 10px 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(vars.$text, 0.55);
+  letter-spacing: vars.$sarabun-spacing;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
+
+  p {
+    margin: 0 0 4px;
+    &:last-child { margin-bottom: 0; }
+  }
+
+  ul, ol {
+    margin: 2px 0 4px;
+    padding-left: 16px;
+  }
+
+  li { margin-bottom: 1px; }
+
+  strong { font-weight: 700; }
+  em { font-style: italic; }
+
+  code {
+    font-family: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
+    font-size: 11px;
+    background-color: rgba(vars.$background, 0.5);
+    border-radius: 3px;
+    padding: 1px 4px;
+  }
+
+  pre {
+    margin: 2px 0 4px;
+    background-color: rgba(vars.$background, 0.5);
+    border-radius: 5px;
+    padding: 6px 8px;
+    overflow-x: auto;
+    font-size: 11px;
+    max-width: 100%;
+    box-sizing: border-box;
+
+    code {
+      background: none;
+      padding: 0;
+    }
+  }
+
+  a {
+    color: vars.$primary;
+    text-decoration: underline;
+    word-break: break-all;
+  }
+}
+
+// ---- Proposal outcomes ----
+.proposalDenied,
+.proposalConfirmed {
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  letter-spacing: vars.$sarabun-spacing;
+  max-width: min(80%, 400px);
+}
+
+.proposalDenied {
+  background-color: rgba(vars.$error, 0.08);
+  color: rgba(vars.$error, 0.8);
+  border: 1px solid rgba(vars.$error, 0.2);
+}
+
+.proposalConfirmed {
+  background-color: rgba(vars.$primary, 0.1);
+  color: vars.$primary;
+  border: 1px solid rgba(vars.$primary-border, 0.3);
+  font-weight: 600;
+}
+
+// Inline proposal wrapper — full width in the message thread
+.proposalInlineWrap {
+  width: 100%;
+  max-width: 100%;
+}
+
+// Interrupted marker — shown after a streaming message that was cut short
+.interruptedMarker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background-color: rgba(vars.$error, 0.06);
+  border: 1px solid rgba(vars.$error, 0.2);
+  border-radius: 8px;
+  font-size: 12px;
+  color: rgba(vars.$error, 0.75);
+  letter-spacing: vars.$sarabun-spacing;
+
+  &::before {
+    content: '';
+    display: block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: rgba(vars.$error, 0.6);
+    flex-shrink: 0;
+  }
+}
+
+// ---- Redacted image marker chip ----
+// Replaces a `file` image part once the nightly retention job strips its
+// base64 data out (2+ days old). Styled like .interruptedMarker — a small,
+// visually distinct note rather than the image just silently vanishing.
+.imageRedactedChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background-color: rgba(vars.$surface-border, 0.15);
+  border: 1px solid rgba(vars.$surface-border, 0.4);
+  border-radius: 16px;
+  // Stands in for a photo the user sent, so it matches message text (.bubbleText).
+  font-size: 15px;
+  line-height: 1.5;
+  color: rgba(vars.$text, 0.55);
+  letter-spacing: vars.$sarabun-spacing;
+}
+
+.imageRedactedNote {
+  color: rgba(vars.$text, 0.45);
+  font-style: italic;
+}
+
+// ---- Composer area ----
+// A domain plugin may render extra buttons above the textarea (see
+// composerAttachRow) and extra content between the message list and the
+// composer (see AgentChatProps.composerPlugin.renderAboveComposer).
+// The sheet has padding-bottom: env(safe-area-inset-bottom) so the composer
+// only needs a consistent inner padding — the sheet's padding handles the gap.
+.composerWrap {
+  flex-shrink: 0;
+  border-top: 1px solid rgba(vars.$surface-border, 0.3);
+}
+
+// Row of floating circular buttons above the textarea, left-aligned — a slot
+// a composer plugin fills with its own buttons (e.g. camera, barcode).
+.composerAttachRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 4px;
+}
+
+// Bottom row — textarea + send, full width
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 4px 12px 10px;
+
+  // Flush to the bottom of the sheet, clear of the home indicator via
+  // `env(safe-area-inset-bottom)` (0 on a zero-inset device, where the plain
+  // 10px base still applies). Mobile-only; desktop resets it below.
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+
+  @media (min-width: #{vars.$mobile-width + 1px}) {
+    padding-bottom: 10px;
+  }
+}
+
+// textarea — 16px on mobile prevents iOS from zooming on focus.
+// Placeholder vertical centering: line-height equal to (min-height - 2*padding)
+// so a single text line sits in the center of the 40px box.
+.composerInput {
+  flex: 1;
+  background-color: rgba(vars.$background, 0.4);
+  color: vars.$text;
+  border: 1px solid rgba(vars.$surface-border, 0.6);
+  border-radius: 12px;
+  padding: 8px 12px;
+  // 16px on mobile (≤vars.$mobile-width) to suppress iOS auto-zoom on focus
+  font-size: 16px;
+  letter-spacing: vars.$sarabun-spacing;
+  resize: none;
+  line-height: 1.5;
+  min-height: 40px;
+  max-height: 180px;
+  overflow-y: hidden; // JS sets to auto when at max
+  box-sizing: border-box;
+  overflow-x: hidden;
+
+  &::placeholder {
+    color: rgba(vars.$text, 0.35);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: rgba(vars.$primary-border, 0.6);
+  }
+
+  @media (min-width: #{vars.$mobile-width + 1px}) {
+    font-size: 15px;
+  }
+}
+
+// Send button base
+.sendBtn {
+  flex-shrink: 0;
+  min-width: 40px;
+  min-height: 40px;
+  background-color: vars.$primary;
+  border: none;
+  border-radius: 10px;
+  color: vars.$background;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: opacity 0.1s;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &:not(:disabled):active {
+    background-color: vars.$primary-dark;
+  }
+}
+
+// Stop button — same shape as send but red tint, no disabled state
+.stopBtn {
+  background-color: rgba(vars.$error, 0.15);
+  border: 1px solid rgba(vars.$error, 0.4);
+  color: vars.$error;
+
+  &:active {
+    background-color: rgba(vars.$error, 0.25);
+  }
+}
+
+.sendIcon {
+  display: block; // iOS Safari SVG fix
+  width: 16px;
+  height: 16px;
+}
+
+// ---- Error bubble ----
+.errorBubble {
+  max-width: min(80%, 500px);
+  min-width: 0;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background-color: rgba(vars.$error, 0.06);
+  border: 1px solid rgba(vars.$error, 0.25);
+  overflow: hidden;
+}
+
+.errorBubbleToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  min-height: 36px;
+  box-sizing: border-box;
+}
+
+.errorBubbleIcon {
+  display: block; // iOS Safari SVG fix
+  flex-shrink: 0;
+  color: rgba(vars.$error, 0.8);
+  width: 16px;
+  height: 16px;
+}
+
+.errorBubbleLabel {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: vars.$sarabun-spacing;
+  color: rgba(vars.$error, 0.85);
+}
+
+.errorBubbleChevron {
+  display: block; // iOS Safari SVG fix
+  flex-shrink: 0;
+  color: rgba(vars.$error, 0.5);
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s ease;
+}
+
+.errorBubbleChevronOpen {
+  transform: rotate(90deg);
+}
+
+.errorBubbleDetail {
+  margin: 0;
+  padding: 6px 12px 10px;
+  border-top: 1px solid rgba(vars.$error, 0.15);
+  font-family: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: rgba(vars.$error, 0.7);
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow-x: auto;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+// ---- Floating chat button (shown when sheet is closed, PEEK_HEIGHT=0) ----
+.floatingChatBtn {
+  position: fixed;
+  right: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: vars.$primary;
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  touch-action: none;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 997;
+  padding: 0;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.floatingChatBtnIcon {
+  display: block; // iOS Safari SVG fix
+  width: 16px;
+  height: 16px;
+  color: vars.$background; // dark stroke on the green FAB (was inheriting the button's white)
+}
+
+// ---- Animations ----
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}

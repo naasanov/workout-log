@@ -1,10 +1,14 @@
 @use "variables" as vars;
 // ── Overlay / scrim ──────────────────────────────────────────────────────────
+// z-index 999/1000 (hard-modal tier): the drawer is a full-screen, focus-
+// trapping dialog, so it must sit above the chat FAB and bottom sheet
+// (997-999) rather than in the page-chrome tier — otherwise the FAB floats
+// over an open drawer.
 .overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
-  z-index: 200;
+  z-index: 999;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s ease;
@@ -25,7 +29,7 @@
   max-width: 85vw;
   background-color: vars.$surface;
   border-right: 2px solid vars.$primary-border;
-  z-index: 201;
+  z-index: 1000;
   display: flex;
   flex-direction: column;
   transform: translateX(-100%);

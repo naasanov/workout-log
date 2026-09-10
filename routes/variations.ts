@@ -1,14 +1,12 @@
-import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { Router } from 'express';
-import pool from '../database';
 import handleSqlError from '../utils/handleSqlError';
-import withTransaction from '../utils/withTransaction';
-import { validateId, validateVariation } from '../utils/validation';
+import { validateId, validateVariation, isValidISO } from '../utils/validation';
 import { parseISO } from "date-fns";
 import SqlError from '../utils/sqlErrors';
 const { NO_REFERENCE_ERROR } = SqlError;
 import { authenticateToken } from "./auth";
 import { User } from '../types';
+import * as store from '../services/workouts';
 
 const router = Router();
 router.use(authenticateToken);
@@ -16,29 +14,11 @@ router.use(authenticateToken);
 // Variations are owned transitively: variation -> movement -> section -> user. Every route
 // must confirm that chain, otherwise a valid token can read or edit another user's data by
 // guessing sequential ids. Callers report a 404 rather than a 403 so ids stay unenumerable.
-async function ownsMovement(uuid: string, movementId: string): Promise<boolean> {
-    const [rows] = await pool.query<RowDataPacket[]>(`
-        SELECT 1 FROM movements m
-        JOIN sections s ON s.section_id = m.section_id
-        WHERE m.movement_id = ? AND s.user_uuid = UUID_TO_BIN(?)
-    `, [movementId, uuid]);
-    return rows.length > 0;
-}
-
-async function ownsVariation(uuid: string, variationId: string): Promise<boolean> {
-    const [rows] = await pool.query<RowDataPacket[]>(`
-        SELECT 1 FROM variations v
-        JOIN movements m ON m.movement_id = v.movement_id
-        JOIN sections s ON s.section_id = m.section_id
-        WHERE v.variation_id = ? AND s.user_uuid = UUID_TO_BIN(?)
-    `, [variationId, uuid]);
-    return rows.length > 0;
-}
 
 // POST
 router.post('/:movementId', async (req, res): Promise<any> => {
     const movementId = req.params.movementId;
-    if (!validateId(movementId, res)) return; 
+    if (!validateId(movementId, res)) return;
 
     if (!("label" in req.body)) {
         return res.status(400).json({ message: `Request body must include label`})
@@ -49,27 +29,23 @@ router.post('/:movementId', async (req, res): Promise<any> => {
 
     const { uuid }: User = res.locals.user;
     try {
-        if (!await ownsMovement(uuid, movementId)) {
+        if (!await store.ownsMovement(uuid, movementId)) {
             return res.status(404).json({ message: `Movement with id ${movementId} not found` });
         }
     } catch (error) {
         return handleSqlError(error, res);
     }
 
-    let result: ResultSetHeader;
+    let variationId: number;
     try {
-        [result] = await pool.query<ResultSetHeader>(`
-            INSERT INTO variations (movement_id, label, weight, reps, date)
-            VALUES (?, ?, ?, ?, ?)
-            `, [movementId, label, weight, reps, date ?? new Date()])
-        }
+        variationId = await store.createVariation(movementId, label, weight, reps, date ?? new Date());
+    }
     catch (error) {
         return handleSqlError(error, res, {
             [NO_REFERENCE_ERROR]: [404, `Movement with id ${movementId} not found`],
         })
     }
-    
-    const variationId = result.insertId;
+
     res.status(201).json({
         data: { variationId },
         message: `Successfullly created variation with id ${variationId}`
@@ -95,30 +71,21 @@ router.get('/movements', async (req, res): Promise<any> => {
     }
 
     const { uuid }: User = res.locals.user;
-    let rows: RowDataPacket[];
+    let rows: store.VariationBatchRow[];
     try {
-        const [owned] = await pool.query<RowDataPacket[]>(`
-            SELECT m.movement_id FROM movements m
-            JOIN sections s ON s.section_id = m.section_id
-            WHERE m.movement_id IN (?) AND s.user_uuid = UUID_TO_BIN(?)
-        `, [ids, uuid])
         // All-or-nothing: a partial response would confirm which ids exist for someone else
-        if (owned.length !== ids.length) {
+        if (!await store.allMovementsOwned(uuid, ids)) {
             return res.status(404).json({ message: `One or more requested movements not found` });
         }
 
-        [rows] = await pool.query<RowDataPacket[]>(`
-            SELECT movement_id, variation_id as id, label, weight, reps, date, notes
-            FROM variations
-            WHERE movement_id IN (?)
-        `, [ids])
+        rows = await store.listVariationsByMovementIds(ids);
     }
     catch (error) {
         return handleSqlError(error, res);
     }
 
     // Every requested id gets an entry so callers can tell "no variations" from "not requested"
-    const data: Record<string, Omit<RowDataPacket, 'movement_id'>[]> = {};
+    const data: Record<string, Omit<store.VariationBatchRow, 'movement_id'>[]> = {};
     for (const id of ids) {
         data[id] = [];
     }
@@ -136,23 +103,19 @@ router.get('/movements', async (req, res): Promise<any> => {
 router.get('/movement/:movementId', async (req, res): Promise<any> => {
     const movementId = req.params.movementId;
     if (!validateId(movementId, res)) return;
-    
+
     const { uuid }: User = res.locals.user;
-    let data: RowDataPacket[];
     try {
-        if (!await ownsMovement(uuid, movementId)) {
+        if (!await store.ownsMovement(uuid, movementId)) {
             return res.status(404).json({ message: `movement with id ${movementId} not found` });
         }
     } catch (error) {
         return handleSqlError(error, res);
     }
 
+    let data: store.VariationSummary[];
     try {
-        [data] = await pool.query<RowDataPacket[]>(`
-            SELECT variation_id as id, label, weight, reps, date, notes
-            FROM variations
-            WHERE movement_id = ?
-        `, [movementId])
+        data = await store.listVariationsForMovement(movementId);
     }
     catch (error) {
         return handleSqlError(error, res);
@@ -168,17 +131,11 @@ router.get('/movement/:movementId', async (req, res): Promise<any> => {
 router.get('/variation/:variationId', async (req, res): Promise<any> => {
     const variationId = req.params.variationId;
     if (!validateId(variationId, res)) return;
-    
+
     const { uuid }: User = res.locals.user;
-    let data: RowDataPacket;
+    let data: store.VariationSummary | null;
     try {
-        [[data]] = await pool.query<RowDataPacket[]>(`
-            SELECT v.variation_id as id, v.label, v.weight, v.reps, v.date, v.notes
-            FROM variations v
-            JOIN movements m ON m.movement_id = v.movement_id
-            JOIN sections s ON s.section_id = m.section_id
-            WHERE v.variation_id = ? AND s.user_uuid = UUID_TO_BIN(?)
-        `, [variationId, uuid]);
+        data = await store.getVariationById(uuid, variationId);
     }
     catch (error) {
         return handleSqlError(error, res);
@@ -194,24 +151,28 @@ router.get('/variation/:variationId', async (req, res): Promise<any> => {
     })
 })
 
-// GET history
+// GET history, optionally bounded to an inclusive [from, to] range (both ISO 8601 date/datetime strings)
 router.get('/history/:variationId', async (req, res): Promise<any> => {
     const variationId = req.params.variationId;
     if (!validateId(variationId, res)) return;
 
+    const from = typeof req.query.from === 'string' ? req.query.from : undefined;
+    const to = typeof req.query.to === 'string' ? req.query.to : undefined;
+    if (from !== undefined && !isValidISO(from)) {
+        return res.status(400).json({ message: 'from must be an ISO 8601 formatted date string' });
+    }
+    if (to !== undefined && !isValidISO(to)) {
+        return res.status(400).json({ message: 'to must be an ISO 8601 formatted date string' });
+    }
+
     const { uuid }: User = res.locals.user;
-    let data: RowDataPacket[];
+    let data: store.HistoryEntry[];
     try {
-        if (!await ownsVariation(uuid, variationId)) {
+        if (!await store.ownsVariation(uuid, variationId)) {
             return res.status(404).json({ message: `variation with id ${variationId} not found` });
         }
 
-        [data] = await pool.query<RowDataPacket[]>(`
-            SELECT weight, reps, date
-            FROM variation_history
-            WHERE variation_id = ?
-            ORDER BY date ASC
-        `, [variationId]);
+        data = await store.getHistory(variationId, from, to);
     } catch (error) {
         return handleSqlError(error, res);
     }
@@ -242,66 +203,27 @@ router.patch('/:variationId', async (req, res): Promise<any> => {
 
     const { uuid }: User = res.locals.user;
     try {
-        if (!await ownsVariation(uuid, variationId)) {
+        if (!await store.ownsVariation(uuid, variationId)) {
             return res.status(404).json({ message: `No variation with id ${variationId}` });
         }
     } catch (error) {
         return handleSqlError(error, res);
     }
 
-    let data: ResultSetHeader;
+    let updated: boolean;
     try {
-        [data] = await pool.query<ResultSetHeader>(`
-            UPDATE variations
-            SET ?
-            WHERE variation_id = ?
-            `, [req.body, variationId]
-        )
+        updated = await store.updateVariationFields(variationId, req.body);
     } catch (error) {
         return handleSqlError(error, res)
     }
 
-    if (data.affectedRows === 0) {
+    if (!updated) {
         return res.status(404).json({ message: `No variation with id ${variationId}` });
     }
 
     if ('weight' in req.body || 'reps' in req.body) {
         const historyDate = req.body.date ?? new Date();
-        try {
-            await withTransaction(async (conn) => {
-                const [[current]] = await conn.query<RowDataPacket[]>(`
-                    SELECT weight, reps FROM variations
-                    WHERE variation_id = ?
-                `, [variationId]);
-                if (!current || current.weight == null) {
-                    // A history point needs a weight to be plottable.
-                    return;
-                }
-
-                const [latestHistory] = await conn.query<RowDataPacket[]>(`
-                    SELECT weight, reps FROM variation_history
-                    WHERE variation_id = ?
-                    ORDER BY date DESC, history_id DESC
-                    LIMIT 1
-                `, [variationId]);
-                const latest = latestHistory.length > 0 ? latestHistory[0] : null;
-                // Legacy history rows predate reps tracking and have reps IS NULL;
-                // variations.reps is NOT NULL DEFAULT 0, so treat null and 0 as
-                // the same "no reps recorded" value to avoid a spurious history
-                // row on the first edit after a variation with old history rows.
-                const repsEqual = (latest?.reps ?? 0) === (current.reps ?? 0);
-                const weightEqual = latest !== null && latest.weight === current.weight;
-                const unchanged = latest !== null && weightEqual && repsEqual;
-                if (!unchanged) {
-                    await conn.query<ResultSetHeader>(`
-                        INSERT INTO variation_history (variation_id, weight, reps, date)
-                        VALUES (?, ?, ?, ?)
-                    `, [variationId, current.weight, current.reps ?? null, historyDate]);
-                }
-            });
-        } catch (_) {
-            // history logging is best-effort; don't fail the request
-        }
+        await store.appendHistoryIfChanged(variationId, historyDate);
     }
 
     res.status(200).json({ message: `Successfully updated ${Object.keys(req.body).join(', ')} of variation with id ${variationId}` });
@@ -313,20 +235,14 @@ router.delete('/:variationId', async (req, res): Promise<any> => {
     if (!validateId(variationId, res)) return;
 
     const { uuid }: User = res.locals.user;
-    let data: ResultSetHeader;
+    let deleted: boolean;
     try {
-        [data] = await pool.query<ResultSetHeader>(`
-            DELETE v FROM variations v
-            JOIN movements m ON m.movement_id = v.movement_id
-            JOIN sections s ON s.section_id = m.section_id
-            WHERE v.variation_id = ? AND s.user_uuid = UUID_TO_BIN(?)
-            `, [variationId, uuid]
-        )
+        deleted = await store.deleteVariation(uuid, variationId);
     } catch (error) {
         return handleSqlError(error, res);
     }
 
-    if (data.affectedRows === 0) {
+    if (!deleted) {
         return res.status(404).json({ message: `No variation found with id ${variationId}` });
     }
 

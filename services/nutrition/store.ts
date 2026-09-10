@@ -347,8 +347,24 @@ export async function getGoals(userUuid: string): Promise<Goals> {
   };
 }
 
-/** Upsert goals by user_uuid; returns the stored goals. */
+/**
+ * Upsert goals by user_uuid with MERGE semantics, not a full replace: a
+ * field left `undefined` (absent from the request body) keeps its
+ * previously stored value, while a field explicitly sent as `null` clears
+ * it. Reading the current row first (rather than a single SQL statement)
+ * keeps that distinction explicit instead of relying on COALESCE tricks
+ * that can't tell "absent" from "null" once bound as query params.
+ */
 export async function putGoals(userUuid: string, goals: Goals): Promise<Goals> {
+  const current = await getGoals(userUuid);
+  const merged: Goals = {
+    calories: goals.calories !== undefined ? goals.calories : current.calories,
+    protein_g: goals.protein_g !== undefined ? goals.protein_g : current.protein_g,
+    carbs_g: goals.carbs_g !== undefined ? goals.carbs_g : current.carbs_g,
+    fat_g: goals.fat_g !== undefined ? goals.fat_g : current.fat_g,
+    fiber_g: goals.fiber_g !== undefined ? goals.fiber_g : current.fiber_g,
+  };
+
   await pool.query(
     `INSERT INTO nutrition_goals (user_uuid, calories, protein_g, carbs_g, fat_g, fiber_g)
      VALUES (UUID_TO_BIN(?), ?, ?, ?, ?, ?)
@@ -360,11 +376,11 @@ export async function putGoals(userUuid: string, goals: Goals): Promise<Goals> {
        fiber_g = VALUES(fiber_g)`,
     [
       userUuid,
-      goals.calories ?? null,
-      goals.protein_g ?? null,
-      goals.carbs_g ?? null,
-      goals.fat_g ?? null,
-      goals.fiber_g ?? null,
+      merged.calories,
+      merged.protein_g,
+      merged.carbs_g,
+      merged.fat_g,
+      merged.fiber_g,
     ],
   );
   return getGoals(userUuid);

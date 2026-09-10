@@ -3,8 +3,9 @@ import AddSection from '../components/AddSection.jsx';
 import BodyWeightTracker from '../components/BodyWeightTracker.jsx';
 import HabitTracker from '../components/HabitTracker.jsx';
 import NutritionTracker from '../features/nutrition/NutritionTracker';
+import ChatHistoryPanel from '../features/chatHistory/ChatHistoryPanel';
 import TabsEmptyState from '../components/TabsEmptyState.jsx';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import styles from "../styles/Workouts.module.scss";
 import Header from '../components/Header.jsx';
@@ -14,6 +15,13 @@ import { useQuery } from '@tanstack/react-query';
 import { TABS, TAB_LABELS } from '../config/tabs';
 import { useTabPreferences } from '../api/tabPreferences';
 import useDocumentTitle from '../hooks/useDocumentTitle';
+import AgentChat from '../features/agent/AgentChat';
+import { useNutritionComposerExtras } from '../features/nutrition/NutritionComposerExtras';
+// Registers nutrition's tool and part renderers (propose_entry,
+// propose_custom_food, the barcode-attachment chip) into the shared registry
+// for their side effect. The chat itself mounts once below, not per tab.
+import '../features/nutrition/NutritionToolRenderers';
+import '../features/nutrition/NutritionBarcodeChip';
 
 function Workouts() {
   const [sections, setSections] = useState([]);
@@ -29,6 +37,16 @@ function Workouts() {
   const { data: prefs, isLoading: prefsLoading } = useTabPreferences(loggedIn);
   const enabledTabs = loggedIn ? (prefs ?? []) : [TABS.WORKOUTS];
   const enabledKey = enabledTabs.join('|');
+
+  // Nutrition's currently-viewed day, reported up by NutritionTracker so the
+  // page-level chat below can include it in context while nutrition is
+  // active. Nutrition is the only tab with a per-day concept today.
+  const [nutritionSelectedDate, setNutritionSelectedDate] = useState(null);
+
+  // Nutrition's camera/barcode composer plugin, wired into the single
+  // global AgentChat instance on every tab: scanning a barcode or attaching
+  // a photo is useful regardless of which tab is active.
+  const { plugin: nutritionComposerPlugin, modals: nutritionChatModals } = useNutritionComposerExtras();
 
   const tabParam = searchParams.get('tab');
 
@@ -75,6 +93,29 @@ function Workouts() {
   }, [sectionsQuery.data]);
 
   const showEmptyState = loggedIn && !prefsLoading && enabledTabs.length === 0;
+  const isNutritionTab = activeTab === TABS.NUTRITION;
+
+  // Reaches the agent's system prompt so it can resolve vague references
+  // ("this exercise", "today") to whatever the user is currently looking at.
+  // Memoized so AgentChat's own callbacks (which depend on this object)
+  // don't get redefined on every unrelated Workouts re-render.
+  const chatContext = useMemo(
+    () => (isNutritionTab
+      ? { tab: TABS.NUTRITION, selectedDate: nutritionSelectedDate ?? undefined }
+      : { tab: activeTab ?? undefined }),
+    [isNutritionTab, nutritionSelectedDate, activeTab],
+  );
+
+  const handleChatClose = useCallback(() => {}, []);
+
+  // Imperative handle onto the single page-level AgentChat instance (see its
+  // AgentChatHandle) -- lets chat history's "Continue" action pull in the
+  // conversation it just reactivated and pop the sheet open, without
+  // threading a second, competing "open" state through this page.
+  const agentChatRef = useRef(null);
+  const handleConversationContinued = useCallback(() => {
+    agentChatRef.current?.openActiveConversation();
+  }, []);
 
   // #236: unique tab titles, tab name first so browser-tab truncation
   // (which cuts from the end) never eats the distinguishing word. activeTab
@@ -123,10 +164,44 @@ function Workouts() {
 
         {user && (
           <div style={{ display: activeTab === TABS.NUTRITION ? undefined : 'none' }}>
-            <NutritionTracker />
+            <NutritionTracker onSelectedDateChange={setNutritionSelectedDate} />
+          </div>
+        )}
+
+        {user && (
+          <div style={{ display: activeTab === TABS.CHAT_HISTORY ? undefined : 'none' }}>
+            <ChatHistoryPanel onConversationContinued={handleConversationContinued} />
           </div>
         )}
       </main>
+
+      {/* AI chat — mounted once here (not per-tab) so it's available on every
+          tab and never remounts (and never loses in-flight state) when the
+          user switches tabs, including through the tab-preferences loading
+          window right after login: this only depends on `user`, not
+          `activeTab` or `prefsLoading`, so it mounts exactly once per
+          session. Only the composerPlugin/copy swap based on the active tab;
+          the AgentChat element itself stays the same instance across every
+          render. Gated on `user` since the transport requires an
+          authenticated session (matches the chat's previous nutrition-only
+          gating). */}
+      {user && (
+        <AgentChat
+          ref={agentChatRef}
+          open={false}
+          onClose={handleChatClose}
+          context={chatContext}
+          composerPlugin={nutritionComposerPlugin}
+          emptyHint={isNutritionTab
+            ? 'Describe what you ate, scan a barcode, or attach a photo of your food.'
+            : 'Log, look up, or analyze anything you track.'}
+          srLabel={isNutritionTab ? 'Nutrition AI' : undefined}
+          composerPlaceholder={isNutritionTab
+            ? 'Describe what you ate…'
+            : 'Message the assistant'}
+        />
+      )}
+      {user && nutritionChatModals}
     </>
   );
 }

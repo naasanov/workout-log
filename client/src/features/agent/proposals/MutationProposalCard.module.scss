@@ -1,0 +1,156 @@
+@use "../../../styles/variables" as vars;
+
+.card {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(vars.$surface-border, 0.6);
+  border-radius: 12px;
+  padding: 12px;
+  background-color: rgba(vars.$surface-border, 0.12);
+}
+
+.title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: vars.$sarabun-spacing;
+  color: vars.$text;
+  text-transform: capitalize;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.field {
+  display: flex;
+  gap: 6px;
+  font-size: 13px;
+  letter-spacing: vars.$sarabun-spacing;
+  overflow-wrap: anywhere;
+}
+
+.fieldKey {
+  flex-shrink: 0;
+  color: rgba(vars.$text, 0.5);
+  text-transform: capitalize;
+}
+
+.fieldValue {
+  color: vars.$text;
+  min-width: 0;
+}
+
+.cascadeWarning {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  background-color: rgba(vars.$error, 0.08);
+  border: 1px solid rgba(vars.$error, 0.25);
+  border-radius: 8px;
+  font-size: 12px;
+  color: rgba(vars.$error, 0.85);
+  letter-spacing: vars.$sarabun-spacing;
+}
+
+.errorText {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: vars.$error;
+  letter-spacing: vars.$sarabun-spacing;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.confirmBtn,
+.denyBtn {
+  flex: 1;
+  min-height: 36px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: vars.$sarabun-spacing;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.confirmBtn {
+  background-color: vars.$primary;
+  border: none;
+  color: vars.$background;
+
+  &:not(:disabled):active {
+    background-color: vars.$primary-dark;
+  }
+}
+
+.denyBtn {
+  background: transparent;
+  border: 1px solid rgba(vars.$surface-border, 0.6);
+  color: rgba(vars.$text, 0.7);
+
+  &:not(:disabled):active {
+    background-color: rgba(vars.$surface-border, 0.2);
+  }
+}
+
+.batchList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.batchItem {
+  border: 1px solid rgba(vars.$surface-border, 0.4);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.batchItemHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.batchItemTitle {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: vars.$sarabun-spacing;
+  color: vars.$text;
+  text-transform: capitalize;
+}
+
+.batchItemDone {
+  color: vars.$primary;
+  flex-shrink: 0;
+}
+
+.batchItemFailed {
+  color: vars.$error;
+  flex-shrink: 0;
+}
+
+.batchItemSkipped {
+  font-size: 11px;
+  color: rgba(vars.$text, 0.5);
+  letter-spacing: vars.$sarabun-spacing;
+  flex-shrink: 0;
+}
