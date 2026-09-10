@@ -4,3 +4,4 @@
 export * from './sections';
 export * from './movements';
 export * from './variations';
+export * from './tree';

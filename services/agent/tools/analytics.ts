@@ -13,6 +13,7 @@ import { listHabitsResource, listHabitTallies } from './habits';
 import type { ToolContext, ToolModule } from './registry';
 
 type Resource =
+  | 'workout_tree'
   | 'section'
   | 'movement'
   | 'variation'
@@ -22,7 +23,7 @@ type Resource =
   | 'habit_tally';
 
 const RESOURCES: [Resource, ...Resource[]] = [
-  'section', 'movement', 'variation', 'variation_history', 'body_weight', 'habit', 'habit_tally',
+  'workout_tree', 'section', 'movement', 'variation', 'variation_history', 'body_weight', 'habit', 'habit_tally',
 ];
 
 /** Strips mysql2 Date objects etc. down to plain JSON, matching the round-trip pattern in tools/nutrition.ts. */
@@ -38,6 +39,8 @@ async function listResource(
   to: string | undefined,
 ) {
   switch (resource) {
+    case 'workout_tree':
+      return workoutResources.getWorkoutTree(userUuid);
     case 'section':
       return workoutResources.listSections(userUuid);
     case 'movement': {
@@ -118,7 +121,7 @@ export const analyticsTools: ToolModule = ({ userUuid }: ToolContext): ToolSet =
   /** Generic list across every readable resource kind, discriminated by `resource`. */
   list_resources: tool({
     description:
-      'List the user\'s own records for one resource kind. \'section\': top-level, no parent_id. \'movement\': parent_id = sectionId. \'variation\': parent_id = movementId. \'variation_history\': parent_id = variationId, supports from/to -- a variation never edited via PATCH has ZERO history rows, meaning unedited, not untrained. \'body_weight\': no parent_id, supports from/to. \'habit\': the habit registry, no parent_id. \'habit_tally\': parent_id = habitName (tallies are matched by name and can exist for a name no longer in the registry), supports from/to.',
+      'List the user\'s own records for one resource kind. \'workout_tree\': every section with its exercises (movements) and their variations\' current weight/reps, in one call, no parent_id; prefer it over walking section/movement/variation one level at a time. \'section\': top-level, no parent_id. \'movement\': parent_id = sectionId. \'variation\': parent_id = movementId. \'variation_history\': parent_id = variationId, supports from/to -- a variation never edited via PATCH has ZERO history rows, meaning unedited, not untrained. \'body_weight\': no parent_id, supports from/to. \'habit\': the habit registry, no parent_id. \'habit_tally\': parent_id = habitName (tallies are matched by name and can exist for a name no longer in the registry), supports from/to.',
     inputSchema: z.object({
       resource: z.enum(RESOURCES),
       parent_id: z.string().optional().describe('Required for movement/variation/variation_history/habit_tally; see tool description for what it means per kind.'),

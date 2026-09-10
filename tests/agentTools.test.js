@@ -211,6 +211,30 @@ test('agent read tools (query_series, list_resources, get_resource)', async (t) 
 
   // ---- variation_history ----
 
+  await t.test('list_resources("workout_tree") nests the caller\'s sections, exercises, and variations', async () => {
+    const user = await db.createTestUser();
+    const other = await db.createTestUser();
+    const push = await createSection(pool, user.uuid, 'Push');
+    await createSection(pool, user.uuid, 'Empty');
+    const bench = await createMovement(pool, push, 'Bench Press');
+    await createMovement(pool, push, 'No Variations');
+    await createVariation(pool, bench, 'Barbell', 135, 5);
+    await createVariation(pool, bench, 'Dumbbell', 60, 8);
+    await createMovement(pool, await createSection(pool, other.uuid, 'Theirs'), 'Squat');
+
+    const tools = analyticsTools(makeCtx(user.uuid));
+    const tree = await tools.list_resources.execute({ resource: 'workout_tree' });
+
+    assert.deepEqual(tree.map(s => s.label), ['Push', 'Empty']);
+    assert.deepEqual(tree[1].movements, []);
+    assert.deepEqual(tree[0].movements.map(m => m.label), ['Bench Press', 'No Variations']);
+    assert.deepEqual(tree[0].movements[1].variations, []);
+    assert.deepEqual(
+      tree[0].movements[0].variations.map(v => [v.label, v.weight, v.reps]),
+      [['Barbell', 135, 5], ['Dumbbell', 60, 8]],
+    );
+  });
+
   await t.test('list_resources("variation_history") returns entries within range, ordered ascending', async () => {
     const user = await db.createTestUser();
     const sectionId = await createSection(pool, user.uuid);

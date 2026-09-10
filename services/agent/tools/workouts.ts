@@ -5,6 +5,10 @@
 import * as workouts from '../../workouts';
 import type { HistoryEntry } from '../../workouts';
 
+export async function getWorkoutTree(userUuid: string) {
+  return workouts.getWorkoutTree(userUuid);
+}
+
 export async function listSections(userUuid: string) {
   return workouts.listSectionsForUser(userUuid);
 }
