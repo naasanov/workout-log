@@ -108,7 +108,7 @@ export default function ChatMessage({
       const data = (part as unknown as { data: { mediaType?: string } }).data;
       return (
         <div key={idx} className={styles.imageRedactedChip} title={data?.mediaType}>
-          <ImageOff size={16} aria-hidden="true" style={{ display: 'block' }} />
+          <ImageOff size={18} aria-hidden="true" style={{ display: 'block', flexShrink: 0 }} />
           <span>Photo no longer available</span>
         </div>
       );

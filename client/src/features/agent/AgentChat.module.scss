@@ -684,12 +684,14 @@
 .imageRedactedChip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
+  gap: 8px;
+  padding: 10px 14px;
   background-color: rgba(vars.$surface-border, 0.15);
   border: 1px solid rgba(vars.$surface-border, 0.4);
-  border-radius: 8px;
-  font-size: 12px;
+  border-radius: 16px;
+  // Stands in for a photo the user sent, so it matches message text (.bubbleText).
+  font-size: 15px;
+  line-height: 1.5;
   color: rgba(vars.$text, 0.55);
   letter-spacing: vars.$sarabun-spacing;
 }
