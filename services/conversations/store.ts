@@ -10,10 +10,9 @@
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import pool from '../../database';
 
-// How long an archived conversation is kept before a future retention job
-// may purge it. Provisional: the chat-history wave that browses archived
-// conversations owns tuning this value.
-const ARCHIVE_EXPIRY_DAYS = 30;
+// How long an archived conversation is kept before a retention job may purge
+// it. Continuing a chat clears its expiry; archiving it again restarts the clock.
+export const ARCHIVE_EXPIRY_DAYS = 30;
 
 // Tool part types whose stored input/output is pure noise -- a production
 // incident found 2,114 stored tool-calculator parts alone with no UI ever
@@ -31,11 +30,6 @@ export interface Conversation {
   expires_at: string | null;
   created_at: string;
   updated_at: string;
-  /** Only present on rows from listConversations, which joins these in for
-   *  free; other conversation-returning calls here answer with a full
-   *  messages array instead, so they leave these unset. */
-  message_count?: number;
-  preview?: string | null;
 }
 
 /** A stored chat message row as returned to the client. */
@@ -74,7 +68,7 @@ export interface ProposalResolutionRow {
 }
 
 function toConversation(row: RowDataPacket): Conversation {
-  const conversation: Conversation = {
+  return {
     id: row.id as number,
     title: (row.title as string | null) ?? null,
     active: row.archived_at === null,
@@ -83,36 +77,6 @@ function toConversation(row: RowDataPacket): Conversation {
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
   };
-  // listConversations' query joins these in; other queries backing this
-  // function don't select them, so row.message_count is undefined there.
-  if (row.message_count !== undefined) {
-    conversation.message_count = Number(row.message_count);
-    conversation.preview = derivePreview(row.preview as string | null);
-  }
-  return conversation;
-}
-
-// Hard cap applied in SQL before a preview candidate ever leaves the
-// database -- keeps a pathologically long message from crossing the wire
-// even before the JS-side truncation below runs.
-const PREVIEW_SQL_CAP = 200;
-
-// Final displayed preview length. Comfortably under PREVIEW_SQL_CAP so
-// there's always enough surviving text to tell whether it was truncated.
-const PREVIEW_MAX_LENGTH = 140;
-
-/**
- * Finalize a preview snippet already capped to PREVIEW_SQL_CAP in SQL: trims
- * whitespace and marks truncation with an ellipsis rather than cutting a
- * word in half. Null when the source message had no text part at all.
- */
-function derivePreview(raw: string | null): string | null {
-  if (!raw) return null;
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-  return trimmed.length > PREVIEW_MAX_LENGTH
-    ? `${trimmed.slice(0, PREVIEW_MAX_LENGTH).trimEnd()}…`
-    : trimmed;
 }
 
 /**
@@ -171,45 +135,13 @@ export async function createConversation(userUuid: string): Promise<number> {
   return result.insertId;
 }
 
-/**
- * List a user's conversations, most recently updated first, each carrying
- * its message count and a short preview of its most recent text message --
- * everything a list row needs, in one query. A LEFT JOIN (not an inner
- * join) keeps a freshly created, message-less active conversation in the
- * results with a count of 0 rather than dropping it.
- *
- * The preview comes from the conversation's newest message, not its oldest
- * (title already covers the first message) -- the correlated subquery below
- * finds that message's id, then JSON_TABLE walks its parts array for the
- * first part of type 'text', in order. A message whose parts have no text
- * part at all (e.g. its last turn was a bare tool call) yields no row from
- * JSON_TABLE, so preview is null rather than a crash or the string "null".
- */
+/** List a user's conversations, most recently updated first. */
 export async function listConversations(userUuid: string): Promise<Conversation[]> {
   const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT
-       c.id, c.title, c.archived_at, c.expires_at, c.created_at, c.updated_at,
-       COUNT(m.id) AS message_count,
-       (
-         SELECT LEFT(TRIM(jt.text), ${PREVIEW_SQL_CAP})
-         FROM chat_messages lm
-         JOIN JSON_TABLE(lm.parts, '$[*]' COLUMNS (
-           seq FOR ORDINALITY,
-           type VARCHAR(32) PATH '$.type',
-           text TEXT PATH '$.text'
-         )) AS jt
-         WHERE lm.id = (
-           SELECT id FROM chat_messages WHERE conversation_id = c.id ORDER BY id DESC LIMIT 1
-         )
-         AND jt.type = 'text'
-         ORDER BY jt.seq
-         LIMIT 1
-       ) AS preview
-     FROM conversations c
-     LEFT JOIN chat_messages m ON m.conversation_id = c.id
-     WHERE c.user_uuid = UUID_TO_BIN(?)
-     GROUP BY c.id
-     ORDER BY c.updated_at DESC`,
+    `SELECT id, title, archived_at, expires_at, created_at, updated_at
+     FROM conversations
+     WHERE user_uuid = UUID_TO_BIN(?)
+     ORDER BY updated_at DESC`,
     [userUuid],
   );
   return rows.map(toConversation);

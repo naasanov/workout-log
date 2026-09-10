@@ -91,7 +91,11 @@ router.get('/conversations', async (req, res): Promise<any> => {
   const { uuid }: User = res.locals.user;
   try {
     const data = await store.listConversations(uuid);
-    return res.status(200).json({ data, message: `Found ${data.length} conversation(s)` });
+    return res.status(200).json({
+      data,
+      expiry_days: store.ARCHIVE_EXPIRY_DAYS,
+      message: `Found ${data.length} conversation(s)`,
+    });
   } catch (error) {
     return handleSqlError(error, res);
   }

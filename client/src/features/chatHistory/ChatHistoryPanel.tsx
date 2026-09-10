@@ -23,7 +23,8 @@ export interface ChatHistoryPanelProps {
 
 export default function ChatHistoryPanel({ onConversationContinued }: ChatHistoryPanelProps) {
   const listQuery = useConversationList();
-  const conversations = listQuery.data ?? [];
+  const conversations = listQuery.data?.conversations ?? [];
+  const expiryDays = listQuery.data?.expiryDays;
   const conversationById = new Map(conversations.map((c) => [c.id, c]));
 
   const continueMutation = useContinueConversation();
@@ -62,8 +63,6 @@ export default function ChatHistoryPanel({ onConversationContinued }: ChatHistor
       <ConversationRow
         key={id}
         conversation={conversation}
-        messageCount={conversation.message_count ?? 0}
-        preview={conversation.preview ?? null}
         onOpen={() => setOpenConversationId(id)}
         onContinue={() => handleContinue(id)}
         onDelete={() => setPendingDelete({ id, title: conversation.title })}
@@ -90,6 +89,10 @@ export default function ChatHistoryPanel({ onConversationContinued }: ChatHistor
 
   return (
     <div className={styles.panel}>
+      {expiryDays !== undefined && (
+        <p className={styles.expiryNote}>Past chats are kept for {expiryDays} days.</p>
+      )}
+
       {active && (
         <ul className={styles.list} role="list">
           {renderRow(active.id)}

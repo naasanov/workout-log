@@ -37,11 +37,12 @@ export interface Conversation {
   expires_at: string | null;
   created_at: string;
   updated_at: string;
-  /** Only present on rows from GET /chat/conversations (the list endpoint),
-   *  which joins these in server-side; other endpoints answer with a full
-   *  messages array instead and leave these unset. */
-  message_count?: number;
-  preview?: string | null;
+}
+
+export interface ConversationList {
+  conversations: Conversation[];
+  /** Days an archived chat is kept before it is purged. */
+  expiryDays: number;
 }
 
 /** A stored chat message row as returned by the server. */
@@ -78,9 +79,9 @@ export async function startNewConversation(): Promise<ConversationWithMessages> 
 }
 
 /** List every conversation the caller owns, most recently updated first. */
-export async function fetchConversations(): Promise<Conversation[]> {
+export async function fetchConversations(): Promise<ConversationList> {
   const res = await clientApi.get('/chat/conversations');
-  return res.data.data;
+  return { conversations: res.data.data, expiryDays: res.data.expiry_days };
 }
 
 /** Reactivate an archived conversation, resetting its expiry and archiving whatever else is active. */

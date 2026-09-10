@@ -165,16 +165,14 @@ test('chat routes', async (t) => {
     assert.deepEqual(body.data.map((c) => c.id), [idNew, idOld]);
   });
 
-  await t.test('GET /conversations includes each row\'s message count and a preview of its most recent message', async () => {
+  await t.test('GET /conversations reports how many days archived chats are kept', async () => {
     const user = await createUser();
-    const id = await store.createConversation(user.uuid);
-    await store.appendMessage(user.uuid, id, 'm1', 'user', [{ type: 'text', text: 'first message' }]);
-    await store.appendMessage(user.uuid, id, 'm2', 'assistant', [{ type: 'text', text: 'latest reply' }]);
+    await store.createConversation(user.uuid);
 
     const { status, body } = await get(baseUrl, user, '/conversations');
     assert.equal(status, 200);
-    assert.equal(body.data[0].message_count, 2);
-    assert.equal(body.data[0].preview, 'latest reply');
+    assert.equal(body.expiry_days, store.ARCHIVE_EXPIRY_DAYS);
+    assert.ok(body.expiry_days > 0);
   });
 
   await t.test('GET /conversations only returns the caller\'s own conversations', async () => {
