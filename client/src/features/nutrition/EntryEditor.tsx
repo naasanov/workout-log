@@ -552,10 +552,9 @@ export default function EntryEditor({
     }
   }
 
-  // #313: explicit discard that clears the draft, unlike onClose (backdrop click,
-  // Esc, the modal's X) which leaves it in place for the reporter's exact case.
+  // #328: Cancel behaves the same as the modal's X, Esc, and tapping outside,
+  // all of which leave a manual-add draft in place rather than clearing it.
   function handleCancel() {
-    if (isManualAdd) clearDraft(date);
     onClose();
   }
 
