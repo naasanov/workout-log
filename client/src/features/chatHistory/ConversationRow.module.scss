@@ -10,10 +10,10 @@
   overflow: hidden;
   transition: background-color 0.15s ease;
 
-  // The whole row highlights, action buttons included, so the hover reads
-  // as one card rather than stopping at the clickable area's edge.
+  // The whole row highlights, action buttons included. The tint is mixed into
+  // the surface color, since a translucent color alone lets the darker page through.
   &:hover {
-    background-color: rgba(vars.$primary, 0.06);
+    background-color: color-mix(in srgb, vars.$primary 6%, vars.$surface);
   }
 
   &.rowActive {
