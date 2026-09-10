@@ -12,6 +12,7 @@
 }
 
 .heading {
+  letter-spacing: vars.$sarabun-spacing;
   margin: 0;
   font-size: 17px;
   font-weight: 600;
@@ -19,6 +20,7 @@
 }
 
 .description {
+  letter-spacing: vars.$sarabun-spacing;
   margin: 0;
   font-size: 14px;
   color: rgba(vars.$text, 0.7);
@@ -32,6 +34,7 @@
 }
 
 .cancelBtn {
+  letter-spacing: vars.$sarabun-spacing;
   background: transparent;
   border: 1px solid vars.$surface-border;
   border-radius: 10px;
@@ -42,6 +45,7 @@
 }
 
 .confirmBtn {
+  letter-spacing: vars.$sarabun-spacing;
   background-color: vars.$error;
   border: none;
   border-radius: 10px;
