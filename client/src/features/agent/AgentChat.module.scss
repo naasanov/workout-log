@@ -419,6 +419,41 @@
     padding-left: 10px;
     color: rgba(vars.$text, 0.7);
   }
+
+  // Natural width up to a cap, so short tables don't stretch and text columns
+  // get room before wrapping; .tableScroll handles anything wider than the bubble.
+  table {
+    border-collapse: collapse;
+    font-size: 15px;
+    letter-spacing: vars.$sarabun-spacing;
+    width: max-content;
+    max-width: 800px;
+  }
+
+  // Cells wrap only at spaces. The bubble's `overflow-wrap: anywhere` would
+  // otherwise let columns shrink to one character; .tableScroll scrolls instead.
+  th, td {
+    padding: 4px 8px;
+    border: 1px solid rgba(vars.$surface-border, 0.4);
+    text-align: left;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  th {
+    font-weight: 600;
+  }
+
+  input[type='checkbox'] {
+    margin-right: 4px;
+  }
+}
+
+// Wraps a rendered markdown <table> so wide tables scroll horizontally
+// inside the bubble instead of overflowing the page.
+.tableScroll {
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 // ---- Attached image in user message ----
@@ -621,6 +656,30 @@
     color: vars.$primary;
     text-decoration: underline;
     word-break: break-all;
+  }
+
+  table {
+    border-collapse: collapse;
+    font-size: 11px;
+    letter-spacing: vars.$sarabun-spacing;
+    width: max-content;
+    max-width: 800px;
+  }
+
+  th, td {
+    padding: 3px 6px;
+    border: 1px solid rgba(vars.$surface-border, 0.3);
+    text-align: left;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  th {
+    font-weight: 600;
+  }
+
+  input[type='checkbox'] {
+    margin-right: 3px;
   }
 }
 

@@ -19,6 +19,7 @@ import { ChevronDown } from 'lucide-react';
 import styles from './AgentChat.module.scss';
 import ToolCallCard, { friendlyToolName } from './ToolCallCard';
 import { stripCitationTokens } from './citations';
+import { markdownPlugins, markdownComponents } from './markdown';
 import { getPartRenderer, getToolRendererRegistration } from './registry';
 import type { ProposalResolutionState } from './registry';
 
@@ -68,7 +69,9 @@ export function ReasoningBubble({ text, streaming }: ReasoningBubbleProps) {
         aria-hidden={!open}
       >
         <div ref={innerRef} className={styles.reasoningText}>
-          <ReactMarkdown>{stripCitationTokens(text)}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={markdownPlugins} components={markdownComponents}>
+            {stripCitationTokens(text)}
+          </ReactMarkdown>
         </div>
       </div>
     </div>

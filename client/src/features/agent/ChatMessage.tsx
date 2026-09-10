@@ -11,6 +11,7 @@ import ReactMarkdown from 'react-markdown';
 import { ImageOff } from 'lucide-react';
 import styles from './AgentChat.module.scss';
 import { stripCitationTokens } from './citations';
+import { markdownPlugins, markdownComponents } from './markdown';
 import {
   mergeReasoningParts,
   groupPartsForRender,
@@ -84,7 +85,9 @@ export default function ChatMessage({
             <p className={styles.bubbleText}>{part.text}</p>
           ) : (
             <div className={styles.bubbleMarkdown}>
-              <ReactMarkdown>{stripCitationTokens(part.text)}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={markdownPlugins} components={markdownComponents}>
+                {stripCitationTokens(part.text)}
+              </ReactMarkdown>
             </div>
           )}
         </div>
