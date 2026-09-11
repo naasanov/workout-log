@@ -48,7 +48,6 @@ function GraphTooltip({ active, payload, isEst1RM }) {
     border: '1px solid #575757',
     borderRadius: '8px',
     color: '#EBEDE9',
-    fontFamily: 'Sarabun, sans-serif',
     padding: '8px 12px',
     fontSize: '13px',
   };
@@ -200,13 +199,13 @@ function WeightGraphModal({ variation, onClose }) {
                   allowDecimals={false}
                   ticks={dayTicks}
                   tickFormatter={formatDayTick}
-                  tick={{ fill: '#EBEDE9', fontSize: 12, fontFamily: 'Sarabun, sans-serif' }}
+                  tick={{ fill: '#EBEDE9', fontSize: 12 }}
                   axisLine={{ stroke: '#575757' }}
                   tickLine={false}
                 />
                 <YAxis
                   domain={yDomain}
-                  tick={{ fill: '#EBEDE9', fontSize: 12, fontFamily: 'Sarabun, sans-serif' }}
+                  tick={{ fill: '#EBEDE9', fontSize: 12 }}
                   axisLine={{ stroke: '#575757' }}
                   tickLine={false}
                   width={48}
