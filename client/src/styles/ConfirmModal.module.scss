@@ -13,11 +13,9 @@
   margin: 0;
   color: vars.$text;
   font: {
-    family: "Sarabun", sans-serif;
     weight: 400;
     size: 20px;
   }
-  letter-spacing: 2px;
   text-align: center;
 }
 
@@ -34,11 +32,9 @@
   padding: 8px 24px;
   cursor: pointer;
   font: {
-    family: "Sarabun", sans-serif;
     weight: 500;
     size: 18px;
   }
-  letter-spacing: 2px;
 }
 
 .cancel {

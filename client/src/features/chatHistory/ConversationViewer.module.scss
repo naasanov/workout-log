@@ -18,7 +18,6 @@
 }
 
 .headerTitle {
-  letter-spacing: vars.$sarabun-spacing;
   flex: 1;
   min-width: 0;
   font-size: 16px;
@@ -30,7 +29,6 @@
 }
 
 .headerBtn {
-  letter-spacing: vars.$sarabun-spacing;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -79,7 +77,6 @@
 }
 
 .agedOutNote {
-  letter-spacing: vars.$sarabun-spacing;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -103,7 +100,6 @@
 }
 
 .emptyState {
-  letter-spacing: vars.$sarabun-spacing;
   padding: 40px 16px;
   text-align: center;
   color: rgba(vars.$text, 0.5);

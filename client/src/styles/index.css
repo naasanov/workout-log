@@ -1,6 +1,10 @@
 * {
   box-sizing: border-box;
   font: inherit;
+  /* Form controls get their own UA default (`normal`) instead of naturally
+   * inheriting like other text does; this makes them inherit the body's
+   * letter-spacing the same way `font: inherit` above does for font-family. */
+  letter-spacing: inherit;
 }
 
 body {
@@ -14,6 +18,9 @@ body {
    * set font-family. Omitting it is what let those subtrees fall back to
    * the browser's default serif font. */
   font-family: "Sarabun", sans-serif;
+  /* Must equal $sarabun-spacing in variables.scss. Global default so
+   * component styles no longer need to opt in per rule. */
+  letter-spacing: 2px;
 }
 
 html {

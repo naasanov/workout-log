@@ -32,7 +32,6 @@
   color: vars.$text;
   font-size: 20px;
   font-weight: 400;
-  letter-spacing: vars.$sarabun-spacing;
   font-style: italic;
   white-space: nowrap;
   overflow: hidden;
@@ -79,7 +78,6 @@
   border: 1px solid vars.$surface-border;
   border-radius: vars.$border-radius;
   color: vars.$text;
-  letter-spacing: vars.$sarabun-spacing;
   padding: 12px 14px;
   // font-size is intentionally left unset below 885px so the global
   // `max(16px, 1em) !important` rule in index.css (anti-iOS-zoom) wins.
@@ -111,7 +109,6 @@
   color: vars.$primary;
   font-size: 14px;
   font-weight: 500;
-  letter-spacing: vars.$sarabun-spacing;
   border-radius: vars.$border-radius;
   padding: 10px 24px;
   // Tappable on mobile

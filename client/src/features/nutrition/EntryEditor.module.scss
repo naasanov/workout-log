@@ -51,7 +51,6 @@
   margin: 0;
   font-size: 20px;
   font-weight: 700;
-  letter-spacing: vars.$sarabun-spacing;
   color: vars.$text;
 }
 
@@ -71,7 +70,6 @@
   border: 2px solid vars.$surface-border;
   border-radius: 10px;
   font-size: 15px;
-  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
   transition: border-color 0.1s, color 0.1s, background-color 0.1s;
 
@@ -96,7 +94,6 @@
 .fieldLabel {
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.6);
   text-transform: uppercase;
 }
@@ -109,7 +106,6 @@
   border-bottom: 2px solid vars.$primary-border;
   padding: 6px 4px;
   font-size: 16px;
-  letter-spacing: vars.$sarabun-spacing;
   width: 100%;
   box-sizing: border-box;
   min-height: 44px; // mobile tap target
@@ -155,7 +151,6 @@
 .ingredientsLabel {
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.6);
   text-transform: uppercase;
 }
@@ -274,7 +269,6 @@
   flex-direction: column;
   gap: 2px;
   font-size: 11px;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.55);
 }
 
@@ -292,7 +286,6 @@
   border-bottom: 2px solid vars.$primary-border;
   padding: 4px 20px 4px 2px; // right padding for chevron
   font-size: 14px;
-  letter-spacing: vars.$sarabun-spacing;
   min-height: 36px;
   min-width: 60px;
   max-width: 140px;
@@ -320,7 +313,6 @@
 .unitStatic {
   display: inline-block;
   font-size: 14px;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.55);
   border-bottom: 2px solid rgba(vars.$surface-border, 0.5);
   padding: 4px 2px;
@@ -353,7 +345,6 @@
   margin: 0;
   font-size: 11px;
   color: rgba(vars.$text, 0.4);
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 // Search dropdown
@@ -389,20 +380,17 @@
 .dropdownName {
   font-size: 15px;
   color: vars.$text;
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .dropdownMeta {
   font-size: 12px;
   color: rgba(vars.$text, 0.5);
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .dropdownHint {
   padding: 10px 14px;
   font-size: 14px;
   color: rgba(vars.$text, 0.5);
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 // Add ingredient button
@@ -415,7 +403,6 @@
   border: 2px dashed vars.$primary-border;
   border-radius: 10px;
   font-size: 15px;
-  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
 
   &:active {
@@ -439,7 +426,6 @@
   font-size: 13px;
   font-weight: 700;
   color: vars.$primary;
-  letter-spacing: vars.$sarabun-spacing;
   text-transform: uppercase;
   margin-right: 4px;
 }
@@ -447,7 +433,6 @@
 .totalsStat {
   font-size: 14px;
   color: rgba(vars.$text, 0.85);
-  letter-spacing: vars.$sarabun-spacing;
 
   strong {
     color: vars.$text;
@@ -460,7 +445,6 @@
   margin: 0;
   font-size: 14px;
   color: vars.$error;
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 // #313: dismissible note shown when a manual-add draft was restored on open.
@@ -474,7 +458,6 @@
   padding: 8px 12px;
   font-size: 13px;
   color: rgba(vars.$text, 0.65);
-  letter-spacing: vars.$sarabun-spacing;
   background-color: rgba(vars.$surface-border, 0.15);
   border-radius: 8px;
 }
@@ -504,7 +487,6 @@
   padding: 8px 12px;
   font-size: 13px;
   color: rgba(vars.$text, 0.6);
-  letter-spacing: vars.$sarabun-spacing;
   background-color: rgba(vars.$surface-border, 0.15);
   border-left: 3px solid rgba(vars.$primary-border, 0.5);
   border-radius: 0 6px 6px 0;
@@ -526,7 +508,6 @@
   border-radius: vars.$border-radius;
   font-size: 16px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
   border: none;
 

@@ -49,7 +49,6 @@
   margin: 0;
   font-size: 18px;
   font-weight: 700;
-  letter-spacing: vars.$sarabun-spacing;
   color: vars.$text;
 }
 
@@ -79,7 +78,6 @@
   border-radius: 10px;
   font-size: 15px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
 
   &:disabled {
@@ -114,7 +112,6 @@
 .fieldLabelText {
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.6);
   text-transform: uppercase;
 }
@@ -126,7 +123,6 @@
   border-bottom: 2px solid vars.$primary-border;
   padding: 6px 4px;
   font-size: 16px;
-  letter-spacing: vars.$sarabun-spacing;
   width: 100%;
   box-sizing: border-box;
   min-height: 44px;
@@ -164,7 +160,6 @@
   border-bottom: 2px solid vars.$primary-border;
   padding: 4px 2px;
   font-size: 14px;
-  letter-spacing: vars.$sarabun-spacing;
   min-height: 36px;
   width: 70px;
   text-align: right;
@@ -218,7 +213,6 @@
 .sectionLabel {
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.6);
   text-transform: uppercase;
 }
@@ -265,7 +259,6 @@
   font-size: 17px;
   font-weight: 700;
   color: vars.$primary;
-  letter-spacing: vars.$sarabun-spacing;
   min-width: 40px;
   text-align: center;
 }
@@ -273,7 +266,6 @@
 .scaleHint {
   font-size: 12px;
   color: rgba(vars.$text, 0.45);
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 // Ingredient list
@@ -337,7 +329,6 @@
   flex-direction: column;
   gap: 2px;
   font-size: 11px;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.55);
 }
 
@@ -350,7 +341,6 @@
   border-bottom: 2px solid vars.$primary-border;
   padding: 4px 20px 4px 2px;
   font-size: 14px;
-  letter-spacing: vars.$sarabun-spacing;
   min-height: 36px;
   min-width: 60px;
   max-width: 160px;
@@ -374,7 +364,6 @@
 .unitStatic {
   display: inline-block;
   font-size: 14px;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.55);
   border-bottom: 2px solid rgba(vars.$surface-border, 0.5);
   padding: 4px 2px;
@@ -388,7 +377,6 @@
   margin: 0;
   font-size: 11px;
   color: rgba(vars.$text, 0.45);
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .addIngredientBtn {
@@ -400,7 +388,6 @@
   border: 2px dashed vars.$primary-border;
   border-radius: 10px;
   font-size: 14px;
-  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -431,7 +418,6 @@
 .macroSectionLabel {
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: vars.$sarabun-spacing;
   color: vars.$primary;
   text-transform: uppercase;
 }
@@ -442,7 +428,6 @@
   gap: 6px 14px;
   font-size: 14px;
   color: rgba(vars.$text, 0.85);
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 // Servings list
@@ -469,13 +454,11 @@
   flex: 1;
   font-size: 14px;
   color: vars.$text;
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .servingGrams {
   font-size: 13px;
   color: rgba(vars.$text, 0.6);
-  letter-spacing: vars.$sarabun-spacing;
   flex-shrink: 0;
 }
 
@@ -494,7 +477,6 @@
   border: 1px solid vars.$primary-border;
   border-radius: 8px;
   font-size: 14px;
-  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -546,20 +528,17 @@
 .dropdownName {
   font-size: 15px;
   color: vars.$text;
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .dropdownMeta {
   font-size: 12px;
   color: rgba(vars.$text, 0.5);
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .dropdownHint {
   padding: 10px 14px;
   font-size: 14px;
   color: rgba(vars.$text, 0.5);
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 // Error
@@ -567,7 +546,6 @@
   margin: 0;
   font-size: 14px;
   color: vars.$error;
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 // Proposal mode: inline card in the agent chat thread (no overlay/backdrop)

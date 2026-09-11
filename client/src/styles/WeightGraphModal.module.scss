@@ -28,7 +28,6 @@
   color: vars.$text;
   font-size: 20px;
   font-weight: 400;
-  letter-spacing: vars.$sarabun-spacing;
   font-style: italic;
   white-space: nowrap;
   overflow: hidden;
@@ -77,7 +76,6 @@
   cursor: pointer;
   color: vars.$text;
   font-size: 13px;
-  letter-spacing: vars.$sarabun-spacing;
   border-radius: calc(#{vars.$border-radius} - 4px);
   padding: 8px 14px;
   // Tappable on mobile
@@ -107,16 +105,19 @@
 .chartWrap {
   position: relative;
 
-  // recharts writes fontFamily as an SVG presentation attribute on <text>
-  // nodes; the global `* { font: inherit }` rule in index.css beats that
-  // attribute, so it must be re-asserted here as a real stylesheet rule.
+  // Axis ticks have no letter-spacing of their own, so the global 2px
+  // default (index.css) would otherwise widen them; keep them at their
+  // original, tighter spacing.
   :global(text) {
+    letter-spacing: normal;
   }
 }
 
 // Tooltip content is portaled outside .chartWrap by recharts, so it needs
-// its own global rule rather than relying on the wrapper above.
+// its own global rule rather than relying on the wrapper above. Matches the
+// axis ticks' letter-spacing so the whole chart reads consistently.
 :global(.recharts-tooltip-wrapper) {
+  letter-spacing: normal;
 }
 
 .yLabel {
@@ -127,7 +128,6 @@
   margin: 0;
   color: vars.$primary;
   font-size: 12px;
-  letter-spacing: vars.$sarabun-spacing;
   pointer-events: none;
 
   @media (max-width: vars.$mobile-width) {
@@ -140,7 +140,6 @@
   color: vars.$text;
   font-size: 16px;
   font-weight: 300;
-  letter-spacing: vars.$sarabun-spacing;
   text-align: center;
   padding: 24px 0;
   opacity: 0.7;
