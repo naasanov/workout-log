@@ -98,6 +98,24 @@ async function capture(page, state) {
   return rows;
 }
 
+async function hoverChartTooltip(page) {
+  const box = await page.evaluate(() => {
+    const svg = document.querySelector('div[class*="chartWrap"] svg.recharts-surface');
+    if (!svg) return null;
+    const r = svg.getBoundingClientRect();
+    return { x: r.left + r.width * 0.5, y: r.top + r.height * 0.5 };
+  });
+  if (!box) return false;
+  await page.mouse.move(box.x, box.y);
+  await page.mouse.move(box.x + 2, box.y + 2);
+  await sleep(400);
+  const shown = await page.evaluate(() => {
+    const t = document.querySelector('.recharts-tooltip-wrapper');
+    return !!t && t.getBoundingClientRect().height > 0 && t.textContent.trim().length > 0;
+  });
+  return shown;
+}
+
 async function openChatFab(page) {
   const opened = await page.evaluate(() => {
     const b = [...document.querySelectorAll('button[aria-label^="Open "][aria-label$=" chat"]')].find((x) =>
@@ -195,16 +213,27 @@ async function main() {
     await waitFor(page, () => document.body.textContent.includes('ZZTEST Variation A'), { timeout: 25000 });
     all.push(...(await capture(page, 'workouts-tab')));
 
-    // Notes modal
-    const notesBtn = await page.evaluate(() => {
-      const btns = [...document.querySelectorAll('button[aria-label="Notes"]')].filter((b) => b.checkVisibility());
-      const b = btns[0];
-      if (!b) return null;
-      const r = b.getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    });
-    if (notesBtn) {
-      await page.mouse.click(notesBtn.x, notesBtn.y);
+    // Both fixture buttons and pre-existing dev-seed variations render
+    // `button[class*="graphBtn"]`/`[aria-label="Notes"]` with no per-row DOM
+    // wrapper (see skill doc): scope to the ZZTEST section, then match the
+    // Nth nameCell (== "ZZTEST Variation A") to the Nth button of that kind,
+    // since a bare `[0]` picks up either someone else's data or the
+    // movement's own "add a variation" placeholder row.
+    function clickForVariationA(which) {
+      const section = [...document.querySelectorAll('section')].find((s) => s.textContent.includes('ZZTEST Movement'));
+      if (!section) return false;
+      const names = [...section.querySelectorAll('div[class*="nameCell"]')];
+      const idx = names.findIndex((n) => n.textContent.includes('ZZTEST Variation A'));
+      if (idx === -1) return false;
+      const sel = which === 'notes' ? 'button[aria-label="Notes"]' : 'button[class*="graphBtn"]';
+      const btns = [...section.querySelectorAll(sel)];
+      const btn = btns[idx];
+      if (!btn || !btn.checkVisibility()) return false;
+      btn.click();
+      return true;
+    }
+    const zztestClicked = await page.evaluate(clickForVariationA, 'notes');
+    if (zztestClicked) {
       await waitFor(page, () => !!document.querySelector('button[aria-label="Close"]'), { timeout: 8000 }).catch(() => {});
       await sleep(400);
       all.push(...(await capture(page, 'workouts-notes-modal')));
@@ -213,19 +242,16 @@ async function main() {
     }
 
     // Weight graph modal
-    const graphBtn = await page.evaluate(() => {
-      const btns = [...document.querySelectorAll('button[class*="graphBtn"]')].filter((b) => b.checkVisibility());
-      const b = btns[0];
-      if (!b) return null;
-      const r = b.getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    });
-    if (graphBtn) {
-      await page.mouse.click(graphBtn.x, graphBtn.y);
+    const graphClicked = await page.evaluate(clickForVariationA, 'graph');
+    if (graphClicked) {
       await waitFor(page, () => !!document.querySelector('div[class*="chartWrap"] svg'), { timeout: 8000 }).catch(() => {});
       await sleep(600);
       all.push(...(await capture(page, 'workouts-graph-modal')));
       await page.screenshot({ path: '/tmp/typo-chart-variation.png' }).catch(() => {});
+      if (await hoverChartTooltip(page)) {
+        all.push(...(await capture(page, 'workouts-graph-tooltip')));
+        await page.screenshot({ path: '/tmp/typo-chart-variation-tooltip.png' }).catch(() => {});
+      }
       await page.keyboard.press('Escape');
       await sleep(400);
     }
@@ -238,6 +264,10 @@ async function main() {
     await sleep(600);
     all.push(...(await capture(page, 'body-weight-tab')));
     await page.screenshot({ path: '/tmp/typo-chart-bodyweight.png' }).catch(() => {});
+    if (await hoverChartTooltip(page)) {
+      all.push(...(await capture(page, 'body-weight-tooltip')));
+      await page.screenshot({ path: '/tmp/typo-chart-bodyweight-tooltip.png' }).catch(() => {});
+    }
 
     // ---- State 3: Habits tab ----
     await page.goto(`${appBase}/?tab=habits`);
