@@ -10,11 +10,7 @@ router.use(authenticateToken);
 const BARE_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const DEFAULT_RANGE_DAYS = 30;
 
-/**
- * OWNER_EMAIL may hold either the owner's email or their raw user uuid, so
- * one env var covers both identification styles without hardcoding an
- * address in source. Comparison is case-insensitive on both sides.
- */
+// OWNER_EMAIL holds the owner's email or user uuid, compared case-insensitively.
 function isOwner(ownerId: string, userUuid: string, userEmail: string | null): boolean {
   const target = ownerId.trim().toLowerCase();
   if (userEmail && userEmail.toLowerCase() === target) return true;
@@ -30,12 +26,9 @@ function defaultTo(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-// GET /usage?from=YYYY-MM-DD&to=YYYY-MM-DD -- aggregate AI usage (totals + a
-// daily series) for the repo owner only. Every other authenticated user, and
-// every unauthenticated request, gets 404 rather than 403 so the endpoint's
-// existence isn't disclosed -- same convention as routes/flags.ts's PATCH /
-// and routes/nutrition.ts's GET /usage all-users view. Closed by default:
-// unset OWNER_EMAIL means nobody can reach this.
+// GET /usage?from=YYYY-MM-DD&to=YYYY-MM-DD: owner-only AI usage totals and daily series.
+// Any other signed-in user gets 404, not 403, so the endpoint isn't disclosed, and an
+// unset OWNER_EMAIL closes it to everyone. Unauthenticated requests fail auth first.
 router.get('/usage', async (req, res): Promise<any> => {
   const { uuid }: User = res.locals.user;
 

@@ -212,9 +212,8 @@ export async function streamChat({
   // and concatenating produces the exact same ModelMessage[] as converting the
   // whole array in one call; it just lets us interleave the synthetic pairs at
   // the right position.
-  // Trim older turns before conversion (#325) -- see services/agent/history.ts
-  // for the exact policy. The last two turns are replayed byte-identical, so
-  // this never changes what barcode/propose_* data those turns replay.
+  // Older turns are trimmed before conversion (#325); see services/agent/history.ts.
+  // Barcode data and propose_* calls survive trimming, so replay below is unaffected.
   const trimmedMessages = trimHistoryForReplay(messages);
 
   const modelMessages: ModelMessage[] = [];

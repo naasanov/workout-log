@@ -4,19 +4,12 @@ import { RowDataPacket } from 'mysql2';
 import { parseISO } from 'date-fns';
 import pool from '../../database';
 
-// ---------------------------------------------------------------------------
-// Pricing constants (per 1M tokens, or per 1K calls for web search). Defaults
-// come from a month of reconciled OpenAI line-item billing (#325): cached
-// input is billed at roughly a tenth of uncached input, and pricing all
-// input at the uncached rate overstated the bill because the cache hit rate
-// was high. Override any of these via env vars if OpenAI's pricing changes.
-// ---------------------------------------------------------------------------
+// USD per 1M tokens (per 1K calls for web search). Token defaults match OpenAI's
+// line-item billing (#325), where cached input costs a tenth of uncached input.
+// The web search default is OpenAI's published tool price; override any via env.
 const INPUT_PER_1M = Number(process.env.GPT55_INPUT_PER_1M ?? 5.0);
 const CACHED_INPUT_PER_1M = Number(process.env.GPT55_CACHED_INPUT_PER_1M ?? 0.5);
 const OUTPUT_PER_1M = Number(process.env.GPT55_OUTPUT_PER_1M ?? 30.0);
-// Web search was a rounding error next to token cost last month ($1.39 of
-// $108 total). No confirmed per-call rate was available, so this default is
-// a judgment call -- override with the real rate once billing confirms it.
 const WEB_SEARCH_PER_1K_CALLS = Number(process.env.WEB_SEARCH_PER_1K_CALLS ?? 10.0);
 
 export interface UsageData {
@@ -35,12 +28,7 @@ export interface UsageData {
   webSearchCalls: number;
 }
 
-/**
- * Shape of the fields this module reads off streamText's onFinish result
- * (see 'ai' package's LanguageModelUsage / GenerateTextEndEvent types).
- * Kept as a narrow structural type here (rather than importing StreamText's
- * own types) so this stays easy to construct in a unit test.
- */
+// The fields read off streamText's onFinish result, kept structural so a unit test can build one.
 export interface FinishResultLike {
   usage: {
     inputTokens?: number;
@@ -53,13 +41,8 @@ export interface FinishResultLike {
   toolCalls: { toolName: string }[];
 }
 
-/**
- * Map streamText's onFinish result to a UsageData row. Reasoning tokens live
- * at usage.outputTokenDetails.reasoningTokens and cached input tokens at
- * usage.inputTokenDetails.cacheReadTokens in the AI SDK v7 shape -- an
- * earlier version of this code read a field name ('outputDetails') that
- * SDK v7 never populates, so reasoning tokens silently recorded as 0.
- */
+// In AI SDK v7, onFinish usage and toolCalls cover every step of the turn. Reasoning
+// tokens are at usage.outputTokenDetails and cached input at usage.inputTokenDetails.
 export function usageDataFromFinishResult({ usage, steps, toolCalls }: FinishResultLike): UsageData {
   const inputTokens = usage.inputTokens ?? 0;
   const outputTokens = usage.outputTokens ?? 0;
@@ -207,12 +190,9 @@ export async function getUserEmail(userUuid: string): Promise<string | null> {
   return rows.length > 0 ? (rows[0].email as string) : null;
 }
 
-// ---------------------------------------------------------------------------
-// Owner-only aggregate report (routes/admin.ts). ai_usage.created_at is
-// DATETIME, so a bare YYYY-MM-DD upper bound must resolve to the start of
-// the next day and be applied with `<`, or it silently drops that whole day
-// -- see resolveTo in services/bodyWeight/store.ts for the same pattern.
-// ---------------------------------------------------------------------------
+// Owner-only aggregate report (routes/admin.ts). ai_usage.created_at is DATETIME, so a
+// bare YYYY-MM-DD upper bound resolves to the next day's start compared with `<`, as
+// resolveTo in services/bodyWeight/store.ts does.
 const BARE_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 function resolveRange(from: string, to: string): { fromValue: Date; toValue: Date; toOperator: '<' | '<=' } {
@@ -227,11 +207,7 @@ function resolveRange(from: string, to: string): { fromValue: Date; toValue: Dat
 export interface UsagePeriodStats {
   /** Number of recorded chat turns (one ai_usage row per completed turn). */
   turns: number;
-  /**
-   * Number of underlying model invocations across those turns. Currently
-   * equal to `steps` (each step is one model call); kept as a separate field
-   * because a dashboard may frame the two differently.
-   */
+  /** Model invocations across those turns, equal to `steps` since each step is one call. */
   modelCalls: number;
   steps: number;
   toolCalls: number;
