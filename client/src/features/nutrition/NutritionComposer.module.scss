@@ -57,6 +57,16 @@
   flex-shrink: 0;
 }
 
+// Makes the pending-photo thumbnail itself a real tap target for the
+// full-screen preview, without changing its visual size or border.
+.photoThumbBtn {
+  display: block;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
 .thumbnail {
   display: block;
   width: 64px;

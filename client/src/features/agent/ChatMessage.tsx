@@ -5,10 +5,12 @@
  * renderer (proposal/view) via the registry in registry.tsx. Anything left
  * over folds into the collapsible ProcessTimeline.
  */
+import { useState } from 'react';
 import { isToolUIPart, getToolName } from 'ai';
 import type { UIMessage, ToolUIPart, DynamicToolUIPart } from 'ai';
 import ReactMarkdown from 'react-markdown';
 import { ImageOff } from 'lucide-react';
+import ImagePreviewModal from '../../components/ImagePreviewModal';
 import styles from './AgentChat.module.scss';
 import { stripCitationTokens } from './citations';
 import { markdownPlugins, markdownComponents } from './markdown';
@@ -51,6 +53,8 @@ export default function ChatMessage({
   // Interrupted flag from a stored assistant message that ended without onFinish.
   const interrupted = !!(message as unknown as { interrupted?: boolean }).interrupted;
   const isStreamingThis = isLastAssistant && isStreaming;
+  // Full-screen tap-to-preview for an attached image in this message.
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const mergedParts = mergeReasoningParts(message.parts);
   const groups = groupPartsForRender(mergedParts, resolutions, readOnly);
@@ -97,12 +101,19 @@ export default function ChatMessage({
     // ---- File part (user-attached image) ----
     if (part.type === 'file' && part.mediaType.startsWith('image/')) {
       return (
-        <img
+        <button
           key={idx}
-          src={part.url}
-          alt="Attached image"
-          className={styles.attachedImage}
-        />
+          type="button"
+          className={styles.attachedImageBtn}
+          onClick={() => setImagePreview(part.url)}
+          aria-label="View attached image"
+        >
+          <img
+            src={part.url}
+            alt="Attached image"
+            className={styles.attachedImage}
+          />
+        </button>
       );
     }
 
@@ -193,6 +204,14 @@ export default function ChatMessage({
         <div className={styles.interruptedMarker}>
           Response interrupted
         </div>
+      )}
+
+      {imagePreview && (
+        <ImagePreviewModal
+          src={imagePreview}
+          alt="Attached image"
+          onClose={() => setImagePreview(null)}
+        />
       )}
     </div>
   );

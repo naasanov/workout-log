@@ -21,6 +21,7 @@ import { downscaleImage } from './imageDownscale';
 import { lookupBarcode } from './api';
 import BarcodeScanner from './BarcodeScanner';
 import BarcodeAttachmentCard from './BarcodeAttachmentCard';
+import ImagePreviewModal from '../../components/ImagePreviewModal';
 import type { BarcodeAttachmentData } from './types';
 
 interface PendingPhoto {
@@ -53,6 +54,8 @@ export function useNutritionComposerExtras(): NutritionComposerExtras {
   const [barcodeNotice, setBarcodeNotice] = useState<string | null>(null);
   // Tap-to-preview for a scan still pending in the composer (not yet sent).
   const [barcodePreview, setBarcodePreview] = useState<BarcodeAttachmentData | null>(null);
+  // Full-screen tap-to-preview for a pending photo thumbnail.
+  const [photoPreview, setPhotoPreview] = useState<{ src: string; alt: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
@@ -252,7 +255,14 @@ export function useNutritionComposerExtras(): NutritionComposerExtras {
         <div className={styles.thumbnails}>
           {pendingPhotos.map(p => (
             <div key={p.previewUrl} className={styles.thumbnailWrap}>
-              <img src={p.previewUrl} alt="Pending photo" className={styles.thumbnail} />
+              <button
+                type="button"
+                className={styles.photoThumbBtn}
+                onClick={() => setPhotoPreview({ src: p.previewUrl, alt: 'Pending photo' })}
+                aria-label="View pending photo"
+              >
+                <img src={p.previewUrl} alt="Pending photo" className={styles.thumbnail} />
+              </button>
               <button
                 type="button"
                 className={styles.thumbnailRemove}
@@ -341,6 +351,14 @@ export function useNutritionComposerExtras(): NutritionComposerExtras {
           open={true}
           data={barcodePreview}
           onClose={() => setBarcodePreview(null)}
+        />
+      )}
+
+      {photoPreview && (
+        <ImagePreviewModal
+          src={photoPreview.src}
+          alt={photoPreview.alt}
+          onClose={() => setPhotoPreview(null)}
         />
       )}
     </>
