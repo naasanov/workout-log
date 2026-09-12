@@ -56,7 +56,6 @@
   color: vars.$text;
   font-size: 1.1rem;
   font-weight: 700;
-  letter-spacing: vars.$sarabun-spacing;
   opacity: 0.6;
   text-transform: uppercase;
 }
@@ -78,7 +77,6 @@
   color: rgba(vars.$text, 0.7);
   font-size: 15px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
 
   &:active {
     background: vars.$primary-translucent;
@@ -146,7 +144,6 @@
   color: rgba(vars.$text, 0.7);
   font-size: 18px;
   font-weight: 500;
-  letter-spacing: vars.$sarabun-spacing;
   // Mobile tap target
   min-height: 44px;
   transition: background 0.12s ease, color 0.12s ease;
@@ -203,7 +200,6 @@
   color: rgba(vars.$text, 0.9);
   font-size: 17px;
   font-weight: 500;
-  letter-spacing: vars.$sarabun-spacing;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -308,6 +304,5 @@
   color: rgba(vars.$text, 0.45);
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: vars.$sarabun-spacing;
   text-transform: uppercase;
 }

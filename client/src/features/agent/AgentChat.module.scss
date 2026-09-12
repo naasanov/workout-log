@@ -121,7 +121,6 @@
   flex: 1;
   font-size: 17px;
   font-weight: 700;
-  letter-spacing: vars.$sarabun-spacing;
   color: vars.$text;
   user-select: none;
   -webkit-user-select: none;
@@ -251,7 +250,6 @@
   p {
     font-size: 15px;
     color: rgba(vars.$text, 0.4);
-    letter-spacing: vars.$sarabun-spacing;
     text-align: center;
     max-width: 280px;
     line-height: 1.5;
@@ -311,7 +309,6 @@
   padding: 10px 14px;
   box-sizing: border-box;
   font-size: 14px;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.6);
 }
 
@@ -330,7 +327,6 @@
   margin: 0;
   font-size: 15px;
   line-height: 1.5;
-  letter-spacing: vars.$sarabun-spacing;
   color: vars.$text;
   white-space: pre-wrap;
   word-break: break-word;
@@ -345,7 +341,6 @@
 .bubbleMarkdown {
   font-size: 15px;
   line-height: 1.5;
-  letter-spacing: vars.$sarabun-spacing;
   color: vars.$text;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -425,7 +420,6 @@
   table {
     border-collapse: collapse;
     font-size: 15px;
-    letter-spacing: vars.$sarabun-spacing;
     width: max-content;
     max-width: 800px;
   }
@@ -564,7 +558,6 @@
   box-sizing: border-box;
   font-size: 12px;
   font-weight: 500;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.45);
 }
 
@@ -608,7 +601,6 @@
   font-size: 12px;
   line-height: 1.5;
   color: rgba(vars.$text, 0.55);
-  letter-spacing: vars.$sarabun-spacing;
   overflow-wrap: anywhere;
   word-break: break-word;
   min-width: 0;
@@ -661,7 +653,6 @@
   table {
     border-collapse: collapse;
     font-size: 11px;
-    letter-spacing: vars.$sarabun-spacing;
     width: max-content;
     max-width: 800px;
   }
@@ -689,7 +680,6 @@
   padding: 8px 12px;
   border-radius: 10px;
   font-size: 13px;
-  letter-spacing: vars.$sarabun-spacing;
   max-width: min(80%, 400px);
 }
 
@@ -723,7 +713,6 @@
   border-radius: 8px;
   font-size: 12px;
   color: rgba(vars.$error, 0.75);
-  letter-spacing: vars.$sarabun-spacing;
 
   &::before {
     content: '';
@@ -752,7 +741,6 @@
   font-size: 15px;
   line-height: 1.5;
   color: rgba(vars.$text, 0.55);
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .imageRedactedNote {
@@ -809,7 +797,6 @@
   padding: 8px 12px;
   // 16px on mobile (≤vars.$mobile-width) to suppress iOS auto-zoom on focus
   font-size: 16px;
-  letter-spacing: vars.$sarabun-spacing;
   resize: none;
   line-height: 1.5;
   min-height: 40px;
@@ -912,7 +899,6 @@
   flex: 1;
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$error, 0.85);
 }
 

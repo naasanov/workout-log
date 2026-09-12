@@ -39,11 +39,9 @@
   padding: 0;
   border-radius: vars.$border-radius;
 
-  letter-spacing: vars.$sarabun-spacing;
   color: vars.$text;
 
   font: {
-    family: "Sarabun", sans-serif;
     weight: 500;
     size: 26px;
   }
@@ -76,7 +74,6 @@
     color: vars.$text;
     border: none;
     border-bottom: solid 3px vars.$primary-border;
-    letter-spacing: vars.$sarabun-spacing;
 
     &:focus {
       outline: none;
@@ -105,12 +102,10 @@
     cursor: pointer;
 
     font: {
-      family: vars.$sarabun;
       weight: 500;
       size: 24px;
     }
 
-    letter-spacing: vars.$sarabun-spacing;
     color: vars.$primary;
   }
 }
@@ -279,7 +274,6 @@
   color: vars.$text;
   font-size: 15px;
   font-weight: 500;
-  letter-spacing: vars.$sarabun-spacing;
   padding: 10px 14px;
   border-radius: 7px;
   cursor: pointer;

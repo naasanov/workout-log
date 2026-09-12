@@ -71,7 +71,6 @@
   margin: 0;
   font-size: 18px;
   font-weight: 700;
-  letter-spacing: vars.$sarabun-spacing;
   color: vars.$text;
 }
 
@@ -102,7 +101,6 @@
   border-radius: 10px;
   font-size: 15px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
 
   &:disabled {
@@ -152,7 +150,6 @@
   border-bottom: 2px solid vars.$primary-border;
   padding: 6px 4px;
   font-size: 16px; // 16px prevents iOS auto-zoom on focus
-  letter-spacing: vars.$sarabun-spacing;
   width: 100%;
   box-sizing: border-box;
   min-height: 44px;
@@ -174,7 +171,6 @@
   color: vars.$text;
   font-size: 16px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 // Smaller numeric inputs
@@ -185,7 +181,6 @@
   border-bottom: 2px solid vars.$primary-border;
   padding: 4px 2px;
   font-size: 16px; // 16px prevents iOS zoom
-  letter-spacing: vars.$sarabun-spacing;
   min-height: 40px;
   width: 80px;
   text-align: right;
@@ -241,7 +236,6 @@
   flex-direction: column;
   gap: 4px;
   font-size: 11px;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.55);
 }
 
@@ -255,7 +249,6 @@
   border-bottom: 2px solid vars.$primary-border;
   padding: 4px 24px 4px 2px;
   font-size: 16px; // 16px prevents iOS zoom
-  letter-spacing: vars.$sarabun-spacing;
   min-height: 40px;
   min-width: 64px;
   max-width: 180px;
@@ -279,7 +272,6 @@
 .unitStatic {
   display: inline-block;
   font-size: 16px;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.55);
   border-bottom: 2px solid rgba(vars.$surface-border, 0.5);
   padding: 4px 2px;
@@ -299,7 +291,6 @@
 .macrosSectionLabel {
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.6);
   text-transform: uppercase;
 }
@@ -315,7 +306,6 @@
   margin: 0;
   font-size: 11px;
   color: rgba(vars.$text, 0.4);
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 // #227 — dismissable notice row (barcode-not-found error). Flex row so the
@@ -332,7 +322,6 @@
   padding: 6px 0;
   font-size: 11px;
   color: vars.$error;
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .noticeDismiss {
@@ -392,20 +381,17 @@
 .dropdownName {
   font-size: 15px;
   color: vars.$text;
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .dropdownMeta {
   font-size: 12px;
   color: rgba(vars.$text, 0.5);
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .dropdownHint {
   padding: 10px 14px;
   font-size: 14px;
   color: rgba(vars.$text, 0.5);
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 // Delete button — shown in edit mode at the bottom
@@ -419,7 +405,6 @@
   border-radius: 10px;
   font-size: 15px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -483,7 +468,6 @@
   font-size: 15px;
   font-weight: 600;
   color: vars.$text;
-  letter-spacing: vars.$sarabun-spacing;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -501,7 +485,6 @@
   font-size: 14px;
   font-weight: 700;
   color: vars.$primary;
-  letter-spacing: vars.$sarabun-spacing;
   flex-shrink: 0;
 }
 
@@ -509,7 +492,6 @@
 // alongside kcal. Muted vs. .cardCalories so kcal stays the visual anchor.
 .cardGrams {
   font-size: 12px;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.5);
   white-space: nowrap;
   flex-shrink: 0;
@@ -524,7 +506,6 @@
 
 .chip {
   font-size: 11px;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.6);
   background-color: rgba(vars.$text, 0.08);
   border-radius: 5px;

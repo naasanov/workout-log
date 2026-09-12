@@ -51,7 +51,6 @@
 .toolName {
   font-size: 12px;
   font-weight: 500;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.45);
   font-variant-ligatures: none;
   // Item 6: prevent overflow
@@ -145,6 +144,8 @@
 .jsonBlock {
   margin: 0;
   font-family: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
+  // Monospace JSON reads better tight; opt out of the global 2px default.
+  letter-spacing: normal;
   font-size: 11px;
   line-height: 1.5;
   color: rgba(vars.$text, 0.65);
@@ -197,7 +198,6 @@
 .resultName {
   font-size: 12px;
   font-weight: 500;
-  letter-spacing: vars.$sarabun-spacing;
   color: vars.$text;
   // Long food names wrap instead of overflowing the card at narrow widths.
   overflow-wrap: anywhere;
@@ -207,7 +207,6 @@
 
 .resultDetail {
   font-size: 11px;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.6);
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -239,7 +238,6 @@
   margin: 0;
   font-size: 13px;
   color: vars.$error;
-  letter-spacing: vars.$sarabun-spacing;
   // Item 6
   overflow-wrap: anywhere;
   word-break: break-word;

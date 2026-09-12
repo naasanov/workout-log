@@ -87,7 +87,6 @@
   border-radius: 10px;
   padding: 8px 12px;
   font-size: 16px;
-  letter-spacing: vars.$sarabun-spacing;
   text-align: center;
   cursor: pointer;
 
@@ -128,7 +127,6 @@
   border-radius: vars.$border-radius;
   font-size: 16px;
   font-weight: 700;
-  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
 
   &:active {
@@ -196,13 +194,11 @@
 .caloriesUnit {
   font-size: 15px;
   color: rgba(vars.$text, 0.5);
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .caloriesGoal {
   font-size: 15px;
   color: rgba(vars.$text, 0.5);
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 // ---- Progress bar (shared) ----
@@ -248,7 +244,6 @@
 .macroName {
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.65);
   text-transform: uppercase;
 }
@@ -256,7 +251,6 @@
 .macroValue {
   font-size: 13px;
   color: rgba(vars.$text, 0.85);
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 // ---- Meal group ----
@@ -316,7 +310,6 @@
   font-size: 16px;
   font-weight: 600;
   color: vars.$text;
-  letter-spacing: vars.$sarabun-spacing;
   min-width: 0;
   // #201: fixed line-height so a single line has a known, stable height (20px).
   // .dotsBtn's negative margins below are computed against this value so the
@@ -402,7 +395,6 @@
   border: none;
   color: vars.$text;
   font-size: 15px;
-  letter-spacing: vars.$sarabun-spacing;
   padding: 10px 14px;
   border-radius: 7px;
   cursor: pointer;
@@ -444,7 +436,6 @@
   font-size: 14px;
   font-weight: 700;
   color: vars.$primary;
-  letter-spacing: vars.$sarabun-spacing;
   flex-shrink: 0;
 }
 
@@ -474,7 +465,6 @@
 
 .chip {
   font-size: 12px;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.55);
   background-color: rgba(vars.$text, 0.07);
   border-radius: 6px;
@@ -487,20 +477,17 @@
   text-align: center;
   font-size: 15px;
   color: rgba(vars.$text, 0.4);
-  letter-spacing: vars.$sarabun-spacing;
   padding: 32px 0 8px;
 }
 
 .errorMsg {
   font-size: 14px;
   color: vars.$error;
-  letter-spacing: vars.$sarabun-spacing;
   padding: 8px 0;
 }
 
 .loadingMsg {
   font-size: 14px;
   color: rgba(vars.$text, 0.5);
-  letter-spacing: vars.$sarabun-spacing;
   padding: 8px 0;
 }

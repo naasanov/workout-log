@@ -50,7 +50,6 @@
   margin: 0;
   font-size: 18px;
   font-weight: 700;
-  letter-spacing: vars.$sarabun-spacing;
   color: vars.$text;
 }
 
@@ -93,7 +92,6 @@
   color: vars.$text;
   border: none;
   font-size: 16px; // 16px prevents iOS zoom on focus
-  letter-spacing: vars.$sarabun-spacing;
   min-height: 36px;
   outline: none;
 
@@ -149,7 +147,6 @@
   border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
 
   &:active {
@@ -199,7 +196,6 @@
   font-size: 15px;
   font-weight: 600;
   color: vars.$text;
-  letter-spacing: vars.$sarabun-spacing;
   word-break: break-word;
 }
 
@@ -211,7 +207,6 @@
   border: 1px solid rgba(vars.$surface-border, 0.4);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.5);
   text-transform: uppercase;
   align-self: flex-start;
@@ -220,7 +215,6 @@
 .foodNotes {
   font-size: 12px;
   color: rgba(vars.$text, 0.45);
-  letter-spacing: vars.$sarabun-spacing;
   font-style: italic;
   white-space: nowrap;
   overflow: hidden;
@@ -239,14 +233,12 @@
   font-size: 14px;
   font-weight: 700;
   color: vars.$primary;
-  letter-spacing: vars.$sarabun-spacing;
   flex-shrink: 0;
 }
 
 .macroServingLabel {
   font-size: 12px;
   color: rgba(vars.$text, 0.4);
-  letter-spacing: vars.$sarabun-spacing;
   flex-shrink: 0;
 }
 
@@ -258,7 +250,6 @@
 
 .chip {
   font-size: 12px;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.55);
   background-color: rgba(vars.$text, 0.07);
   border-radius: 5px;
@@ -312,7 +303,6 @@
   border: none;
   color: vars.$text;
   font-size: 15px;
-  letter-spacing: vars.$sarabun-spacing;
   padding: 10px 14px;
   border-radius: 7px;
   cursor: pointer;
@@ -341,7 +331,6 @@
   text-align: center;
   font-size: 15px;
   color: rgba(vars.$text, 0.4);
-  letter-spacing: vars.$sarabun-spacing;
   line-height: 1.5;
 }
 
@@ -349,7 +338,6 @@
   margin: 0;
   font-size: 14px;
   color: rgba(vars.$text, 0.35);
-  letter-spacing: vars.$sarabun-spacing;
   padding: 4px 2px;
 }
 

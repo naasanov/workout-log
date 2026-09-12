@@ -21,7 +21,6 @@
     color: vars.$text;
 
     font: {
-      family: 'Sarabun';
       size: 1.5rem;
       weight: 700;
     }
@@ -185,7 +184,6 @@
   // the buttons wrapping their text is worse than the logo truncating.
   flex-shrink: 0;
   font: {
-    family: vars.$sarabun;
     size: 18px;
     weight: 400;
   }
@@ -297,7 +295,6 @@
   border: none;
   color: vars.$text;
   font-size: 15px;
-  letter-spacing: vars.$sarabun-spacing;
   padding: 8px 14px;
   border-radius: 7px;
   cursor: pointer;

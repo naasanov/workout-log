@@ -10,6 +10,8 @@ $text: #EBEDE9;
 $error: #ED1518;
 
 $sarabun: "Sarabun", sans-serif;
+// Applied globally on `body` in index.css. Reference this in a component rule
+// only to restore the default under an ancestor that deliberately overrides it.
 $sarabun-spacing: 2px;
 
 $border-radius: 15px;

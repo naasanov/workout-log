@@ -25,7 +25,6 @@
   margin: 0;
   font-size: 20px;
   font-weight: 700;
-  letter-spacing: vars.$sarabun-spacing;
   color: vars.$text;
 }
 
@@ -33,7 +32,6 @@
   margin: 0;
   font-size: 13px;
   color: rgba(vars.$text, 0.45);
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .fields {
@@ -51,7 +49,6 @@
 .label {
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.6);
   text-transform: uppercase;
 }
@@ -63,7 +60,6 @@
   border-bottom: 2px solid vars.$primary-border;
   padding: 8px 4px;
   font-size: 16px;
-  letter-spacing: vars.$sarabun-spacing;
   width: 100%;
   box-sizing: border-box;
   min-height: 44px;
@@ -82,7 +78,6 @@
   margin: 0;
   font-size: 14px;
   color: vars.$error;
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .footer {
@@ -98,7 +93,6 @@
   border-radius: vars.$border-radius;
   font-size: 16px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
   border: none;
 

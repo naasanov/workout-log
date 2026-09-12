@@ -19,7 +19,6 @@
   border-radius: vars.$border-radius;
   font-size: 22px;
   font-weight: 700;
-  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
   transition: background-color 0.15s ease;
   -webkit-tap-highlight-color: transparent;
@@ -83,7 +82,6 @@
 .dateLabel {
   font-size: 17px;
   font-weight: 500;
-  letter-spacing: vars.$sarabun-spacing;
   color: vars.$text;
   flex: 1;
   min-width: 0;
@@ -97,7 +95,6 @@
   font-size: 22px;
   font-weight: 700;
   color: vars.$primary;
-  letter-spacing: vars.$sarabun-spacing;
   min-width: 28px;
   text-align: right;
 
@@ -208,7 +205,6 @@
 
 .rangeLabel {
   font-size: 13px;
-  letter-spacing: vars.$sarabun-spacing;
   color: rgba(vars.$text, 0.55);
   white-space: nowrap;
 }
@@ -219,7 +215,6 @@
   border: none;
   border-bottom: 2px solid vars.$surface-border;
   font-size: 14px;
-  letter-spacing: vars.$sarabun-spacing;
   width: 70px;
   text-align: center;
   padding: 2px 0;
@@ -246,7 +241,6 @@
   color: vars.$text;
   font-size: 16px;
   font-weight: 300;
-  letter-spacing: vars.$sarabun-spacing;
   opacity: 0.7;
 }
 
@@ -267,7 +261,6 @@
   color: vars.$text;
   font-size: 17px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
   text-align: left;
   -webkit-tap-highlight-color: transparent;
@@ -360,7 +353,6 @@
   border: none;
   color: vars.$text;
   font-size: 16px;
-  letter-spacing: vars.$sarabun-spacing;
   text-align: left;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -447,7 +439,6 @@
   border: none;
   color: vars.$text;
   font-size: 15px;
-  letter-spacing: vars.$sarabun-spacing;
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
@@ -498,7 +489,6 @@
   border-bottom: 2px solid vars.$primary-border;
   color: vars.$text;
   font-size: 16px;
-  letter-spacing: vars.$sarabun-spacing;
   padding: 4px 0;
   outline: none;
 
@@ -525,7 +515,6 @@
   border-bottom: 2px solid vars.$surface-border;
   color: vars.$text;
   font-size: 16px;
-  letter-spacing: vars.$sarabun-spacing;
   padding: 4px 0;
   outline: none;
 
@@ -552,7 +541,6 @@
   border-radius: 8px;
   font-size: 14px;
   font-weight: 700;
-  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 
@@ -614,7 +602,6 @@
   color: vars.$primary;
   font-size: 15px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 
@@ -671,7 +658,6 @@
   margin: 0;
   color: vars.$text;
   font-size: 16px;
-  letter-spacing: vars.$sarabun-spacing;
   line-height: 1.5;
 
   strong {
@@ -694,7 +680,6 @@
   color: vars.$text;
   font-size: 15px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 
@@ -712,7 +697,6 @@
   color: vars.$text;
   font-size: 15px;
   font-weight: 700;
-  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 

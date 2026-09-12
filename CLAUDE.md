@@ -70,6 +70,9 @@ guarding a refactor, and a mock only asserts the query string was retyped identi
 - **Migrations** are applied by `scripts/migrate.js` and tracked in `schema_migrations`.
   Errors 1050 and 1060 are tolerated so re-runs are safe. It runs in Heroku's release phase,
   so a failing migration blocks the deploy by design.
+- **Font-family and letter-spacing are global** (`body` in `client/src/styles/index.css`);
+  don't set them in component styles except a deliberate override. `scripts/typography.test.js`
+  enforces it. Font sizes are still set per component.
 
 ## The agent
 

@@ -26,7 +26,6 @@
   color: vars.$text;
   font-size: 26px;
   font-weight: 700;
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .subtext {
@@ -34,7 +33,6 @@
   color: rgba(vars.$text, 0.6);
   font-size: 16px;
   line-height: 1.5;
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .toolList {
@@ -54,7 +52,6 @@
   color: rgba(vars.$text, 0.7);
   font-size: 14px;
   font-weight: 500;
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .cta {
@@ -71,7 +68,6 @@
   color: vars.$background;
   font-size: 16px;
   font-weight: 700;
-  letter-spacing: vars.$sarabun-spacing;
 
   &:active {
     background: vars.$primary-dark;

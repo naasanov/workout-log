@@ -129,7 +129,7 @@ function BodyWeightTracker() {
       ) : (
         <div className={styles.chartWrap}>
           <ResponsiveContainer width="100%" height={260}>
-            <ComposedChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }} style={{ fontFamily: 'Sarabun, sans-serif' }}>
+            <ComposedChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
               <XAxis
                 dataKey="rawDate"
@@ -137,12 +137,12 @@ function BodyWeightTracker() {
                 scale="time"
                 domain={['dataMin', 'dataMax']}
                 tickFormatter={(ms) => format(new Date(ms), 'MMM d')}
-                tick={{ fill: '#EBEDE9', fontSize: 12, fontFamily: 'Sarabun, sans-serif' }}
+                tick={{ fill: '#EBEDE9', fontSize: 12 }}
                 axisLine={{ stroke: '#575757' }}
                 tickLine={false}
               />
               <YAxis
-                tick={{ fill: '#EBEDE9', fontSize: 12, fontFamily: 'Sarabun, sans-serif' }}
+                tick={{ fill: '#EBEDE9', fontSize: 12 }}
                 axisLine={{ stroke: '#575757' }}
                 tickLine={false}
                 width={48}
@@ -154,7 +154,6 @@ function BodyWeightTracker() {
                   border: '1px solid #575757',
                   borderRadius: '8px',
                   color: '#EBEDE9',
-                  fontFamily: 'Sarabun, sans-serif',
                 }}
                 labelFormatter={(ms) => format(new Date(ms), 'MMM d, yyyy')}
                 formatter={(value, name) => [`${Number(value).toFixed(1)} lbs`, name === 'smoothedWeight' ? 'Trend' : 'Weight']}

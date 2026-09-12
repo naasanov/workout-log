@@ -101,7 +101,6 @@
   padding: 4px 14px;
   font-size: 13px;
   color: vars.$error;
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 // Dismissable notice row (barcode-not-found / lookup-failed message). Flex
@@ -118,7 +117,6 @@
   padding: 4px 0 4px 14px;
   font-size: 13px;
   color: vars.$error;
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .noticeDismiss {
@@ -218,7 +216,6 @@
 
 .barcodeAttachmentName {
   font-size: 13px;
-  letter-spacing: vars.$sarabun-spacing;
   color: vars.$text;
   overflow: hidden;
   text-overflow: ellipsis;

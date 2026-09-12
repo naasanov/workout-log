@@ -26,7 +26,6 @@
   color: vars.$text;
   font-size: 24px;
   font-weight: 500;
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .closeBtn {
@@ -68,7 +67,6 @@
   margin: 0;
   color: vars.$primary;
   font-size: 14px;
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .newKeyRow {
@@ -99,7 +97,6 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  letter-spacing: vars.$sarabun-spacing;
   // Tappable on mobile
   min-height: 44px;
 
@@ -123,7 +120,6 @@
   border-bottom: 3px solid vars.$primary-border;
   padding: 4px 4px;
   font-size: 16px;
-  letter-spacing: vars.$sarabun-spacing;
 
   &:focus {
     outline: none;
@@ -143,7 +139,6 @@
   padding: 6px 20px;
   font-size: 16px;
   font-weight: 600;
-  letter-spacing: vars.$sarabun-spacing;
   cursor: pointer;
   // Tappable on mobile
   min-height: 44px;
@@ -171,7 +166,6 @@
   color: vars.$text;
   font-size: 15px;
   opacity: 0.5;
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .keyItem {
@@ -194,13 +188,11 @@
   color: vars.$text;
   font-size: 15px;
   font-weight: 500;
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .keyMeta {
   color: rgba(vars.$text, 0.7);
   font-size: 12px;
-  letter-spacing: vars.$sarabun-spacing;
 }
 
 .deleteBtn {
