@@ -11,6 +11,20 @@
 
 export const CHANGELOG = [
   {
+    date: '2026-09-12',
+    title: 'Body weight ranges, full-screen chat photos, and quicker food edits',
+    items: [
+      { text: 'The body weight chart has 1M, 3M, 6M, 1Y and All ranges, with smoothing that fits each one, and you can swipe back through older entries', issues: [340] },
+      { text: 'Tap a photo in the AI chat to see it full screen', issues: [342] },
+      { text: 'Tap a food entry to edit it, without opening its menu first', issues: [326] },
+      { text: 'The jump-to-today button on the nutrition log is now a compact return-arrow icon', issues: [331] },
+      { text: 'Spacing around the daily totals is now even when you haven’t set nutrition goals', issues: [332] },
+      'Cancel in the food entry editor now keeps your in-progress entry, the same as closing it',
+      { text: 'Tables in AI chat replies now show up as real tables and scroll sideways on small screens', issues: [327] },
+      { text: 'After a barcode scan, the assistant uses the product’s actual serving size, like “3 slices”, instead of guessing', issues: [329] },
+    ],
+  },
+  {
     date: '2026-09-10',
     title: 'An AI assistant on every tab, plus chat history',
     items: [
