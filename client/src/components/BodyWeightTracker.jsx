@@ -10,10 +10,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// Chip options for the visible window. Each also sets the moving-average
-// smoothing window (days): wider ranges smooth more aggressively so the
-// trend line doesn't get lost in noise. "All" has no fixed span and is
-// never panned since it already shows every entry.
+// Visible range chips. Each also sets the moving-average window in days, wider
+// for longer ranges so the trend isn't lost in noise. "All" has no fixed span
+// and never pans.
 const RANGE_DEFS = [
   { key: '1M', label: '1M', days: 30, smoothingDays: 7 },
   { key: '3M', label: '3M', days: 90, smoothingDays: 7 },
@@ -109,10 +108,9 @@ function BodyWeightTracker() {
 
   const rangeDef = RANGE_DEFS.find(r => r.key === rangeKey) ?? RANGE_DEFS[1];
 
-  // Centered moving average over a time window (days, not a point count),
-  // since entries aren't evenly spaced. Computed over the full dataset, not
-  // just the visible window, so the leftmost part of the line is still
-  // correct once the user pans; only the render step below slices it down.
+  // Centered moving average over days, not a point count, since entries are
+  // unevenly spaced. It runs over the full dataset so the leftmost visible
+  // segment stays correct while panned.
   const chartDataFull = useMemo(() => {
     const halfWindowMs = (rangeDef.smoothingDays / 2) * DAY_MS;
     return rawChartData.map(point => {

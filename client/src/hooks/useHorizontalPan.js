@@ -2,11 +2,9 @@ import { useCallback, useRef, useState } from 'react';
 
 const DRAG_THRESHOLD_PX = 8;
 
-// Recognizes a horizontal pointer drag distinct from a tap, so a swipe-to-pan
-// gesture on a chart doesn't fight recharts' own tap/hover tooltip handling.
-// Past the threshold it reports incremental pixel deltas via onPanBy; the
-// caller converts those into whatever unit it panning (e.g. milliseconds of
-// a time-based x-axis) and can use isDragging to suppress hover UI meanwhile.
+// Tells a horizontal drag apart from a tap so panning a chart doesn't fight its
+// tooltip. Past the threshold it reports pixel deltas via onPanBy, and
+// isDragging lets the caller hide hover UI meanwhile.
 function useHorizontalPan({ onPanBy, disabled = false } = {}) {
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef(null);
