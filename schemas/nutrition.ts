@@ -61,6 +61,25 @@ function checkIngredientBasis(
   }
 }
 
+// Fields shared between ingredientInputSchema (below) and proposeIngredientArgsSchema
+// (the propose_entry tool's raw input — see "Server-side macro resolution" further
+// down), which differ only in whether calories/protein_g/carbs_g/fat_g are required.
+const ingredientCoreFields = {
+  name: z.string().min(1).max(255),
+  grams: z.number().positive().nullable().optional(),
+  source: z.enum(INGREDIENT_SOURCES),
+  source_ref: z.string().max(64).nullable().optional(),
+  // Optional micros — carried so meal snapshots and entry totals can sum them.
+  fiber_g: z.number().nonnegative().nullable().optional(),
+  sugar_g: z.number().nonnegative().nullable().optional(),
+  sodium_mg: z.number().nonnegative().nullable().optional(),
+  // Serving basis: an alternative to `grams` for foods with no gram weight
+  // (e.g. UNC's "1/2 cup", "1 each"). See checkIngredientBasis above for the
+  // exactly-one-basis invariant this row must satisfy.
+  serving_qty: z.number().positive().nullable().optional(),
+  serving_label: z.string().max(64).nullable().optional(),
+};
+
 // One ingredient row as sent by the client. Macros are the contribution at
 // `grams` (client computes per100g * grams/100, or types them for manual rows) —
 // OR, for a serving-basis row (UNC dining, #? — see migrations/018_unc_dining.sql),
@@ -68,23 +87,11 @@ function checkIngredientBasis(
 // the source, with `grams` left null since no gram weight exists to derive from.
 export const ingredientInputSchema = z
   .object({
-    name: z.string().min(1).max(255),
-    grams: z.number().positive().nullable().optional(),
-    source: z.enum(INGREDIENT_SOURCES),
-    source_ref: z.string().max(64).nullable().optional(),
+    ...ingredientCoreFields,
     calories: z.number().nonnegative(),
     protein_g: z.number().nonnegative(),
     carbs_g: z.number().nonnegative(),
     fat_g: z.number().nonnegative(),
-    // Optional micros — carried so meal snapshots and entry totals can sum them.
-    fiber_g: z.number().nonnegative().nullable().optional(),
-    sugar_g: z.number().nonnegative().nullable().optional(),
-    sodium_mg: z.number().nonnegative().nullable().optional(),
-    // Serving basis: an alternative to `grams` for foods with no gram weight
-    // (e.g. UNC's "1/2 cup", "1 each"). See checkIngredientBasis above for the
-    // exactly-one-basis invariant this row must satisfy.
-    serving_qty: z.number().positive().nullable().optional(),
-    serving_label: z.string().max(64).nullable().optional(),
   })
   .superRefine(checkIngredientBasis);
 
@@ -204,6 +211,123 @@ export const proposeEntryArgsSchema = entryInputSchema
   });
 export type ProposeEntryArgs = z.infer<typeof proposeEntryArgsSchema>;
 export type FoodSearchResult = z.infer<typeof foodSearchResultSchema>;
+
+// ---- Server-side macro resolution for propose_entry (#325) ----
+// A nutrition basis exactly as returned by search_foods / search_foods_batch / the
+// barcode lookup / search_unc_foods / get_unc_menu: per100g (weight basis) OR
+// per_serving (serving basis), never both — mirrors foodSearchResultSchema's own
+// basis field pair. The tool handler scales this by the ingredient's grams (per100g)
+// or serving_qty (per_serving) instead of requiring the model to do that arithmetic.
+export const nutritionBaseSchema = z
+  .object({
+    per100g: per100gSchema.nullable().optional(),
+    per_serving: per100gSchema.nullable().optional(),
+  })
+  .superRefine((val, ctx) => {
+    const hasPer100g = val.per100g != null;
+    const hasPerServing = val.per_serving != null;
+    if (hasPer100g && hasPerServing) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'base must not set both per100g and per_serving — exactly one basis is required.',
+        path: ['per100g'],
+      });
+    } else if (!hasPer100g && !hasPerServing) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'base must set exactly one of per100g (weight basis) or per_serving (serving basis).',
+        path: ['per100g'],
+      });
+    }
+  });
+export type NutritionBase = z.infer<typeof nutritionBaseSchema>;
+
+// Cross-field check for proposeIngredientArgsSchema: an ingredient must resolve its
+// macros from EXACTLY ONE of (a) calories/protein_g/carbs_g/fat_g given directly, or
+// (b) a `base` record plus the matching quantity field (grams for per100g, serving_qty
+// for per_serving) for the tool handler to scale. Never both, never neither.
+function checkMacroResolvable(
+  val: {
+    calories?: number | null;
+    protein_g?: number | null;
+    carbs_g?: number | null;
+    fat_g?: number | null;
+    base?: { per100g?: Per100g | null; per_serving?: Per100g | null } | null;
+    grams?: number | null;
+    serving_qty?: number | null;
+  },
+  ctx: z.RefinementCtx,
+): void {
+  const hasDirectMacros =
+    val.calories != null && val.protein_g != null && val.carbs_g != null && val.fat_g != null;
+  const hasBase = val.base != null;
+
+  if (hasDirectMacros && hasBase) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Ingredient must not set both a base nutrition record and direct macros — provide exactly one.',
+      path: ['base'],
+    });
+  } else if (!hasDirectMacros && !hasBase) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message:
+        'Ingredient must set either calories/protein_g/carbs_g/fat_g directly, or a base nutrition record (per100g or per_serving) for the server to scale.',
+      path: ['base'],
+    });
+  } else if (hasBase) {
+    const base = val.base!;
+    if (base.per100g != null && val.grams == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'A per100g base scales by grams — set grams to the weight eaten.',
+        path: ['grams'],
+      });
+    }
+    if (base.per_serving != null && val.serving_qty == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'A per_serving base scales by serving_qty — set serving_qty to how many servings were eaten.',
+        path: ['serving_qty'],
+      });
+    }
+  }
+}
+
+// What the model actually passes to propose_entry per ingredient: either the
+// already-resolved shape (calories/protein_g/carbs_g/fat_g given directly — for a
+// freeform estimate with no clean base record) OR `base` plus the eaten quantity, for
+// services/agent/tools/nutrition.ts to scale into that same resolved shape before
+// echoing it back. Carries the same quantity/unit/portions editor metadata as
+// proposeIngredientSchema.
+export const proposeIngredientArgsSchema = z
+  .object({
+    ...ingredientCoreFields,
+    calories: z.number().nonnegative().nullable().optional(),
+    protein_g: z.number().nonnegative().nullable().optional(),
+    carbs_g: z.number().nonnegative().nullable().optional(),
+    fat_g: z.number().nonnegative().nullable().optional(),
+    base: nutritionBaseSchema.nullable().optional(),
+    quantity: z.number().positive().nullable().optional(),
+    unit: z.string().max(64).nullable().optional(),
+    portions: z.array(foodPortionSchema).nullable().optional(),
+  })
+  .superRefine((val, ctx) => {
+    checkIngredientBasis(val, ctx);
+    checkMacroResolvable(val, ctx);
+  });
+export type ProposeIngredientArgs = z.infer<typeof proposeIngredientArgsSchema>;
+
+// propose_entry's actual tool inputSchema — proposeEntryArgsSchema with ingredients
+// widened to proposeIngredientArgsSchema. resolveProposeIngredient() (in
+// services/agent/tools/nutrition.ts) turns this into a ProposeEntryArgs before echo.
+export const proposeEntryToolArgsSchema = entryInputSchema
+  .omit({ localDate: true, ingredients: true })
+  .extend({
+    ingredients: z.array(proposeIngredientArgsSchema).min(1),
+    notes: z.string().max(400).nullable().optional(),
+  });
+export type ProposeEntryToolArgs = z.infer<typeof proposeEntryToolArgsSchema>;
 
 // ---- Custom Foods & Meals schemas ----
 
