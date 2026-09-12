@@ -1,36 +1,80 @@
-// Nutrition AI usage tracking — records token usage + cost per /chat request.
+// Nutrition AI usage tracking -- records token usage + cost per /chat request.
 // All DB writes are best-effort: a failed insert must never break the chat stream.
 import { RowDataPacket } from 'mysql2';
+import { parseISO } from 'date-fns';
 import pool from '../../database';
 
-// ---------------------------------------------------------------------------
-// Pricing constants (per 1 M tokens). Override via env vars if OpenAI changes
-// pricing; set to 0 if GPT-5.5 pricing is unknown until confirmed.
-//
-// NOTE: GPT-5.5 pricing has not been officially published as of the time this
-// code was written. Set OWNER_EMAIL, GPT55_INPUT_PER_1M, and GPT55_OUTPUT_PER_1M
-// in your .env / Heroku config vars once pricing is confirmed.
-// ---------------------------------------------------------------------------
-const INPUT_PER_1M = Number(process.env.GPT55_INPUT_PER_1M ?? 0);
-const OUTPUT_PER_1M = Number(process.env.GPT55_OUTPUT_PER_1M ?? 0);
+// USD per 1M tokens (per 1K calls for web search). Token defaults match OpenAI's
+// line-item billing (#325), where cached input costs a tenth of uncached input.
+// The web search default is OpenAI's published tool price; override any via env.
+const INPUT_PER_1M = Number(process.env.GPT55_INPUT_PER_1M ?? 5.0);
+const CACHED_INPUT_PER_1M = Number(process.env.GPT55_CACHED_INPUT_PER_1M ?? 0.5);
+const OUTPUT_PER_1M = Number(process.env.GPT55_OUTPUT_PER_1M ?? 30.0);
+const WEB_SEARCH_PER_1K_CALLS = Number(process.env.WEB_SEARCH_PER_1K_CALLS ?? 10.0);
 
 export interface UsageData {
   inputTokens: number;
+  /** Subset of inputTokens read from the prompt cache; billed at CACHED_INPUT_PER_1M. */
+  cachedInputTokens: number;
   outputTokens: number;
-  /** Reasoning tokens are billed as output tokens. */
+  /** Reasoning tokens are billed as output tokens (already included in outputTokens). */
   reasoningTokens: number;
   totalTokens: number;
+  /** Number of model steps (LLM round-trips) in the turn. */
+  steps: number;
+  /** Number of tool calls made across every step of the turn. */
+  toolCalls: number;
+  /** Number of those tool calls that were web_search. */
+  webSearchCalls: number;
 }
 
-function computeCost(data: UsageData): number {
-  // Reasoning tokens are billed as output tokens (already included in outputTokens
-  // from the AI SDK's totalUsage). We compute cost on inputTokens + outputTokens.
-  const inputCost = (data.inputTokens / 1_000_000) * INPUT_PER_1M;
+// The fields read off streamText's onFinish result, kept structural so a unit test can build one.
+export interface FinishResultLike {
+  usage: {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+    outputTokenDetails?: { reasoningTokens?: number };
+    inputTokenDetails?: { cacheReadTokens?: number };
+  };
+  steps: unknown[];
+  toolCalls: { toolName: string }[];
+}
+
+// In AI SDK v7, onFinish usage and toolCalls cover every step of the turn. Reasoning
+// tokens are at usage.outputTokenDetails and cached input at usage.inputTokenDetails.
+export function usageDataFromFinishResult({ usage, steps, toolCalls }: FinishResultLike): UsageData {
+  const inputTokens = usage.inputTokens ?? 0;
+  const outputTokens = usage.outputTokens ?? 0;
+  const reasoningTokens = usage.outputTokenDetails?.reasoningTokens ?? 0;
+  const cachedInputTokens = usage.inputTokenDetails?.cacheReadTokens ?? 0;
+  const totalTokens = usage.totalTokens ?? (inputTokens + outputTokens);
+  const webSearchCalls = toolCalls.filter((call) => call.toolName === 'web_search').length;
+
+  return {
+    inputTokens,
+    cachedInputTokens,
+    outputTokens,
+    reasoningTokens,
+    totalTokens,
+    steps: steps.length,
+    toolCalls: toolCalls.length,
+    webSearchCalls,
+  };
+}
+
+/** Exported for unit testing the pricing math directly (see tests/usageFromFinish.test.js). */
+export function computeCost(data: UsageData): number {
+  const cachedInputTokens = Math.max(0, Math.min(data.cachedInputTokens, data.inputTokens));
+  const uncachedInputTokens = data.inputTokens - cachedInputTokens;
+  const inputCost = (uncachedInputTokens / 1_000_000) * INPUT_PER_1M;
+  const cachedCost = (cachedInputTokens / 1_000_000) * CACHED_INPUT_PER_1M;
   const outputCost = (data.outputTokens / 1_000_000) * OUTPUT_PER_1M;
-  return inputCost + outputCost;
+  const webSearchCost = (data.webSearchCalls / 1000) * WEB_SEARCH_PER_1K_CALLS;
+  return inputCost + cachedCost + outputCost + webSearchCost;
 }
 
-/** Insert one ai_usage row. Never throws — failures are logged and silenced. */
+/** Insert one ai_usage row. Never throws -- failures are logged and silenced. */
 export async function recordUsage(
   userUuid: string,
   model: string,
@@ -40,15 +84,20 @@ export async function recordUsage(
     const costUsd = computeCost(data);
     await pool.query(
       `INSERT INTO ai_usage
-         (user_uuid, model, input_tokens, output_tokens, reasoning_tokens, total_tokens, cost_usd)
-       VALUES (UUID_TO_BIN(?), ?, ?, ?, ?, ?, ?)`,
+         (user_uuid, model, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens,
+          total_tokens, steps, tool_calls, web_search_calls, cost_usd)
+       VALUES (UUID_TO_BIN(?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         userUuid,
         model,
         data.inputTokens,
+        data.cachedInputTokens,
         data.outputTokens,
         data.reasoningTokens,
         data.totalTokens,
+        data.steps,
+        data.toolCalls,
+        data.webSearchCalls,
         costUsd,
       ],
     );
@@ -139,4 +188,103 @@ export async function getUserEmail(userUuid: string): Promise<string | null> {
     [userUuid],
   );
   return rows.length > 0 ? (rows[0].email as string) : null;
+}
+
+// Owner-only aggregate report (routes/admin.ts). ai_usage.created_at is DATETIME, so a
+// bare YYYY-MM-DD upper bound resolves to the next day's start compared with `<`, as
+// resolveTo in services/bodyWeight/store.ts does.
+const BARE_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+function resolveRange(from: string, to: string): { fromValue: Date; toValue: Date; toOperator: '<' | '<=' } {
+  const fromValue = parseISO(from);
+  if (BARE_DATE.test(to)) {
+    const startOfDay = parseISO(to);
+    return { fromValue, toValue: new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000), toOperator: '<' };
+  }
+  return { fromValue, toValue: parseISO(to), toOperator: '<=' };
+}
+
+export interface UsagePeriodStats {
+  /** Number of recorded chat turns (one ai_usage row per completed turn). */
+  turns: number;
+  /** Model invocations across those turns, equal to `steps` since each step is one call. */
+  modelCalls: number;
+  steps: number;
+  toolCalls: number;
+  webSearchCalls: number;
+  uncachedInputTokens: number;
+  cachedInputTokens: number;
+  outputTokens: number;
+  reasoningTokens: number;
+  costUsd: number;
+}
+
+export interface DailyUsageStats extends UsagePeriodStats {
+  /** YYYY-MM-DD, in the database's local date representation. */
+  day: string;
+}
+
+export interface OwnerUsageReport {
+  totals: UsagePeriodStats;
+  daily: DailyUsageStats[];
+}
+
+const USAGE_STATS_SELECT = `
+       COUNT(*) AS turns,
+       COALESCE(SUM(steps), 0) AS modelCalls,
+       COALESCE(SUM(steps), 0) AS steps,
+       COALESCE(SUM(tool_calls), 0) AS toolCalls,
+       COALESCE(SUM(web_search_calls), 0) AS webSearchCalls,
+       COALESCE(SUM(GREATEST(input_tokens - COALESCE(cached_input_tokens, 0), 0)), 0) AS uncachedInputTokens,
+       COALESCE(SUM(cached_input_tokens), 0) AS cachedInputTokens,
+       COALESCE(SUM(output_tokens), 0) AS outputTokens,
+       COALESCE(SUM(reasoning_tokens), 0) AS reasoningTokens,
+       COALESCE(SUM(cost_usd), 0) AS costUsd`;
+
+function toStats(row: RowDataPacket): UsagePeriodStats {
+  return {
+    turns: Number(row.turns),
+    modelCalls: Number(row.modelCalls),
+    steps: Number(row.steps),
+    toolCalls: Number(row.toolCalls),
+    webSearchCalls: Number(row.webSearchCalls),
+    uncachedInputTokens: Number(row.uncachedInputTokens),
+    cachedInputTokens: Number(row.cachedInputTokens),
+    outputTokens: Number(row.outputTokens),
+    reasoningTokens: Number(row.reasoningTokens),
+    costUsd: Number(row.costUsd),
+  };
+}
+
+/**
+ * Owner-only aggregate AI usage: totals plus a per-day series over
+ * [from, to] (both YYYY-MM-DD). Aggregated entirely in SQL. `to` is treated
+ * as inclusive of the whole calendar day per resolveRange above.
+ */
+export async function getOwnerUsageReport(from: string, to: string): Promise<OwnerUsageReport> {
+  const { fromValue, toValue, toOperator } = resolveRange(from, to);
+
+  const [totalsRows] = await pool.query<RowDataPacket[]>(
+    `SELECT${USAGE_STATS_SELECT}
+     FROM ai_usage
+     WHERE created_at >= ? AND created_at ${toOperator} ?`,
+    [fromValue, toValue],
+  );
+
+  // DATE_FORMAT (not DATE()) so `day` comes back as a plain 'YYYY-MM-DD'
+  // string regardless of how the mysql2 driver would otherwise box a DATE
+  // value as a JS Date.
+  const [dailyRows] = await pool.query<RowDataPacket[]>(
+    `SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS day,${USAGE_STATS_SELECT}
+     FROM ai_usage
+     WHERE created_at >= ? AND created_at ${toOperator} ?
+     GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
+     ORDER BY day ASC`,
+    [fromValue, toValue],
+  );
+
+  return {
+    totals: toStats(totalsRows[0]),
+    daily: dailyRows.map((row) => ({ day: String(row.day), ...toStats(row) })),
+  };
 }

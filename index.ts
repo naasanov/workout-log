@@ -16,6 +16,7 @@ import chat from './routes/chat';
 import feedback from './routes/feedback';
 import apiV1 from './routes/apiV1';
 import flags from './routes/flags';
+import admin from './routes/admin';
 
 dotenv.config();
 
@@ -44,6 +45,7 @@ app.use('/api/chat', chat);
 app.use('/api/feedback', feedback);
 app.use('/api/v1', apiV1);
 app.use('/api/flags', flags);
+app.use('/api/admin', admin);
 
 app.get('/api', (req, res) => {
     res.send("running");
