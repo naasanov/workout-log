@@ -1,7 +1,7 @@
 // Full-screen chat photo preview, shared by the composer thumbnail and sent messages.
-// Modal supplies Escape, scroll lock, focus restore and the portal, but skips
-// open-autofocus, so focus moves to the close button on mount.
-import { useEffect, useRef } from 'react';
+// Modal supplies Escape, scroll lock and the portal but skips open-autofocus, and
+// callers unmount it rather than closing it, so focus is managed here.
+import { useCallback, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import Modal from './Modal.jsx';
 import styles from './ImagePreviewModal.module.scss';
@@ -13,10 +13,17 @@ export interface ImagePreviewModalProps {
 }
 
 export default function ImagePreviewModal({ src, alt, onClose }: ImagePreviewModalProps) {
-  const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
+
+  // The dialog content mounts after this component's effects run, so the close
+  // button is focused from a callback ref once it actually exists.
+  const focusOnMount = useCallback((el: HTMLButtonElement | null) => {
+    el?.focus();
+  }, []);
 
   useEffect(() => {
-    closeBtnRef.current?.focus();
+    triggerRef.current = document.activeElement as HTMLElement | null;
+    return () => triggerRef.current?.focus();
   }, []);
 
   // Backdrop-tap-to-close: only when the tap lands on the full-screen
@@ -34,7 +41,7 @@ export default function ImagePreviewModal({ src, alt, onClose }: ImagePreviewMod
     >
       <div className={styles.previewArea} onClick={handleBackdropClick}>
         <button
-          ref={closeBtnRef}
+          ref={focusOnMount}
           type="button"
           className={styles.closeBtn}
           onClick={onClose}
