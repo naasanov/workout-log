@@ -14,6 +14,13 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const db = require('../scripts/testDb');
 
+// Applied before requiring usage.ts (which pulls in ../../database, whose
+// pool is built from process.env at require time) so the DB-backed test
+// below points at the test schema instead of whatever host/port happened to
+// be ambient -- mirrors every other *.test.js file's requireTs-after-setup
+// ordering, just applied a step earlier since the pure tests here need
+// usage.ts before any DB setup runs.
+db.applyTestEnv();
 const usage = db.requireTs('services/nutrition/usage.ts');
 
 // A realistic SDK v7 onFinish-shaped result: aggregated usage across a

@@ -302,7 +302,7 @@ export async function getOwnerUsageReport(from: string, to: string): Promise<Own
     `SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS day,${USAGE_STATS_SELECT}
      FROM ai_usage
      WHERE created_at >= ? AND created_at ${toOperator} ?
-     GROUP BY DATE(created_at)
+     GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
      ORDER BY day ASC`,
     [fromValue, toValue],
   );
