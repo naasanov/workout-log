@@ -5,13 +5,14 @@ import { streamText, stepCountIs, convertToModelMessages } from 'ai';
 import type { ModelMessage, ToolSet } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import * as store from '../nutrition/store';
-import { recordUsage } from '../nutrition/usage';
+import { recordUsage, usageDataFromFinishResult } from '../nutrition/usage';
 import { getUserFlags } from '../flags';
 import { buildSystemPrompt, ConfirmedResult } from './prompt';
 import { assembleTools, ToolContext, ToolModule, readToolModules } from './tools/registry';
 import { nutritionTools } from './tools/nutrition';
 import { mutationTools } from './tools/mutations';
 import { reportTokenUsage } from './tokenEstimate';
+import { trimHistoryForReplay } from './history';
 
 /**
  * Every domain's tools, merged per-request by assembleTools: nutrition's
@@ -211,9 +212,14 @@ export async function streamChat({
   // and concatenating produces the exact same ModelMessage[] as converting the
   // whole array in one call; it just lets us interleave the synthetic pairs at
   // the right position.
+  // Trim older turns before conversion (#325) -- see services/agent/history.ts
+  // for the exact policy. The last two turns are replayed byte-identical, so
+  // this never changes what barcode/propose_* data those turns replay.
+  const trimmedMessages = trimHistoryForReplay(messages);
+
   const modelMessages: ModelMessage[] = [];
-  for (let i = 0; i < messages.length; i++) {
-    const message = messages[i];
+  for (let i = 0; i < trimmedMessages.length; i++) {
+    const message = trimmedMessages[i];
     modelMessages.push(...(await convertToModelMessages([message])));
 
     const barcodeAttachments = findBarcodeAttachments(message);
@@ -255,19 +261,10 @@ export async function streamChat({
         reasoningSummary: 'auto',
       },
     },
-    onFinish: ({ usage }) => {
-      // Best-effort usage recording — never await, never throw.
-      const inputTokens = usage.inputTokens ?? 0;
-      const outputTokens = usage.outputTokens ?? 0;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const reasoningTokens = (usage as any).outputDetails?.reasoningTokens ?? 0;
-      const totalTokens = usage.totalTokens ?? (inputTokens + outputTokens);
-      recordUsage(userUuid, 'gpt-5.5', {
-        inputTokens,
-        outputTokens,
-        reasoningTokens,
-        totalTokens,
-      });
+    onFinish: ({ usage, steps, toolCalls }) => {
+      // Best-effort usage recording -- never await, never throw. `usage` is
+      // aggregated across every step of the turn.
+      recordUsage(userUuid, 'gpt-5.5', usageDataFromFinishResult({ usage, steps, toolCalls }));
     },
     tools,
   });
