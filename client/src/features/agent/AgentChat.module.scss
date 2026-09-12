@@ -451,6 +451,16 @@
 }
 
 // ---- Attached image in user message ----
+// Wrapping button makes the thumbnail a real tap target for the full-screen
+// preview, without changing its visual size or fit.
+.attachedImageBtn {
+  display: block;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
 .attachedImage {
   display: block; // iOS Safari SVG/img fix
   max-width: min(200px, 60%);
