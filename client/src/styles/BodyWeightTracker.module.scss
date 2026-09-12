@@ -58,15 +58,81 @@
   }
 }
 
+.rangeRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.rangeChip {
+  background-color: vars.$surface;
+  border: 1px solid vars.$surface-border;
+  color: vars.$text;
+  border-radius: vars.$border-radius;
+  font-size: 14px;
+  padding: 8px 14px;
+  cursor: pointer;
+  opacity: 0.7;
+  // Genuinely tappable on mobile, not a 20px chip.
+  min-height: 40px;
+  min-width: 48px;
+  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+
+  &:hover {
+    opacity: 1;
+  }
+
+  &:focus-visible {
+    outline: 2px solid vars.$primary;
+    outline-offset: 2px;
+  }
+}
+
+.rangeChipActive {
+  background-color: vars.$primary-translucent;
+  border-color: vars.$primary-border;
+  color: vars.$primary;
+  opacity: 1;
+}
+
 .chartWrap {
   position: relative;
   margin-bottom: 20px;
+  // Claims the horizontal gesture for panning while still letting the page
+  // scroll vertically through a touch drag that starts on the chart.
+  touch-action: pan-y;
 
   // Axis ticks have no letter-spacing of their own, so the global 2px
   // default (index.css) would otherwise widen them; keep them at their
   // original, tighter spacing.
   :global(text) {
     letter-spacing: normal;
+  }
+}
+
+.latestBtn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background-color: vars.$surface;
+  border: 1px solid vars.$primary-border;
+  color: vars.$primary;
+  border-radius: vars.$border-radius;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  cursor: pointer;
+  min-height: 36px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+
+  &:hover {
+    background-color: vars.$primary-translucent;
+  }
+
+  &:focus-visible {
+    outline: 2px solid vars.$primary;
+    outline-offset: 2px;
   }
 }
 
@@ -91,7 +157,6 @@
   }
 }
 
-// TEMP: for picking a smoothing window value, see issue #275 — delete once a value is chosen
 .empty {
   margin: 0 0 16px;
   color: vars.$text;
