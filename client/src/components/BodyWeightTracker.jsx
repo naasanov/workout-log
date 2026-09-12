@@ -1,16 +1,44 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
 import clientApi from '../api/clientApi.js';
 import useAuth from '../hooks/useAuth.js';
+import useHorizontalPan from '../hooks/useHorizontalPan.js';
 import ConfirmModal from './ConfirmModal.jsx';
 import styles from '../styles/BodyWeightTracker.module.scss';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Chip options for the visible window. Each also sets the moving-average
+// smoothing window (days): wider ranges smooth more aggressively so the
+// trend line doesn't get lost in noise. "All" has no fixed span and is
+// never panned since it already shows every entry.
+const RANGE_DEFS = [
+  { key: '1M', label: '1M', days: 30, smoothingDays: 7 },
+  { key: '3M', label: '3M', days: 90, smoothingDays: 7 },
+  { key: '6M', label: '6M', days: 180, smoothingDays: 14 },
+  { key: '1Y', label: '1Y', days: 365, smoothingDays: 30 },
+  { key: 'ALL', label: 'All', days: null, smoothingDays: 30 },
+];
+
+// Matches the ComposedChart's margin/YAxis width below, so a pixel drag
+// converts to roughly the right amount of time regardless of the plotted
+// area being narrower than the container it sits in.
+const CHART_RIGHT_MARGIN_PX = 16;
+const Y_AXIS_WIDTH_PX = 48;
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
 
 function BodyWeightTracker() {
   const [weight, setWeight] = useState('');
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [deleteId, setDeleteId] = useState(null);
+  const [rangeKey, setRangeKey] = useState('3M');
+  const [panOffsetMs, setPanOffsetMs] = useState(0);
+  const chartWrapRef = useRef(null);
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -79,12 +107,14 @@ function BodyWeightTracker() {
     rawDate: new Date(e.date).getTime(),
   })), [entries]);
 
-  // Centered moving average over a time window (days), not a point-count window —
-  // entries aren't evenly spaced, so an isolated point's window contains mostly itself
-  // while a dense cluster gets averaged into a flatter line. See issue #275.
-  const SMOOTHING_DAYS = 21;
-  const chartData = useMemo(() => {
-    const halfWindowMs = (SMOOTHING_DAYS / 2) * 24 * 60 * 60 * 1000;
+  const rangeDef = RANGE_DEFS.find(r => r.key === rangeKey) ?? RANGE_DEFS[1];
+
+  // Centered moving average over a time window (days, not a point count),
+  // since entries aren't evenly spaced. Computed over the full dataset, not
+  // just the visible window, so the leftmost part of the line is still
+  // correct once the user pans; only the render step below slices it down.
+  const chartDataFull = useMemo(() => {
+    const halfWindowMs = (rangeDef.smoothingDays / 2) * DAY_MS;
     return rawChartData.map(point => {
       const neighbors = rawChartData.filter(
         p => Math.abs(p.rawDate - point.rawDate) <= halfWindowMs
@@ -92,7 +122,63 @@ function BodyWeightTracker() {
       const avg = neighbors.reduce((sum, p) => sum + p.weight, 0) / neighbors.length;
       return { ...point, smoothedWeight: avg };
     });
-  }, [rawChartData]);
+  }, [rawChartData, rangeDef]);
+
+  // Visible window in epoch ms, clamped so panning can't go past the oldest
+  // entry. "All" always spans the full dataset and is never panned.
+  const { windowStartMs, windowEndMs, rangeMs, maxPanOffsetMs, effectivePanOffsetMs } = useMemo(() => {
+    if (rawChartData.length === 0) {
+      return { windowStartMs: 0, windowEndMs: 0, rangeMs: 0, maxPanOffsetMs: 0, effectivePanOffsetMs: 0 };
+    }
+    let oldestMs = Infinity;
+    let latestMs = -Infinity;
+    for (const p of rawChartData) {
+      if (p.rawDate < oldestMs) oldestMs = p.rawDate;
+      if (p.rawDate > latestMs) latestMs = p.rawDate;
+    }
+    const totalSpanMs = latestMs - oldestMs;
+    const spanMs = rangeDef.days != null ? rangeDef.days * DAY_MS : Math.max(totalSpanMs, DAY_MS);
+    const maxOffset = rangeDef.days != null ? Math.max(0, totalSpanMs - spanMs) : 0;
+    const offset = clamp(panOffsetMs, 0, maxOffset);
+    const endMs = latestMs - offset;
+    const startMs = rangeDef.days != null ? endMs - spanMs : oldestMs;
+    return { windowStartMs: startMs, windowEndMs: endMs, rangeMs: spanMs, maxPanOffsetMs: maxOffset, effectivePanOffsetMs: offset };
+  }, [rawChartData, rangeDef, panOffsetMs]);
+
+  const chartData = useMemo(
+    () => chartDataFull.filter(p => p.rawDate >= windowStartMs && p.rawDate <= windowEndMs),
+    [chartDataFull, windowStartMs, windowEndMs]
+  );
+
+  const yDomain = useMemo(() => {
+    const values = chartData.flatMap(p => [p.weight, p.smoothedWeight]).filter(v => v != null);
+    if (!values.length) return ['auto', 'auto'];
+    const dataMin = Math.min(...values);
+    const dataMax = Math.max(...values);
+    const range = dataMax - dataMin;
+    const padding = range > 0 ? range * 0.15 : Math.max(dataMax * 0.1, 5);
+    return [Math.max(0, Math.floor(dataMin - padding)), Math.ceil(dataMax + padding)];
+  }, [chartData]);
+
+  const isPanned = effectivePanOffsetMs > 0;
+  const panDisabled = rangeDef.days == null || maxPanOffsetMs <= 0;
+
+  function handlePanBy(dxPx) {
+    const containerWidth = chartWrapRef.current?.clientWidth ?? 300;
+    const plotWidthPx = Math.max(1, containerWidth - Y_AXIS_WIDTH_PX - CHART_RIGHT_MARGIN_PX);
+    const msPerPx = rangeMs / plotWidthPx;
+    setPanOffsetMs(prev => clamp(prev + dxPx * msPerPx, 0, maxPanOffsetMs));
+  }
+
+  const { isDragging, handlers: panHandlers } = useHorizontalPan({
+    onPanBy: handlePanBy,
+    disabled: panDisabled,
+  });
+
+  function handleRangeChange(key) {
+    setRangeKey(key);
+    setPanOffsetMs(0);
+  }
 
   return (
     <section className={styles.container}>
@@ -127,56 +213,87 @@ function BodyWeightTracker() {
             : 'Only one entry recorded. Log again to see a trend.'}
         </p>
       ) : (
-        <div className={styles.chartWrap}>
-          <ResponsiveContainer width="100%" height={260}>
-            <ComposedChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-              <XAxis
-                dataKey="rawDate"
-                type="number"
-                scale="time"
-                domain={['dataMin', 'dataMax']}
-                tickFormatter={(ms) => format(new Date(ms), 'MMM d')}
-                tick={{ fill: '#EBEDE9', fontSize: 12 }}
-                axisLine={{ stroke: '#575757' }}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: '#EBEDE9', fontSize: 12 }}
-                axisLine={{ stroke: '#575757' }}
-                tickLine={false}
-                width={48}
-                domain={['auto', 'auto']}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#282B28',
-                  border: '1px solid #575757',
-                  borderRadius: '8px',
-                  color: '#EBEDE9',
-                }}
-                labelFormatter={(ms) => format(new Date(ms), 'MMM d, yyyy')}
-                formatter={(value, name) => [`${Number(value).toFixed(1)} lbs`, name === 'smoothedWeight' ? 'Trend' : 'Weight']}
-              />
-              <Line
-                type="monotone"
-                dataKey="smoothedWeight"
-                stroke="#70EB70"
-                strokeWidth={2}
-                dot={false}
-                isAnimationActive={false}
-              />
-              <Line
-                dataKey="weight"
-                stroke="none"
-                dot={{ fill: '#70EB70', r: 4 }}
-                activeDot={{ r: 6 }}
-                isAnimationActive={false}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-          <p className={styles.yLabel}>lbs</p>
-        </div>
+        <>
+          <div className={styles.rangeRow} role="group" aria-label="Time range">
+            {RANGE_DEFS.map(r => (
+              <button
+                key={r.key}
+                type="button"
+                aria-pressed={rangeKey === r.key}
+                className={`${styles.rangeChip} ${rangeKey === r.key ? styles.rangeChipActive : ''}`}
+                onClick={() => handleRangeChange(r.key)}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          <div
+            className={styles.chartWrap}
+            ref={chartWrapRef}
+            {...panHandlers}
+          >
+            <ResponsiveContainer width="100%" height={260}>
+              <ComposedChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                <XAxis
+                  dataKey="rawDate"
+                  type="number"
+                  scale="time"
+                  domain={[windowStartMs, windowEndMs]}
+                  allowDataOverflow
+                  tickFormatter={(ms) => format(new Date(ms), 'MMM d')}
+                  tick={{ fill: '#EBEDE9', fontSize: 12 }}
+                  axisLine={{ stroke: '#575757' }}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fill: '#EBEDE9', fontSize: 12 }}
+                  axisLine={{ stroke: '#575757' }}
+                  tickLine={false}
+                  width={48}
+                  domain={yDomain}
+                />
+                {!isDragging && (
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#282B28',
+                      border: '1px solid #575757',
+                      borderRadius: '8px',
+                      color: '#EBEDE9',
+                    }}
+                    labelFormatter={(ms) => format(new Date(ms), 'MMM d, yyyy')}
+                    formatter={(value, name) => [`${Number(value).toFixed(1)} lbs`, name === 'smoothedWeight' ? 'Trend' : 'Weight']}
+                  />
+                )}
+                <Line
+                  type="monotone"
+                  dataKey="smoothedWeight"
+                  stroke="#70EB70"
+                  strokeWidth={2}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+                <Line
+                  dataKey="weight"
+                  stroke="none"
+                  dot={{ fill: '#70EB70', r: 4 }}
+                  activeDot={isDragging ? false : { r: 6 }}
+                  isAnimationActive={false}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+            <p className={styles.yLabel}>lbs</p>
+            {isPanned && (
+              <button
+                type="button"
+                className={styles.latestBtn}
+                onClick={() => setPanOffsetMs(0)}
+              >
+                Latest
+              </button>
+            )}
+          </div>
+        </>
       )}
 
       {entries.length > 0 && (
