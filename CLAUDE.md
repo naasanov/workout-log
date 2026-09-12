@@ -74,6 +74,19 @@ guarding a refactor, and a mock only asserts the query string was retyped identi
   don't set them in component styles except a deliberate override. `scripts/typography.test.js`
   enforces it. Font sizes are still set per component.
 
+## Changelog
+
+The in-app What's New list is `client/src/config/changelog.js`, maintained by hand. **When a
+user-visible change merges to master, add it there** in the same batch; nothing generates it.
+
+- Write bullets for users, not PR titles. Refactors, chores, tests, and dev tooling stay out.
+- Tag a bullet `{ text, issues: [n] }` only when a PR actually **closed** that issue. A PR that only
+  references an issue, or a fix that leaves the issue open, gets an untagged string, because the tag
+  badges the bullet for whoever filed that issue.
+- Ship new bullets under a **new, later date**, never appended to an existing entry. The header's
+  unread dot fires only when `LATEST_CHANGELOG_DATE` is later than the date a user last saw
+  (`client/src/components/Header.jsx`), so bullets added under an old date notify nobody.
+
 ## The agent
 
 `services/agent/` holds the AI chat. Its system prompt is assembled in **stability order**:
