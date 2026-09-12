@@ -1,13 +1,6 @@
-/**
- * ImagePreviewModal — full-screen preview for a chat photo, opened by
- * tapping its thumbnail. Wraps the shared Modal primitive so it inherits
- * Escape-to-close, scroll-lock, restore-focus-on-close, and portal
- * behavior for free; Modal skips its own open-autofocus, so this component
- * moves focus onto its close button itself once mounted.
- *
- * Shared by the nutrition composer's pending-photo thumbnail and a sent
- * message's attached image — one implementation for both surfaces.
- */
+// Full-screen chat photo preview, shared by the composer thumbnail and sent messages.
+// Modal supplies Escape, scroll lock, focus restore and the portal, but skips
+// open-autofocus, so focus moves to the close button on mount.
 import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import Modal from './Modal.jsx';

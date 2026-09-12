@@ -1,8 +1,6 @@
-// Full-bleed override of Modal.module.scss's centered-card ".content" layout
-// (see ../styles/Modal.module.scss) so the preview fills the viewport
-// instead of rendering as a small dialog. !important matches the pattern
-// other Modal.jsx callers already use to win over that shared base class
-// regardless of stylesheet concatenation order.
+// Fills the viewport instead of Modal.module.scss's centered card. !important
+// wins over that shared base class regardless of stylesheet order, as other
+// Modal callers already do.
 .previewContent {
   position: fixed !important;
   inset: 0 !important;
