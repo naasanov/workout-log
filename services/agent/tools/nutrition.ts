@@ -16,15 +16,12 @@ import * as providers from '../../nutrition/providers';
 import { searchUncFoods, getUncMenu, listUncLocations, getUncFood } from '../../nutrition/unc';
 import type { ToolContext, ToolModule } from './registry';
 
-/** Rounds to one decimal place — matches convert_to_grams's rounding below and the
- *  "round to one decimal" rule the prompt used to ask the model to apply itself. */
+/** Rounds to one decimal place, matching convert_to_grams below. */
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-/** Scales a per100g/per_serving nutrient record by `factor` (grams/100 for a
- *  per100g base, serving_qty for a per_serving base) into the six macro fields
- *  propose_entry has always echoed. Null micros stay null rather than becoming 0. */
+/** Scales a nutrient record by grams/100 (per100g) or serving_qty (per_serving). Null micros stay null. */
 function scaleBase(per: Per100g, factor: number) {
   return {
     calories: round1(per.calories * factor),
@@ -38,11 +35,8 @@ function scaleBase(per: Per100g, factor: number) {
 }
 
 /**
- * Resolves one propose_entry ingredient argument into the fully-resolved shape the
- * client has always received. When `base` is set, scales it by the ingredient's
- * grams (per100g base) or serving_qty (per_serving base) instead of requiring the
- * model to compute macros itself. An already-resolved ingredient (no `base`) passes
- * through unchanged — proposeIngredientArgsSchema guarantees one shape or the other.
+ * Resolves a propose_entry ingredient into the shape the client renders: a `base` is
+ * scaled server-side, and an ingredient with direct macros passes through unchanged.
  */
 export function resolveProposeIngredient(ing: ProposeIngredientArgs): ProposeIngredient {
   const { base, ...rest } = ing;
@@ -323,7 +317,7 @@ export const nutritionTools: ToolModule = ({ userUuid, selectedDate, flags }: To
      */
     calculator: tool({
       description:
-        'Evaluate a simple arithmetic expression and return the numeric result. Use this for any non-trivial calculation: macro scaling (per100g × grams/100), portion multiplication, unit conversions, totalling macros, etc. Supports +, -, *, /, parentheses, and decimal numbers. Example input: "0.28 * 210". NEVER use web_search for arithmetic — use this tool instead.',
+        'Evaluate a simple arithmetic expression and return the numeric result. Do NOT use this to scale macros: propose_entry scales a base nutrition record server-side. Use it for arithmetic that is not macro scaling, such as grams per unit from a serving description ("63 / 3"). Supports +, -, *, /, parentheses, and decimal numbers. NEVER use web_search for arithmetic.',
       inputSchema: z.object({
         expression: z
           .string()
