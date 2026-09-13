@@ -11,12 +11,18 @@ export const TABS = {
   CHAT_HISTORY: 'chat-history',
 };
 
+// Owner-only admin page (#325). It is a `?tab=` value but not a user-configurable tool,
+// so it stays out of DEFAULT_ORDER/VALID_TABS and the "Add tools" list; owner status
+// gates it instead (NavDrawer.jsx, Workouts.jsx).
+export const ADMIN_USAGE_TAB = 'admin-usage';
+
 export const TAB_LABELS = {
   [TABS.WORKOUTS]: 'Workouts',
   [TABS.BODY_WEIGHT]: 'Body Weight',
   [TABS.HABITS]: 'Habits',
   [TABS.NUTRITION]: 'Nutrition',
   [TABS.CHAT_HISTORY]: 'Chat History',
+  [ADMIN_USAGE_TAB]: 'AI Usage',
 };
 
 // Default order for new/backfilled accounts; also the canonical ordering used to
