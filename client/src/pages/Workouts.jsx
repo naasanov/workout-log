@@ -53,11 +53,9 @@ function Workouts() {
 
   const tabParam = searchParams.get('tab');
 
-  // Owner-only AI usage dashboard (#325): not one of the user-configurable
-  // tabs above, so it's resolved from tabParam directly rather than through
-  // enabledTabs. A non-owner hitting ?tab=admin-usage falls through to the
-  // same "unknown tab" behavior as any other tab param (isOwner is false, so
-  // showAdminUsage is false and the normal activeTab resolution below runs).
+  // Owner-only AI usage dashboard (#325), resolved from tabParam rather than enabledTabs.
+  // For a non-owner showAdminUsage stays false, so ?tab=admin-usage behaves like any
+  // unknown tab.
   const { from: adminFrom, to: adminTo } = computeRange(DEFAULT_RANGE_DAYS);
   const isOwner = useIsOwner(adminFrom, adminTo, loggedIn);
   const showAdminUsage = tabParam === ADMIN_USAGE_TAB && isOwner === true;
@@ -79,10 +77,7 @@ function Workouts() {
   useEffect(() => {
     if (!loggedIn || prefsLoading) return;
     if (tabParam === ADMIN_USAGE_TAB) {
-      // Owner-only tab: wait for the owner probe, and never redirect away
-      // from it once isOwner resolves true. Only a confirmed non-owner
-      // (isOwner === false) falls through to the redirect below, same as any
-      // other unrecognized tab param.
+      // Only a confirmed non-owner is redirected away from the owner tab.
       if (isOwner !== false) return;
     }
     if (enabledTabs.length === 0) return; // empty state — nowhere to redirect

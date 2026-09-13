@@ -18,10 +18,8 @@ const RANGE_DEFS: RangeDef[] = [
   { key: '90D', label: '90D', days: 90 },
 ];
 
-// ai_usage rows from before this date are missing cached_input_tokens, steps,
-// tool_calls and web_search_calls (NULL, summed as 0), and their cost was
-// priced entirely at the uncached input rate. See the report's own comment
-// in services/nutrition/usage.ts.
+// ai_usage rows before this date have no cached, step, tool-call or web-search counts
+// (summed as 0), and their cost priced all input at the uncached rate.
 const USAGE_SCHEMA_CUTOFF = '2026-09-12';
 
 const TOOLTIP_STYLE = {

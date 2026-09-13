@@ -26,14 +26,9 @@ export function useAdminUsageReport(from: string, to: string, enabled: boolean) 
 }
 
 /**
- * Whether the signed-in user is the owner. There is no client-side owner flag
- * anywhere in the app, so this probes GET /admin/usage once (routes/admin.ts
- * returns 404 to anyone else) and reads success as "yes". It shares a query
- * key with useAdminUsageReport for the same range, so when the owner opens
- * the dashboard on that default range this doesn't cost a second request.
- *
- * Returns undefined while the probe is in flight, so callers don't flash the
- * entry point on then off.
+ * Whether the signed-in user is the owner, read from GET /admin/usage succeeding (anyone
+ * else gets 404). Shares the dashboard's default-range query key, so opening the
+ * dashboard costs no second request. Undefined while in flight.
  */
 export function useIsOwner(from: string, to: string, loggedIn: boolean): boolean | undefined {
   const query = useAdminUsageReport(from, to, loggedIn);

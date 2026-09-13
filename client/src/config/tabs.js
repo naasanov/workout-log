@@ -11,11 +11,9 @@ export const TABS = {
   CHAT_HISTORY: 'chat-history',
 };
 
-// Owner-only admin page (#325), also a `?tab=` value but deliberately kept
-// out of DEFAULT_ORDER/VALID_TABS below: it isn't one of the user-configurable
-// "tools" from tabPreferences, doesn't belong in the "Add tools" list every
-// account sees, and isn't validated by schemas/tabPreferences.ts's TAB_KEYS.
-// Visibility is gated by owner status instead (see NavDrawer.jsx, Workouts.jsx).
+// Owner-only admin page (#325). It is a `?tab=` value but not a user-configurable tool,
+// so it stays out of DEFAULT_ORDER/VALID_TABS and the "Add tools" list; owner status
+// gates it instead (NavDrawer.jsx, Workouts.jsx).
 export const ADMIN_USAGE_TAB = 'admin-usage';
 
 export const TAB_LABELS = {

@@ -33,10 +33,7 @@ function NavDrawer({ open, onClose, user, editMode = false, onEditModeChange }) 
   const enabled = loggedIn ? (prefs ?? []) : [TABS.WORKOUTS];
   const disabled = DEFAULT_ORDER.filter((t) => !enabled.includes(t));
 
-  // Owner-only nav entry (#325). No client-side owner flag exists anywhere in
-  // the app, so this probes GET /api/admin/usage once (see useIsOwner) and
-  // only shows the entry point on success; undefined (probe in flight) and
-  // false (non-owner, or logged out) both render nothing.
+  // Owner-only nav entry (#325), shown only once the useIsOwner probe succeeds.
   const { from: adminFrom, to: adminTo } = computeRange(DEFAULT_RANGE_DAYS);
   const isOwner = useIsOwner(adminFrom, adminTo, loggedIn);
 
