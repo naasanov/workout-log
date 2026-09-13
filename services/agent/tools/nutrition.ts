@@ -5,11 +5,50 @@ import { tool } from 'ai';
 import type { ToolSet } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
-import { proposeEntryArgsSchema, proposeCustomFoodArgsSchema } from '../../../schemas/nutrition';
+import {
+  proposeEntryArgsSchema,
+  proposeEntryToolArgsSchema,
+  proposeCustomFoodArgsSchema,
+} from '../../../schemas/nutrition';
+import type { Per100g, ProposeIngredient, ProposeIngredientArgs } from '../../../schemas/nutrition';
 import * as store from '../../nutrition/store';
 import * as providers from '../../nutrition/providers';
 import { searchUncFoods, getUncMenu, listUncLocations, getUncFood } from '../../nutrition/unc';
 import type { ToolContext, ToolModule } from './registry';
+
+/** Rounds to one decimal place, matching convert_to_grams below. */
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+/** Scales a nutrient record by grams/100 (per100g) or serving_qty (per_serving). Null micros stay null. */
+function scaleBase(per: Per100g, factor: number) {
+  return {
+    calories: round1(per.calories * factor),
+    protein_g: round1(per.protein_g * factor),
+    carbs_g: round1(per.carbs_g * factor),
+    fat_g: round1(per.fat_g * factor),
+    fiber_g: per.fiber_g != null ? round1(per.fiber_g * factor) : null,
+    sugar_g: per.sugar_g != null ? round1(per.sugar_g * factor) : null,
+    sodium_mg: per.sodium_mg != null ? round1(per.sodium_mg * factor) : null,
+  };
+}
+
+/**
+ * Resolves a propose_entry ingredient into the shape the client renders: a `base` is
+ * scaled server-side, and an ingredient with direct macros passes through unchanged.
+ */
+export function resolveProposeIngredient(ing: ProposeIngredientArgs): ProposeIngredient {
+  const { base, ...rest } = ing;
+  if (base == null) {
+    return rest as ProposeIngredient;
+  }
+  const scaled =
+    base.per100g != null
+      ? scaleBase(base.per100g, (rest.grams ?? 0) / 100)
+      : scaleBase(base.per_serving!, rest.serving_qty ?? 0);
+  return { ...rest, ...scaled } as ProposeIngredient;
+}
 
 /**
  * Builds the nutrition domain's tools for one request. UNC dining tools
@@ -278,7 +317,7 @@ export const nutritionTools: ToolModule = ({ userUuid, selectedDate, flags }: To
      */
     calculator: tool({
       description:
-        'Evaluate a simple arithmetic expression and return the numeric result. Use this for any non-trivial calculation: macro scaling (per100g × grams/100), portion multiplication, unit conversions, totalling macros, etc. Supports +, -, *, /, parentheses, and decimal numbers. Example input: "0.28 * 210". NEVER use web_search for arithmetic — use this tool instead.',
+        'Evaluate a simple arithmetic expression and return the numeric result. Do NOT use this to scale macros: propose_entry scales a base nutrition record server-side. Use it for arithmetic that is not macro scaling, such as grams per unit from a serving description ("63 / 3"). Supports +, -, *, /, parentheses, and decimal numbers. NEVER use web_search for arithmetic.',
       inputSchema: z.object({
         expression: z
           .string()
@@ -381,9 +420,15 @@ export const nutritionTools: ToolModule = ({ userUuid, selectedDate, flags }: To
      */
     propose_entry: tool({
       description:
-        'Propose a structured food entry for the user to review and confirm. Call this once you are confident about food identity and portion. For a weight-based ingredient, include quantity, unit (a real household serving label), portions list, and grams = quantity × unit_grams. For a SERVING-BASIS ingredient with no gram weight (e.g. a UNC dining item), instead set serving_qty (how many servings) and serving_label (the serving as published, e.g. "½ cup"), leave grams null, and set source: \'unc\'. Every ingredient must set EXACTLY ONE basis — grams, OR serving_qty + serving_label — never both, never neither. The user will see an editor pre-filled with these values and can adjust before saving.',
-      inputSchema: proposeEntryArgsSchema,
-      execute: async (args) => JSON.parse(JSON.stringify(args)),
+        'Propose a structured food entry for the user to review and confirm. Call this once you are confident about food identity and portion. For a weight-based ingredient, include quantity, unit (a real household serving label), portions list, and grams = quantity × unit_grams. For a SERVING-BASIS ingredient with no gram weight (e.g. a UNC dining item), instead set serving_qty (how many servings) and serving_label (the serving as published, e.g. "½ cup"), leave grams null, and set source: \'unc\'. Every ingredient must set EXACTLY ONE basis — grams, OR serving_qty + serving_label — never both, never neither. Do NOT compute macros yourself: pass base (the per100g or per_serving record exactly as a search/barcode/UNC tool returned it) alongside grams or serving_qty, and the server scales it into calories/protein_g/carbs_g/fat_g. Only set those macro fields directly when you have no base record (a freeform estimate). The user will see an editor pre-filled with these values and can adjust before saving.',
+      inputSchema: proposeEntryToolArgsSchema,
+      execute: async (args) => {
+        const resolved = proposeEntryArgsSchema.parse({
+          ...args,
+          ingredients: args.ingredients.map(resolveProposeIngredient),
+        });
+        return JSON.parse(JSON.stringify(resolved));
+      },
     }),
 
     /**

@@ -36,6 +36,11 @@ function ProposeEntryRenderer({ part, context, resolve }: ToolRendererProps) {
   const selectedDate = context.selectedDate ?? new Date().toISOString().slice(0, 10);
   const createEntry = useCreateEntry(selectedDate);
 
+  // The tool's input may carry a base nutrition record instead of macros, which the
+  // server resolves into the output. EntryEditor seeds its rows once on mount, so it
+  // waits for that output rather than mounting on the unresolved input.
+  if (part.state !== 'output-available') return null;
+
   const rawArgs = rawArgsOf<ProposeEntryArgs>(part);
   const mode: EntryEditorMode = { kind: 'proposal', date: selectedDate, proposal: rawArgs };
 
