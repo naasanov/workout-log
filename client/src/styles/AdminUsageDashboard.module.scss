@@ -1,0 +1,152 @@
+@use "variables" as vars;
+
+.container {
+  background-color: vars.$surface;
+  border-radius: vars.$border-radius;
+  padding: 24px 32px;
+
+  @media (max-width: vars.$mobile-width) {
+    padding: 20px 16px;
+  }
+}
+
+.heading {
+  margin: 0 0 16px;
+  color: vars.$text;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.chartHeading {
+  margin: 24px 0 8px;
+  color: vars.$text;
+  font-size: 15px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.rangeRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.rangeChip {
+  background-color: vars.$surface;
+  border: 1px solid vars.$surface-border;
+  color: vars.$text;
+  border-radius: vars.$border-radius;
+  font-size: 14px;
+  padding: 8px 14px;
+  cursor: pointer;
+  opacity: 0.7;
+  min-height: 40px;
+  min-width: 48px;
+  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+
+  &:hover {
+    opacity: 1;
+  }
+
+  &:focus-visible {
+    outline: 2px solid vars.$primary;
+    outline-offset: 2px;
+  }
+}
+
+.rangeChipActive {
+  background-color: vars.$primary-translucent;
+  border-color: vars.$primary-border;
+  color: vars.$primary;
+  opacity: 1;
+}
+
+.empty {
+  margin: 0;
+  color: vars.$text;
+  font-size: 16px;
+  font-weight: 300;
+  opacity: 0.7;
+}
+
+.note {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: vars.$border-radius;
+  background-color: rgba(vars.$surface-border, 0.25);
+  color: vars.$text;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.statTile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background-color: rgba(vars.$surface-border, 0.2);
+  border-radius: vars.$border-radius;
+  padding: 12px 14px;
+  min-width: 0;
+}
+
+.statLabel {
+  color: vars.$text;
+  font-size: 12px;
+  opacity: 0.65;
+}
+
+.statValue {
+  color: vars.$text;
+  font-size: 20px;
+  font-weight: 600;
+  overflow-wrap: break-word;
+}
+
+.chartWrap {
+  position: relative;
+  margin-bottom: 8px;
+
+  // Axis ticks have no letter-spacing of their own, so the global 2px
+  // default (index.css) would otherwise widen them; keep them at their
+  // original, tighter spacing.
+  :global(text) {
+    letter-spacing: normal;
+  }
+}
+
+// Tooltip content is portaled outside .chartWrap by recharts, so it needs its
+// own global rule. Matches the axis ticks' letter-spacing for consistency.
+:global(.recharts-tooltip-wrapper) {
+  letter-spacing: normal;
+}
+
+.legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: vars.$text;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.legendSwatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}

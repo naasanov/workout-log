@@ -2,8 +2,10 @@ import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { X, ChevronUp, ChevronDown, Plus, Minus } from 'lucide-react';
 import styles from '../styles/NavDrawer.module.scss';
-import { TABS, TAB_LABELS, DEFAULT_ORDER, VALID_TABS } from '../config/tabs';
+import { TABS, TAB_LABELS, DEFAULT_ORDER, VALID_TABS, ADMIN_USAGE_TAB } from '../config/tabs';
 import { useTabPreferences, usePutTabPreferences } from '../api/tabPreferences';
+import { useIsOwner } from '../features/adminUsage/api';
+import { computeRange, DEFAULT_RANGE_DAYS } from '../features/adminUsage/range';
 
 /**
  * NavDrawer — left slide-out navigation panel.
@@ -24,12 +26,19 @@ function NavDrawer({ open, onClose, user, editMode = false, onEditModeChange }) 
   const putPrefs = usePutTabPreferences();
 
   const tabParam = searchParams.get('tab');
-  const activeTab = VALID_TABS.has(tabParam) ? tabParam : TABS.WORKOUTS;
+  const activeTab = tabParam === ADMIN_USAGE_TAB ? ADMIN_USAGE_TAB : VALID_TABS.has(tabParam) ? tabParam : TABS.WORKOUTS;
 
   // Logged-in users navigate their enabled tabs (ordered); logged-out visitors
   // only ever see Workouts. `prefs` is undefined while the query loads.
   const enabled = loggedIn ? (prefs ?? []) : [TABS.WORKOUTS];
   const disabled = DEFAULT_ORDER.filter((t) => !enabled.includes(t));
+
+  // Owner-only nav entry (#325). No client-side owner flag exists anywhere in
+  // the app, so this probes GET /api/admin/usage once (see useIsOwner) and
+  // only shows the entry point on success; undefined (probe in flight) and
+  // false (non-owner, or logged out) both render nothing.
+  const { from: adminFrom, to: adminTo } = computeRange(DEFAULT_RANGE_DAYS);
+  const isOwner = useIsOwner(adminFrom, adminTo, loggedIn);
 
   // Escape key to close
   useEffect(() => {
@@ -124,6 +133,17 @@ function NavDrawer({ open, onClose, user, editMode = false, onEditModeChange }) 
                   </button>
                 </li>
               ))}
+              {isOwner && (
+                <li key={ADMIN_USAGE_TAB}>
+                  <button
+                    className={`${styles.navItem} ${activeTab === ADMIN_USAGE_TAB ? styles.navItemActive : ''}`}
+                    onClick={() => handleTabSelect(ADMIN_USAGE_TAB)}
+                    aria-current={activeTab === ADMIN_USAGE_TAB ? 'page' : undefined}
+                  >
+                    {TAB_LABELS[ADMIN_USAGE_TAB]}
+                  </button>
+                </li>
+              )}
             </ul>
           </nav>
         )}

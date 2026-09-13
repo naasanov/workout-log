@@ -12,11 +12,14 @@ import Header from '../components/Header.jsx';
 import clientApi from '../api/clientApi.js';
 import useAuth from '../hooks/useAuth.js';
 import { useQuery } from '@tanstack/react-query';
-import { TABS, TAB_LABELS } from '../config/tabs';
+import { TABS, TAB_LABELS, ADMIN_USAGE_TAB } from '../config/tabs';
 import { useTabPreferences } from '../api/tabPreferences';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import AgentChat from '../features/agent/AgentChat';
 import { useNutritionComposerExtras } from '../features/nutrition/NutritionComposerExtras';
+import AdminUsageDashboard from '../features/adminUsage/AdminUsageDashboard';
+import { useIsOwner } from '../features/adminUsage/api';
+import { computeRange, DEFAULT_RANGE_DAYS } from '../features/adminUsage/range';
 // Registers nutrition's tool and part renderers (propose_entry,
 // propose_custom_food, the barcode-attachment chip) into the shared registry
 // for their side effect. The chat itself mounts once below, not per tab.
@@ -50,6 +53,15 @@ function Workouts() {
 
   const tabParam = searchParams.get('tab');
 
+  // Owner-only AI usage dashboard (#325): not one of the user-configurable
+  // tabs above, so it's resolved from tabParam directly rather than through
+  // enabledTabs. A non-owner hitting ?tab=admin-usage falls through to the
+  // same "unknown tab" behavior as any other tab param (isOwner is false, so
+  // showAdminUsage is false and the normal activeTab resolution below runs).
+  const { from: adminFrom, to: adminTo } = computeRange(DEFAULT_RANGE_DAYS);
+  const isOwner = useIsOwner(adminFrom, adminTo, loggedIn);
+  const showAdminUsage = tabParam === ADMIN_USAGE_TAB && isOwner === true;
+
   // Resolve the tab to render. Logged-out → Workouts only. Logged-in → the
   // requested tab if it's enabled, else the first enabled tab (the homepage).
   // null = show the empty state (logged-in with no enabled tabs). #110
@@ -66,13 +78,20 @@ function Workouts() {
   // first enabled tab. Waits for prefs to load so we don't flash Workouts. #110
   useEffect(() => {
     if (!loggedIn || prefsLoading) return;
+    if (tabParam === ADMIN_USAGE_TAB) {
+      // Owner-only tab: wait for the owner probe, and never redirect away
+      // from it once isOwner resolves true. Only a confirmed non-owner
+      // (isOwner === false) falls through to the redirect below, same as any
+      // other unrecognized tab param.
+      if (isOwner !== false) return;
+    }
     if (enabledTabs.length === 0) return; // empty state — nowhere to redirect
     if (!tabParam || !enabledTabs.includes(tabParam)) {
       setSearchParams({ tab: enabledTabs[0] }, { replace: true });
     }
     // enabledKey captures the enabled-tabs identity without an unstable array dep
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loggedIn, prefsLoading, enabledKey, tabParam, setSearchParams]);
+  }, [loggedIn, prefsLoading, enabledKey, tabParam, setSearchParams, isOwner]);
 
   const sectionsQuery = useQuery({
     queryKey: ['sections'],
@@ -121,7 +140,8 @@ function Workouts() {
   // (which cuts from the end) never eats the distinguishing word. activeTab
   // is null in the empty state (logged in, no enabled tools) — fall back to
   // the bare app name rather than showing a stale/undefined label.
-  useDocumentTitle(activeTab ? `${TAB_LABELS[activeTab]} · Peak` : 'Peak');
+  const titleTab = showAdminUsage ? ADMIN_USAGE_TAB : activeTab;
+  useDocumentTitle(titleTab ? `${TAB_LABELS[titleTab]} · Peak` : 'Peak');
 
   return (
     <>
@@ -132,14 +152,16 @@ function Workouts() {
         onEditModeChange={setEditMode}
       />
       <main className={styles.container}>
-        {showEmptyState && (
+        {showEmptyState && !showAdminUsage && (
           <TabsEmptyState
             onAddTools={() => { setDrawerOpen(true); setEditMode(true); }}
           />
         )}
 
+        {showAdminUsage && <AdminUsageDashboard />}
+
         {/* All panels stay mounted to preserve in-memory state; hidden via CSS */}
-        <div style={{ display: activeTab === TABS.WORKOUTS ? undefined : 'none' }}>
+        <div style={{ display: activeTab === TABS.WORKOUTS && !showAdminUsage ? undefined : 'none' }}>
           {sections.map((s) => (
             <Section
               key={s.id}
@@ -151,25 +173,25 @@ function Workouts() {
         </div>
 
         {user && (
-          <div style={{ display: activeTab === TABS.BODY_WEIGHT ? undefined : 'none' }}>
+          <div style={{ display: activeTab === TABS.BODY_WEIGHT && !showAdminUsage ? undefined : 'none' }}>
             <BodyWeightTracker />
           </div>
         )}
 
         {user && (
-          <div style={{ display: activeTab === TABS.HABITS ? undefined : 'none' }}>
+          <div style={{ display: activeTab === TABS.HABITS && !showAdminUsage ? undefined : 'none' }}>
             <HabitTracker />
           </div>
         )}
 
         {user && (
-          <div style={{ display: activeTab === TABS.NUTRITION ? undefined : 'none' }}>
+          <div style={{ display: activeTab === TABS.NUTRITION && !showAdminUsage ? undefined : 'none' }}>
             <NutritionTracker onSelectedDateChange={setNutritionSelectedDate} />
           </div>
         )}
 
         {user && (
-          <div style={{ display: activeTab === TABS.CHAT_HISTORY ? undefined : 'none' }}>
+          <div style={{ display: activeTab === TABS.CHAT_HISTORY && !showAdminUsage ? undefined : 'none' }}>
             <ChatHistoryPanel onConversationContinued={handleConversationContinued} />
           </div>
         )}
