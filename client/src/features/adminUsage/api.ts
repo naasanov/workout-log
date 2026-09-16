@@ -1,6 +1,6 @@
 // React Query hooks for the owner-only AI usage dashboard. Mirrors
 // nutrition/api.ts: shared axios instance, { data, message } envelope unwrapped.
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import clientApi from '../../api/clientApi.js';
 import type { OwnerUsageReport } from './types';
 
@@ -28,6 +28,9 @@ export function useAdminUsageReport(from: string, to: string, enabled: boolean, 
     },
     enabled,
     retry: false,
+    // Keeps the previous range/filter's data on screen while a new one loads,
+    // so switching the range chips or the user filter doesn't blank the dashboard.
+    placeholderData: keepPreviousData,
   });
 }
 
