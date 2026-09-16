@@ -52,16 +52,70 @@ function isValidChatContext(context: unknown): context is ChatContext {
   return true;
 }
 
+// Matches the client's local date param on GET /active (#354). Same bare-date
+// shape isValidChatContext and routes/admin.ts already validate against.
+const BARE_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Generous sanity bound around real-world UTC offsets (Kiribati at UTC+14 is
+// -840, Baker Island at UTC-12 is +720) -- anything outside this is treated
+// as malformed rather than trusted.
+const MAX_OFFSET_MINUTES = 1000;
+
+/**
+ * Pull the client's local date/UTC-offset off GET /active's query string
+ * (#354). Anything missing or malformed resolves to undefined so the caller
+ * skips auto-archiving entirely rather than guessing a timezone server-side.
+ */
+function parseAutoArchiveParams(query: Record<string, unknown>): {
+  clientLocalDate?: string;
+  clientOffsetMinutes?: number;
+} {
+  const dateParam = query.clientLocalDate;
+  const offsetParam = query.clientOffsetMinutes;
+  const clientLocalDate = typeof dateParam === 'string' && BARE_DATE.test(dateParam) ? dateParam : undefined;
+  const offsetNum = typeof offsetParam === 'string' ? Number(offsetParam) : NaN;
+  const clientOffsetMinutes = Number.isInteger(offsetNum) && Math.abs(offsetNum) <= MAX_OFFSET_MINUTES
+    ? offsetNum
+    : undefined;
+  return { clientLocalDate, clientOffsetMinutes };
+}
+
 /**
  * Resolve the user's currently-active conversation, creating one if they
  * have none. Kept separate from the streaming handler below so conversation
  * resolution is testable without a live model call (see GET /active).
+ *
+ * `clientLocalDate`/`clientOffsetMinutes`, when both present, auto-archive
+ * the active conversation and start a fresh one if it is stale (#354) --
+ * see store.shouldAutoArchive for the exact rule. Omitting either leaves
+ * behavior exactly as before (no auto-archive), which is how the streaming
+ * POST / handler below calls this -- it has no reliable client-local-date
+ * signal of its own to pass.
  */
-export async function resolveActiveConversationId(userUuid: string): Promise<number> {
+export async function resolveActiveConversationId(
+  userUuid: string,
+  clientLocalDate?: string,
+  clientOffsetMinutes?: number,
+): Promise<number> {
   const list = await store.listConversations(userUuid);
   const active = list.find((c) => c.active);
-  if (active) return active.id;
-  return store.createConversation(userUuid);
+  if (!active) return store.createConversation(userUuid);
+
+  // A brand-new, never-touched conversation has created_at === updated_at
+  // (nothing has bumped updated_at yet). Auto-archiving it would just swap
+  // one empty conversation for another, so it's left alone regardless of age.
+  const isEmpty = active.created_at === active.updated_at;
+  if (
+    clientLocalDate !== undefined
+    && clientOffsetMinutes !== undefined
+    && !isEmpty
+    && store.shouldAutoArchive(new Date(active.updated_at), clientLocalDate, clientOffsetMinutes)
+  ) {
+    await store.archiveConversation(userUuid, active.id);
+    return store.createConversation(userUuid);
+  }
+
+  return active.id;
 }
 
 /** Fetch a conversation the caller owns, or send 404 and return null. */
@@ -75,10 +129,13 @@ async function requireOwnedConversation(userUuid: string, conversationId: number
 }
 
 // GET /active — resolve (or create) the caller's active conversation, with its messages.
+// clientLocalDate/clientOffsetMinutes (optional query params) let this
+// auto-archive a stale conversation from an earlier local day (#354).
 router.get('/active', async (req, res): Promise<any> => {
   const { uuid }: User = res.locals.user;
   try {
-    const conversationId = await resolveActiveConversationId(uuid);
+    const { clientLocalDate, clientOffsetMinutes } = parseAutoArchiveParams(req.query as Record<string, unknown>);
+    const conversationId = await resolveActiveConversationId(uuid, clientLocalDate, clientOffsetMinutes);
     const found = await store.getConversation(uuid, conversationId);
     return res.status(200).json({ data: found, message: 'Active conversation resolved' });
   } catch (error) {

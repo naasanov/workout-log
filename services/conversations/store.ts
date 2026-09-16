@@ -107,6 +107,33 @@ function dropWorthlessToolParts(parts: Part[]): Part[] {
   return parts.filter((part) => !(part && typeof part === 'object' && DROPPED_TOOL_TYPES.has(part.type)));
 }
 
+// Auto-archive threshold (#354): a conversation is stale once it is both
+// from an earlier local day than the client's current date AND its last
+// activity is older than this. Both must hold together, which is what lets
+// a still-active midnight-snack conversation survive the day boundary.
+const AUTO_ARCHIVE_MIN_AGE_MS = 60 * 60 * 1000;
+
+/**
+ * Whether an active conversation should be auto-archived (#354): true only
+ * when `updatedAt` falls on a local day before `clientLocalDate` AND is more
+ * than an hour old. `updatedAt` is a UTC instant; the client's local day is
+ * derived by shifting it with `clientOffsetMinutes`, using the same sign
+ * convention as `Date.prototype.getTimezoneOffset()` (local = utc - offset).
+ * Pure and DB-free so the day-boundary/age rule is unit-testable on its own.
+ */
+export function shouldAutoArchive(
+  updatedAt: Date,
+  clientLocalDate: string,
+  clientOffsetMinutes: number,
+  now: Date = new Date(),
+): boolean {
+  const localUpdatedAt = new Date(updatedAt.getTime() - clientOffsetMinutes * 60_000);
+  const updatedLocalDate = localUpdatedAt.toISOString().slice(0, 10);
+  const isEarlierDay = updatedLocalDate < clientLocalDate;
+  const isStale = now.getTime() - updatedAt.getTime() > AUTO_ARCHIVE_MIN_AGE_MS;
+  return isEarlierDay && isStale;
+}
+
 /**
  * Archive whichever conversation is currently active for a user, if any.
  * Sets an expiry so a later retention pass can eventually purge it. No-op

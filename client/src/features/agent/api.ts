@@ -63,9 +63,32 @@ export interface ConversationWithMessages {
   messages: StoredChatMessage[];
 }
 
-/** Resolve (or create) the caller's active conversation, with its messages. */
+/**
+ * Today's local calendar date, YYYY-MM-DD. Same derivation as
+ * NutritionTracker.tsx's getTodayLocalDate (kept in sync by hand, not
+ * imported, since that module belongs to a different feature).
+ */
+function getTodayLocalDate(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Resolve (or create) the caller's active conversation, with its messages.
+ * Sends the client's local date and UTC offset so the server can auto-archive
+ * a stale conversation from an earlier local day (#354) -- see
+ * routes/chat.ts's resolveActiveConversationId for the exact rule.
+ */
 export async function fetchActiveConversation(): Promise<ConversationWithMessages> {
-  const res = await clientApi.get('/chat/active');
+  const res = await clientApi.get('/chat/active', {
+    params: {
+      clientLocalDate: getTodayLocalDate(),
+      clientOffsetMinutes: new Date().getTimezoneOffset(),
+    },
+  });
   return res.data.data;
 }
 
