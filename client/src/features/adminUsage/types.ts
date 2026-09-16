@@ -20,9 +20,16 @@ export interface DailyUsageStats extends UsagePeriodStats {
   day: string;
 }
 
+export interface UserUsageBreakdown extends UsagePeriodStats {
+  userUuid: string;
+  /** Null when the user has no email on file; the UI falls back to a truncated uuid. */
+  email: string | null;
+}
+
 export interface OwnerUsageReport {
   from: string;
   to: string;
   totals: UsagePeriodStats;
   daily: DailyUsageStats[];
+  byUser: UserUsageBreakdown[];
 }

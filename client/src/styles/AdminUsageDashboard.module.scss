@@ -62,6 +62,86 @@
   opacity: 1;
 }
 
+.customRangeRow {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.customRangeField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: vars.$text;
+  opacity: 0.85;
+}
+
+.dateInput {
+  background-color: vars.$surface;
+  border: 1px solid vars.$surface-border;
+  color: vars.$text;
+  border-radius: vars.$border-radius;
+  padding: 8px 10px;
+  font-size: 14px;
+  min-height: 40px;
+
+  &:focus-visible {
+    outline: 2px solid vars.$primary;
+    outline-offset: 2px;
+  }
+}
+
+.userFilterRow {
+  margin-bottom: 16px;
+}
+
+.userFilterLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: vars.$text;
+  opacity: 0.85;
+  max-width: 260px;
+}
+
+.userSelect {
+  background-color: vars.$surface;
+  border: 1px solid vars.$surface-border;
+  color: vars.$text;
+  border-radius: vars.$border-radius;
+  padding: 8px 10px;
+  font-size: 14px;
+  min-height: 40px;
+  width: 100%;
+}
+
+.infoButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  opacity: 0.55;
+  cursor: pointer;
+  vertical-align: middle;
+
+  &:hover,
+  &:focus-visible {
+    opacity: 1;
+  }
+
+  &:focus-visible {
+    outline: 2px solid vars.$primary;
+    outline-offset: 2px;
+  }
+}
+
 .empty {
   margin: 0;
   color: vars.$text;
@@ -149,4 +229,41 @@
   width: 10px;
   height: 10px;
   border-radius: 2px;
+}
+
+.userTableWrap {
+  overflow-x: auto;
+  margin-bottom: 8px;
+}
+
+.userTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: vars.$text;
+
+  th,
+  td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(vars.$surface-border, 0.4);
+    white-space: nowrap;
+  }
+
+  th {
+    opacity: 0.65;
+    font-weight: 600;
+  }
+
+  tbody tr {
+    cursor: pointer;
+
+    &:hover {
+      background-color: rgba(vars.$surface-border, 0.15);
+    }
+  }
+}
+
+.userRowActive {
+  background-color: vars.$primary-translucent;
 }

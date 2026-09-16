@@ -224,9 +224,18 @@ export interface DailyUsageStats extends UsagePeriodStats {
   day: string;
 }
 
+export interface UserUsageBreakdown extends UsagePeriodStats {
+  userUuid: string;
+  /** Null when the user row has no email on file (e.g. a deleted account). */
+  email: string | null;
+}
+
 export interface OwnerUsageReport {
   totals: UsagePeriodStats;
   daily: DailyUsageStats[];
+  /** Per-user totals for the same [from, to] window, always unfiltered by `userUuid`
+   *  so the dashboard's user filter has every user in range to choose from. */
+  byUser: UserUsageBreakdown[];
 }
 
 const USAGE_STATS_SELECT = `
@@ -257,18 +266,26 @@ function toStats(row: RowDataPacket): UsagePeriodStats {
 }
 
 /**
- * Owner-only aggregate AI usage: totals plus a per-day series over
- * [from, to] (both YYYY-MM-DD). Aggregated entirely in SQL. `to` is treated
- * as inclusive of the whole calendar day per resolveRange above.
+ * Owner-only aggregate AI usage: totals, a per-day series, and a per-user
+ * breakdown over [from, to] (both YYYY-MM-DD). Aggregated entirely in SQL.
+ * `to` is treated as inclusive of the whole calendar day per resolveRange above.
+ * When `userUuid` is given, totals and daily are narrowed to that user; byUser
+ * always covers everyone in range regardless, so the filter list stays complete.
  */
-export async function getOwnerUsageReport(from: string, to: string): Promise<OwnerUsageReport> {
+export async function getOwnerUsageReport(
+  from: string,
+  to: string,
+  userUuid?: string,
+): Promise<OwnerUsageReport> {
   const { fromValue, toValue, toOperator } = resolveRange(from, to);
+  const userFilter = userUuid ? 'AND user_uuid = UUID_TO_BIN(?)' : '';
+  const rangeParams = userUuid ? [fromValue, toValue, userUuid] : [fromValue, toValue];
 
   const [totalsRows] = await pool.query<RowDataPacket[]>(
     `SELECT${USAGE_STATS_SELECT}
      FROM ai_usage
-     WHERE created_at >= ? AND created_at ${toOperator} ?`,
-    [fromValue, toValue],
+     WHERE created_at >= ? AND created_at ${toOperator} ? ${userFilter}`,
+    rangeParams,
   );
 
   // DATE_FORMAT (not DATE()) so `day` comes back as a plain 'YYYY-MM-DD'
@@ -277,14 +294,33 @@ export async function getOwnerUsageReport(from: string, to: string): Promise<Own
   const [dailyRows] = await pool.query<RowDataPacket[]>(
     `SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS day,${USAGE_STATS_SELECT}
      FROM ai_usage
-     WHERE created_at >= ? AND created_at ${toOperator} ?
+     WHERE created_at >= ? AND created_at ${toOperator} ? ${userFilter}
      GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
      ORDER BY day ASC`,
+    rangeParams,
+  );
+
+  // LEFT JOIN so a user with no matching `users` row (or a null email) still
+  // surfaces as its own breakdown row instead of being dropped from the list.
+  const [byUserRows] = await pool.query<RowDataPacket[]>(
+    `SELECT
+       BIN_TO_UUID(ai_usage.user_uuid) AS userUuid,
+       users.email AS email,${USAGE_STATS_SELECT}
+     FROM ai_usage
+     LEFT JOIN users ON users.user_uuid = ai_usage.user_uuid
+     WHERE created_at >= ? AND created_at ${toOperator} ?
+     GROUP BY ai_usage.user_uuid, users.email
+     ORDER BY costUsd DESC`,
     [fromValue, toValue],
   );
 
   return {
     totals: toStats(totalsRows[0]),
     daily: dailyRows.map((row) => ({ day: String(row.day), ...toStats(row) })),
+    byUser: byUserRows.map((row) => ({
+      userUuid: String(row.userUuid),
+      email: (row.email as string | null) ?? null,
+      ...toStats(row),
+    })),
   };
 }

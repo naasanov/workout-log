@@ -8,6 +8,7 @@ const router = Router();
 router.use(authenticateToken);
 
 const BARE_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const UUID_FORMAT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DEFAULT_RANGE_DAYS = 30;
 
 // OWNER_EMAIL holds the owner's email or user uuid, compared case-insensitively.
@@ -52,8 +53,14 @@ router.get('/usage', async (req, res): Promise<any> => {
   const from = (fromParam as string | undefined) ?? defaultFrom();
   const to = (toParam as string | undefined) ?? defaultTo();
 
+  const userUuidParam = req.query.userUuid;
+  if (userUuidParam !== undefined && (typeof userUuidParam !== 'string' || !UUID_FORMAT.test(userUuidParam))) {
+    return res.status(400).json({ message: 'userUuid must be a valid uuid' });
+  }
+  const userUuid = userUuidParam as string | undefined;
+
   try {
-    const data = await getOwnerUsageReport(from, to);
+    const data = await getOwnerUsageReport(from, to, userUuid);
     return res.status(200).json({ data: { from, to, ...data }, message: 'AI usage report retrieved' });
   } catch (error) {
     return handleSqlError(error, res);

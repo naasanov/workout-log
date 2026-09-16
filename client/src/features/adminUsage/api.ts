@@ -5,19 +5,25 @@ import clientApi from '../../api/clientApi.js';
 import type { OwnerUsageReport } from './types';
 
 export const adminUsageKeys = {
-  report: (from: string, to: string) => ['admin-usage', from, to] as const,
+  // userUuid folds to 'all' when absent, so a call that omits it (like useIsOwner
+  // below) shares its cache entry with the dashboard's unfiltered default view.
+  report: (from: string, to: string, userUuid?: string) =>
+    ['admin-usage', from, to, userUuid ?? 'all'] as const,
 };
 
 /**
- * Fetch the owner-only usage report for [from, to] (both YYYY-MM-DD). Any
- * non-owner signed-in user gets a 404 from the server (routes/admin.ts), so
- * this query fails for them by design rather than returning empty data.
+ * Fetch the owner-only usage report for [from, to] (both YYYY-MM-DD), optionally
+ * narrowed to one user. Any non-owner signed-in user gets a 404 from the server
+ * (routes/admin.ts), so this query fails for them by design rather than
+ * returning empty data.
  */
-export function useAdminUsageReport(from: string, to: string, enabled: boolean) {
+export function useAdminUsageReport(from: string, to: string, enabled: boolean, userUuid?: string) {
   return useQuery({
-    queryKey: adminUsageKeys.report(from, to),
+    queryKey: adminUsageKeys.report(from, to, userUuid),
     queryFn: async (): Promise<OwnerUsageReport> => {
-      const res = await clientApi.get('/admin/usage', { params: { from, to } });
+      const params: Record<string, string> = { from, to };
+      if (userUuid) params.userUuid = userUuid;
+      const res = await clientApi.get('/admin/usage', { params });
       return res.data.data;
     },
     enabled,
