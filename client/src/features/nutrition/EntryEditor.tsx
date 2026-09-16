@@ -344,6 +344,11 @@ export default function EntryEditor({
     isManualAdd ? loadDraft(date) : null,
   );
 
+  // ----- Entry date (proposal mode only — manual modes are locked to the
+  // page's viewed day and never show this control, so it always tracks
+  // mode.date for them) -----
+  const [entryDate, setEntryDate] = useState<string>(() => mode.date);
+
   // ----- Meal selector -----
   const [meal, setMeal] = useState<Meal>(() => {
     if (mode.kind === 'manual-edit') return mode.entry.meal;
@@ -395,6 +400,7 @@ export default function EntryEditor({
     // For inline mode (proposal card in chat), always reset when mode changes.
     // For dialog mode, only reset when open.
     if (!open && !inline) return;
+    setEntryDate(mode.date);
     if (mode.kind === 'manual-edit') {
       setMeal(mode.entry.meal);
       setEntryName(mode.entry.name);
@@ -500,7 +506,8 @@ export default function EntryEditor({
   const canSave =
     effectiveName.length > 0 &&
     rows.length > 0 &&
-    !isPending;
+    !isPending &&
+    (mode.kind !== 'proposal' || entryDate.length > 0);
 
   async function handleSave() {
     if (!canSave) return;
@@ -571,7 +578,7 @@ export default function EntryEditor({
     const ingredients: IngredientInput[] = rows.map(r => ingredientInputFromRow(r));
     const proposalSource = mode.kind === 'proposal' ? mode.proposal.source : 'manual';
     onConfirm({
-      localDate: date,
+      localDate: entryDate,
       meal,
       name: effectiveName,
       source: proposalSource,
@@ -628,6 +635,22 @@ export default function EntryEditor({
           </button>
         ))}
       </div>
+
+      {/* Date — proposal mode only; manual modes are locked to the viewed day */}
+      {isProposal && (
+        <div className={styles.field}>
+          <label className={styles.fieldLabel} htmlFor={`entry-date-${inline ? 'inline' : 'modal'}`}>
+            Date
+          </label>
+          <input
+            id={`entry-date-${inline ? 'inline' : 'modal'}`}
+            className={styles.input}
+            type="date"
+            value={entryDate}
+            onChange={e => setEntryDate(e.target.value)}
+          />
+        </div>
+      )}
 
       {/* Entry name */}
       <div className={styles.field}>

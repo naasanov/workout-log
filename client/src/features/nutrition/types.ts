@@ -123,6 +123,9 @@ export interface ProposeEntryArgs {
   raw_llm_json?: unknown;
   ingredients: ProposeIngredient[];
   notes?: string | null;
+  // Which day to log this under. Optional: omitted means the day the user
+  // is currently viewing (see NutritionToolRenderers' ProposeEntryRenderer).
+  date?: string;
 }
 
 export interface EntryInput {
