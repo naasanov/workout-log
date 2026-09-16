@@ -84,9 +84,28 @@ boundary is HTTP. Adding one optional field to a propose tool in the 2026-09-15 
 editing the schema and hand-editing the mirror; a missed mirror edit is a runtime bug that
 typechecks clean on both sides.
 
-**Options.** Generate client types from the Zod schemas (the server already owns them), or
-extract a small shared types module both projects import. Generation is likely simpler given
-the two projects install independently.
+**Approach: a shared module both tsconfigs include.** Move the schemas to a `shared/` directory
+at the repo root and have the client's `tsconfig`/Vite resolve it, so both sides read one
+source. This is preferred over codegen: codegen adds a build step, a generated artifact to keep
+current, and a "did anyone re-run the generator" failure mode, while sharing source makes drift
+impossible by construction rather than merely detectable.
+
+What it actually costs, having checked:
+- **The client must add `zod`** (server is on `^4.4.3`; the client has none today and uses
+  `react-hook-form` without a resolver). It is needed only so TypeScript can resolve
+  `z.infer<>`. With `import type`, **zero runtime bytes reach the bundle** — the import is
+  erased at compile time. So this is one dependency, not a bundle-size cost. Keep the versions
+  pinned together; two zod copies drifting would be the one way this bites.
+- **Vite needs `server.fs.allow`** widened to reach outside `client/` in dev (the config sets
+  nothing today). One line.
+- **`rootDir` is already the repo root** for the server build (`schemas/` lives there and is
+  compiled), so adding a sibling `shared/` does not shift `dist/` layout or break
+  `main: dist/index.js` / the Procfile.
+- Heroku checks out the whole repo before `heroku-postbuild` runs `cd client && npm install`,
+  so `../shared` exists on disk at client build time.
+
+The two projects installing independently — the reason originally given for preferring codegen
+— only affects *dependencies*, not source sharing, and is handled by the zod line above.
 
 ## 4. Replace hand-rolled UI primitives with a component library
 
