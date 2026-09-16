@@ -74,6 +74,16 @@ guarding a refactor, and a mock only asserts the query string was retyped identi
   don't set them in component styles except a deliberate override. `scripts/typography.test.js`
   enforces it. Font sizes are still set per component.
 
+## Tech debt
+
+`TECH_DEBT.md` is the running triage list for **medium-to-large** tech debt. When you find
+something structural while planning or building a feature, append an entry there rather than
+fixing it inline or forgetting it. Entries may propose replacing hand-rolled code with a
+library; they do not have to match how the codebase does things today.
+
+**Nothing in that file gets implemented without the owner signing off.** It is a triage list,
+not a work queue. Tiny cleanups do not belong there.
+
 ## Changelog
 
 The in-app What's New list is `client/src/config/changelog.js`, maintained by hand. **When a
