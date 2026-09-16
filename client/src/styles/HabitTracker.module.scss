@@ -691,8 +691,8 @@
 
 .confirmDelete {
   padding: 10px 18px;
-  background-color: vars.$error;
-  border: 2px solid vars.$error;
+  background-color: vars.$error-strong;
+  border: 2px solid vars.$error-strong;
   border-radius: 10px;
   color: vars.$text;
   font-size: 15px;
