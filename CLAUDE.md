@@ -76,13 +76,19 @@ guarding a refactor, and a mock only asserts the query string was retyped identi
 
 ## Tech debt
 
-`TECH_DEBT.md` is the running triage list for **medium-to-large** tech debt. When you find
-something structural while planning or building a feature, append an entry there rather than
-fixing it inline or forgetting it. Entries may propose replacing hand-rolled code with a
-library; they do not have to match how the codebase does things today.
+`.claude/tech-debt/` is the running triage list for **medium-to-large** tech debt: `README.md`
+is the index, one file per item. When you find something structural while planning or building a
+feature, add an entry there rather than fixing it inline or forgetting it. Entries may propose
+replacing hand-rolled code with a library; they do not have to match how the codebase does
+things today.
 
-**Nothing in that file gets implemented without the owner signing off.** It is a triage list,
-not a work queue. Tiny cleanups do not belong there.
+**Nothing in it gets implemented without the owner signing off.** It is a triage list, not a
+work queue. Tiny cleanups do not belong there.
+
+That directory is **gitignored on purpose** — it is planning scratch, not repo content. Two
+consequences: it never shows up in a PR diff, and **a worktree will not have it**, since
+worktrees do not inherit untracked files. A brief that needs it must point at the absolute path
+in the main checkout.
 
 ## Changelog
 

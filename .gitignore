@@ -53,3 +53,6 @@ node_modules
 # Local-only: per-user Claude Code settings and a scratch asset.
 /.claude/settings.json
 /mountain-svgrepo-com.svg
+
+# Tech-debt triage notes: planning scratch, not repo content.
+.claude/tech-debt/
