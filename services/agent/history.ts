@@ -1,6 +1,8 @@
 // Trims replayed chat history before it is converted to model messages (#325).
-// Older turns keep text, propose_* calls and barcode grounding; reasoning,
-// other tool payloads and inline images become compact placeholders.
+// Older turns keep text, propose_* calls (provider item-id metadata stripped
+// so they replay as inline content, not a server-side reference) and barcode
+// grounding; reasoning, other tool payloads and inline images are dropped or
+// become compact placeholders.
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ChatMessage = any;
@@ -25,6 +27,16 @@ function toolPlaceholder(part: MessagePart): MessagePart {
   return { type: 'text', text: `[${toolName(part)} lookup result omitted to save space]` };
 }
 
+// With this metadata present, OpenAI replays a part as a reference to a
+// stored server-side item instead of as inline content; referencing a text
+// item without its reasoning partner (dropped by trimming) is what the
+// Responses API rejects.
+function stripReplayProviderMetadata(part: MessagePart): MessagePart {
+  if (!part || typeof part !== 'object') return part;
+  const { providerMetadata, callProviderMetadata, resultProviderMetadata, ...rest } = part;
+  return rest;
+}
+
 // Returns null when nothing worth replaying remains, so the whole message is dropped.
 function trimAssistantMessage(message: ChatMessage): ChatMessage | null {
   const parts: MessagePart[] = Array.isArray(message.parts) ? message.parts : [];
@@ -32,7 +44,7 @@ function trimAssistantMessage(message: ChatMessage): ChatMessage | null {
   for (const part of parts) {
     const name = toolName(part);
     if (part?.type === 'text' || name?.startsWith('propose_')) {
-      kept.push(part);
+      kept.push(stripReplayProviderMetadata(part));
     } else if (name !== null) {
       kept.push(toolPlaceholder(part));
     }
