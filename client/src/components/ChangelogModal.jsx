@@ -83,7 +83,7 @@ export default function ChangelogModal({ open, onClose }) {
                       <li key={text}>
                         {text}
                         {isMine && (
-                          <span className={styles.submittedBadge}>You submitted this</span>
+                          <span className={styles.submittedBadge}>You submitted this!</span>
                         )}
                       </li>
                     );
