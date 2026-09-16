@@ -48,10 +48,10 @@
 }
 
 .confirm {
-  background-color: vars.$error;
+  background-color: vars.$error-strong;
   color: vars.$text;
 
   &:hover {
-    background-color: color.adjust(vars.$error, $lightness: -10%);
+    background-color: color.adjust(vars.$error-strong, $lightness: -10%);
   }
 }

@@ -7,7 +7,13 @@ $button-hover: rgba($primary, 0.8);
 $surface: #282B28;
 $surface-border: #575757;
 $text: #EBEDE9;
-$error: #ED1518;
+// Hue-0 twin of $primary at the same saturation/lightness (73%/68%), so the
+// destructive red and the brand green read as one family. 6.2:1 on
+// $background and 5.2:1 on $surface, both passing WCAG AA for text use.
+$error: #E97272;
+// For solid $error fills under light text, where $error itself only hits
+// 3.0:1 against white. 6.1:1 against white, passing WCAG AA.
+$error-strong: #B3342F;
 
 $sarabun: "Sarabun", sans-serif;
 // Applied globally on `body` in index.css. Reference this in a component rule
