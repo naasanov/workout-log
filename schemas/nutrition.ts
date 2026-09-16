@@ -207,6 +207,9 @@ export const proposeEntryArgsSchema = entryInputSchema
   .extend({
     ingredients: z.array(proposeIngredientSchema).min(1),
     notes: z.string().max(400).nullable().optional(),
+    // Which day to log this under. Optional: omitting it keeps today's
+    // behavior (the client falls back to the viewed/selected day).
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   });
 export type ProposeEntryArgs = z.infer<typeof proposeEntryArgsSchema>;
 export type FoodSearchResult = z.infer<typeof foodSearchResultSchema>;
@@ -316,6 +319,9 @@ export const proposeEntryToolArgsSchema = entryInputSchema
   .extend({
     ingredients: z.array(proposeIngredientArgsSchema).min(1),
     notes: z.string().max(400).nullable().optional(),
+    // Which day to log this under. Optional: omitting it keeps today's
+    // behavior (the client falls back to the viewed/selected day).
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   });
 export type ProposeEntryToolArgs = z.infer<typeof proposeEntryToolArgsSchema>;
 

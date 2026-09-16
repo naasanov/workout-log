@@ -118,6 +118,11 @@
     outline: none;
     border-bottom-color: vars.$primary;
   }
+
+  // Native date picker icon is otherwise near-invisible against the dark theme.
+  &[type="date"] {
+    color-scheme: dark;
+  }
 }
 
 .inputSmall {

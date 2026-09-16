@@ -421,7 +421,11 @@ export const nutritionTools: ToolModule = ({ userUuid, selectedDate, flags }: To
     propose_entry: tool({
       description:
         'Propose a structured food entry for the user to review and confirm. Call this once you are confident about food identity and portion. For a weight-based ingredient, include quantity, unit (a real household serving label), portions list, and grams = quantity × unit_grams. For a SERVING-BASIS ingredient with no gram weight (e.g. a UNC dining item), instead set serving_qty (how many servings) and serving_label (the serving as published, e.g. "½ cup"), leave grams null, and set source: \'unc\'. Every ingredient must set EXACTLY ONE basis — grams, OR serving_qty + serving_label — never both, never neither. Do NOT compute macros yourself: pass base (the per100g or per_serving record exactly as a search/barcode/UNC tool returned it) alongside grams or serving_qty, and the server scales it into calories/protein_g/carbs_g/fat_g. Only set those macro fields directly when you have no base record (a freeform estimate). The user will see an editor pre-filled with these values and can adjust before saving.',
-      inputSchema: proposeEntryToolArgsSchema,
+      inputSchema: proposeEntryToolArgsSchema.extend({
+        date: proposeEntryToolArgsSchema.shape.date.describe(
+          "YYYY-MM-DD, the day this entry should be logged under. Omit for the day the user is currently viewing. Set it explicitly when the user names a different day ('yesterday', 'Monday', 'the 12th').",
+        ),
+      }),
       execute: async (args) => {
         const resolved = proposeEntryArgsSchema.parse({
           ...args,
