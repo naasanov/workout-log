@@ -11,6 +11,16 @@
 
 export const CHANGELOG = [
   {
+    date: '2026-09-15',
+    title: 'Log food for any day, fresher chats, and a calmer red',
+    items: [
+      { text: 'The assistant can log a food entry for a day other than the one you are viewing, so “I had this yesterday” files it on the right day. The entry card shows which day it will use, and you can still change it before saving', issues: [344] },
+      { text: 'Fixed an error that could get stuck in a longer AI chat, where every reply failed until you started a new conversation', issues: [355] },
+      { text: 'Your chat starts fresh on a new day, while a conversation still going past midnight is left alone', issues: [354] },
+      { text: 'Delete buttons and error messages use a softer red that fits the rest of the app instead of a harsh fire-engine red', issues: [353] },
+    ],
+  },
+  {
     date: '2026-09-12',
     title: 'Body weight ranges, full-screen chat photos, and quicker food edits',
     items: [
