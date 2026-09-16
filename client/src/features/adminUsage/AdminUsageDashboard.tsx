@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
+import { Info } from 'lucide-react';
 import { useAdminUsageReport } from './api';
 import { computeRange, DEFAULT_RANGE_DAYS } from './range';
 import { formatUsd, formatUsdPrecise, formatCompactNumber, formatPercent, formatAverage } from './format';
+import type { UserUsageBreakdown } from './types';
 import styles from '../../styles/AdminUsageDashboard.module.scss';
 
 interface RangeDef {
@@ -17,6 +19,8 @@ const RANGE_DEFS: RangeDef[] = [
   { key: '30D', label: '30D', days: DEFAULT_RANGE_DAYS },
   { key: '90D', label: '90D', days: 90 },
 ];
+
+const CUSTOM_RANGE_KEY = 'CUSTOM';
 
 // ai_usage rows before this date have no cached, step, tool-call or web-search counts
 // (summed as 0), and their cost priced all input at the uncached rate.
@@ -36,14 +40,39 @@ const COLOR_CACHED = '#199e70';
 const COLOR_OUTPUT = '#d95926';
 const COLOR_COST = '#70EB70';
 
+// Shortens a uuid for display when a user has no email on file (e.g. a
+// deleted account), so the per-user breakdown still identifies the row.
+function shortUuid(uuid: string): string {
+  return `${uuid.slice(0, 8)}…`;
+}
+
+function userLabel(row: UserUsageBreakdown): string {
+  return row.email ?? shortUuid(row.userUuid);
+}
+
 function AdminUsageDashboard() {
   const [rangeKey, setRangeKey] = useState('30D');
-  const rangeDef = RANGE_DEFS.find((r) => r.key === rangeKey) ?? RANGE_DEFS[1];
-  const { from, to } = useMemo(() => computeRange(rangeDef.days), [rangeDef]);
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [userFilter, setUserFilter] = useState('');
+  const [showCutoffNote, setShowCutoffNote] = useState(false);
 
-  const query = useAdminUsageReport(from, to, true);
+  const isCustom = rangeKey === CUSTOM_RANGE_KEY;
+  const rangeDef = RANGE_DEFS.find((r) => r.key === rangeKey) ?? RANGE_DEFS[1];
+  const presetRange = useMemo(() => computeRange(rangeDef.days), [rangeDef]);
+
+  // Custom dates are the exact YYYY-MM-DD the user picked, passed straight through
+  // rather than converted to UTC days like the preset chips (see range.ts).
+  const customRangeValid = customFrom !== '' && customTo !== '' && customFrom <= customTo;
+  const { from, to } = isCustom ? { from: customFrom, to: customTo } : presetRange;
+  // A backwards or incomplete custom range disables the fetch instead of sending
+  // it to the server, which would otherwise 400 or silently return nothing.
+  const rangeReady = !isCustom || customRangeValid;
+
+  const query = useAdminUsageReport(from, to, rangeReady, userFilter || undefined);
   const report = query.data;
   const totals = report?.totals;
+  const byUser = report?.byUser ?? [];
 
   const dailyChartData = useMemo(
     () => (report?.daily ?? []).map((d) => ({
@@ -74,9 +103,62 @@ function AdminUsageDashboard() {
             {r.label}
           </button>
         ))}
+        <button
+          type="button"
+          aria-pressed={isCustom}
+          className={`${styles.rangeChip} ${isCustom ? styles.rangeChipActive : ''}`}
+          onClick={() => setRangeKey(CUSTOM_RANGE_KEY)}
+        >
+          Custom
+        </button>
       </div>
 
-      {query.isLoading ? (
+      {isCustom && (
+        <div className={styles.customRangeRow}>
+          <label className={styles.customRangeField}>
+            <span>From</span>
+            <input
+              type="date"
+              className={styles.dateInput}
+              value={customFrom}
+              max={customTo || undefined}
+              onChange={(e) => setCustomFrom(e.target.value)}
+            />
+          </label>
+          <label className={styles.customRangeField}>
+            <span>To</span>
+            <input
+              type="date"
+              className={styles.dateInput}
+              value={customTo}
+              min={customFrom || undefined}
+              onChange={(e) => setCustomTo(e.target.value)}
+            />
+          </label>
+        </div>
+      )}
+
+      {byUser.length > 0 && (
+        <div className={styles.userFilterRow}>
+          <label className={styles.userFilterLabel}>
+            <span>User</span>
+            <select
+              className={styles.userSelect}
+              value={userFilter}
+              onChange={(e) => setUserFilter(e.target.value)}
+            >
+              <option value="">All users</option>
+              {byUser.map((u) => (
+                <option key={u.userUuid} value={u.userUuid}>{userLabel(u)}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+
+      {!rangeReady ? (
+        <p className={styles.empty}>Pick a "from" date on or before "to" to load usage.</p>
+      ) : query.isLoading ? (
         <p className={styles.empty}>Loading…</p>
       ) : query.isError ? (
         <p className={styles.empty}>Couldn't load usage data. Try again shortly.</p>
@@ -84,17 +166,22 @@ function AdminUsageDashboard() {
         <p className={styles.empty}>No AI usage recorded in this range.</p>
       ) : totals ? (
         <>
-          {showOldDataNote && (
-            <p className={styles.note}>
-              Rows before {USAGE_SCHEMA_CUTOFF} predate per-step tracking (steps, tool calls, web
-              search, and cache stats weren't recorded yet) and were costed as if fully uncached,
-              overstating their cost by roughly 2.5x. Totals for this range include them as-is.
-            </p>
-          )}
-
           <div className={styles.statsGrid}>
             <div className={styles.statTile}>
-              <span className={styles.statLabel}>Estimated cost</span>
+              <span className={styles.statLabel}>
+                Estimated cost
+                {showOldDataNote && (
+                  <button
+                    type="button"
+                    className={styles.infoButton}
+                    aria-expanded={showCutoffNote}
+                    aria-label="Why pre-cutoff cost may be overstated"
+                    onClick={() => setShowCutoffNote((v) => !v)}
+                  >
+                    <Info size={12} />
+                  </button>
+                )}
+              </span>
               <span className={styles.statValue}>{formatUsd(totals.costUsd)}</span>
             </div>
             <div className={styles.statTile}>
@@ -124,6 +211,14 @@ function AdminUsageDashboard() {
               <span className={styles.statValue}>{formatCompactNumber(totals.webSearchCalls)}</span>
             </div>
           </div>
+
+          {showOldDataNote && showCutoffNote && (
+            <p className={styles.note}>
+              Rows before {USAGE_SCHEMA_CUTOFF} predate per-step tracking (steps, tool calls, web
+              search, and cache stats weren't recorded yet) and were costed as if fully uncached,
+              overstating their cost by roughly 2.5x. Totals for this range include them as-is.
+            </p>
+          )}
 
           <h3 className={styles.chartHeading}>Estimated cost per day</h3>
           <div className={styles.chartWrap}>
@@ -197,6 +292,36 @@ function AdminUsageDashboard() {
               </BarChart>
             </ResponsiveContainer>
           </div>
+
+          {byUser.length > 0 && (
+            <>
+              <h3 className={styles.chartHeading}>Usage by user</h3>
+              <div className={styles.userTableWrap}>
+                <table className={styles.userTable}>
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Turns</th>
+                      <th>Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {byUser.map((u) => (
+                      <tr
+                        key={u.userUuid}
+                        className={u.userUuid === userFilter ? styles.userRowActive : ''}
+                        onClick={() => setUserFilter(u.userUuid === userFilter ? '' : u.userUuid)}
+                      >
+                        <td>{userLabel(u)}</td>
+                        <td>{formatCompactNumber(u.turns)}</td>
+                        <td>{formatUsd(u.costUsd)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </>
       ) : null}
     </section>
