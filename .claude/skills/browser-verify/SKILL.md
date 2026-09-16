@@ -336,6 +336,37 @@ signup/cleanup needed; `lib/browser.mjs` defaults to it.
   `authenticateToken` in `routes/auth.ts`. `lib/browser.mjs` wires up both
   separately: cookie for the browser context, bearer header for the `api`
   request context used to seed/clean fixtures.
+- **A relative `fetch('/api/...')` inside `page.evaluate` hits VITE, not the API
+  server** — it resolves against the page's origin, and vite answers unknown
+  paths with `index.html`. So the check comes back `status: 200` with an empty
+  parsed body and *looks like it passed* against a server it never contacted.
+  This silently produced two false PASSes in one run (a missing `byUser` key and
+  a `400` validation case reported as `200`). Always assert API shape through the
+  `api` request context, which is absolute and carries the bearer token; keep
+  `page.evaluate` for DOM.
+- **Route paths are not guessable — grep `index.ts` for the mount.** Mounts live
+  there (`app.use('/api/feedback', feedback)`), and the sub-path can be nothing
+  like the UI concept: the changelog badge's endpoint is `feedback/my-issues`,
+  not `feedback/submitted-issues`. A wrong path returns vite's HTML, which fails
+  as `SyntaxError: Unexpected token '<'` rather than a 404.
+- **Column is `users.user_uuid`, not `users.uuid`.** `SELECT BIN_TO_UUID(user_uuid)
+  AS uuid FROM users WHERE email = 'dev@dev.com'` is the way to get the dev
+  user's uuid for direct seeding.
+- **`chat_messages` still has a legacy non-null `date` column** alongside
+  `conversation_id`; a direct INSERT that omits it fails.
+- **You cannot INSERT a second active conversation.** `conversations.uniq_user_active_slot`
+  enforces at most one per user, and merely loading the app creates one, so a
+  seeding INSERT fails with `ER_DUP_ENTRY`. Reuse the row where
+  `archived_at IS NULL` instead — and then delete only your own seeded
+  `chat_messages` in cleanup, never the conversation, or you take real data with it.
+- **The changelog "You submitted this!" badge keys off `feedback.issue_number`.**
+  Posting through `POST /feedback` leaves that column NULL (it is set later when
+  the row syncs to GitHub), so a fixture created via the API never badges. Seed
+  the row directly with an `issue_number` that an entry in
+  `client/src/config/changelog.js` actually tags.
+- **An EntryEditor field you are asserting on is an `<input>`, so it is absent
+  from `document.body.innerText`.** Checking for the fixture's name as page text
+  reports `false` even though the card rendered correctly. Read `.value`.
 
 ## Cleanup checklist after any verification session
 
