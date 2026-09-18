@@ -316,11 +316,8 @@ router.post('/', async (req, res): Promise<any> => {
     return res.status(400).json({ message: 'today must be a YYYY-MM-DD date string' });
   }
 
-  // The client's real local date (#369), sent on every request regardless of
-  // tab. Falls back to the server's UTC date only when absent/malformed --
-  // that fallback is wrong in US evenings, which is why the client always
-  // sends its own. `selectedDate` (the day being viewed, e.g. the nutrition
-  // tab's date picker) falls back to `today` when the client has no picker.
+  // The client's local date, with the server's UTC date as a fallback (wrong in
+  // US evenings). `selectedDate` is the day being viewed and defaults to today.
   const resolvedToday = typeof today === 'string' && BARE_DATE.test(today) ? today : new Date().toISOString().slice(0, 10);
   const selectedDate = context?.selectedDate ?? resolvedToday;
 

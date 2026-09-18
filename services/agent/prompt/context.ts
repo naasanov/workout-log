@@ -17,11 +17,7 @@ export interface ConfirmedResult {
 }
 
 export interface VolatileContextInput {
-  /**
-   * ISO-8601 date string: YYYY-MM-DD — the user's real local "today",
-   * independent of what day they're viewing. Relative-day phrases like
-   * "yesterday" resolve against this, never against `selectedDate` (#369).
-   */
+  /** YYYY-MM-DD, the user's real local date. Relative days resolve against it, never `selectedDate`. */
   today: string;
   /** ISO-8601 date string: YYYY-MM-DD — the day the user is currently viewing */
   selectedDate: string;
@@ -74,10 +70,8 @@ export function buildVolatileContext({
   deniedProposalCount,
   confirmedResults,
 }: VolatileContextInput): string {
-  // The user may be viewing a day other than today (e.g. the nutrition tab's
-  // date picker on a past day). When that happens, both dates are surfaced
-  // separately and the totals line is labeled with the viewed day so the
-  // model never mistakes "viewing" for "now" (#369).
+  // A viewed day other than today is surfaced on its own line, and the totals
+  // are labeled with it, so the model never treats the viewed day as now.
   const viewingOtherDay = selectedDate !== today;
   const totalsLabel = viewingOtherDay ? `${selectedDate} so far` : `Today (${today}) so far`;
 

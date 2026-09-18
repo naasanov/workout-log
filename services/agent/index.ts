@@ -24,11 +24,8 @@ export const TOOL_MODULES: ToolModule[] = [nutritionTools, mutationTools, ...rea
 export interface ChatOptions {
   userUuid: string;
   /**
-   * ISO-8601 date string: YYYY-MM-DD — the user's real local "today",
-   * independent of what day they're viewing (#369). Optional so callers with
-   * no client-local-date signal of their own (routes/apiV1.ts, routes/nutrition.ts)
-   * keep working unchanged; it then falls back to `selectedDate`, matching
-   * their pre-#369 behavior.
+   * YYYY-MM-DD, the user's real local date regardless of the day being viewed.
+   * Callers without a client date (apiV1, nutrition routes) omit it and get `selectedDate`.
    */
   today?: string;
   /** ISO-8601 date string: YYYY-MM-DD — the day the user is currently viewing */
@@ -183,8 +180,6 @@ export async function streamChat({
 
   const uncEnabled = flags.unc_dining;
 
-  // Callers with no client-local-date signal (routes/apiV1.ts, routes/nutrition.ts)
-  // omit `today`, so it falls back to `selectedDate` -- their pre-#369 behavior.
   const resolvedToday = today ?? selectedDate;
 
   const goalsLine = [

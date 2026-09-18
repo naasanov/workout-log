@@ -66,8 +66,7 @@ export interface ConversationWithMessages {
 /**
  * Today's local calendar date, YYYY-MM-DD. Same derivation as
  * NutritionTracker.tsx's getTodayLocalDate (kept in sync by hand, not
- * imported, since that module belongs to a different feature). Exported so
- * AgentChat.tsx can send it as `today` on every chat request (#369).
+ * imported, since that module belongs to a different feature).
  */
 export function getTodayLocalDate(): string {
   const now = new Date();
