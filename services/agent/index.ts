@@ -23,6 +23,11 @@ export const TOOL_MODULES: ToolModule[] = [nutritionTools, mutationTools, ...rea
 
 export interface ChatOptions {
   userUuid: string;
+  /**
+   * YYYY-MM-DD, the user's real local date regardless of the day being viewed.
+   * Callers without a client date (apiV1, nutrition routes) omit it and get `selectedDate`.
+   */
+  today?: string;
   /** ISO-8601 date string: YYYY-MM-DD — the day the user is currently viewing */
   selectedDate: string;
   /** Name of the client tab the user is currently on (e.g. "workouts", "nutrition"). */
@@ -152,6 +157,7 @@ function buildBarcodeToolResultMessages(
 /** Kick off the AI chat loop; returns the StreamTextResult for the caller to pipe. */
 export async function streamChat({
   userUuid,
+  today,
   selectedDate,
   tab,
   focusedResource,
@@ -174,6 +180,8 @@ export async function streamChat({
 
   const uncEnabled = flags.unc_dining;
 
+  const resolvedToday = today ?? selectedDate;
+
   const goalsLine = [
     goals.calories != null ? `${goals.calories} kcal` : null,
     goals.protein_g != null ? `${goals.protein_g}g protein` : null,
@@ -185,6 +193,7 @@ export async function streamChat({
 
   const system = buildSystemPrompt({
     uncEnabled,
+    today: resolvedToday,
     selectedDate,
     tab,
     focusedResource,

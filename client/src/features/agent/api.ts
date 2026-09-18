@@ -68,7 +68,7 @@ export interface ConversationWithMessages {
  * NutritionTracker.tsx's getTodayLocalDate (kept in sync by hand, not
  * imported, since that module belongs to a different feature).
  */
-function getTodayLocalDate(): string {
+export function getTodayLocalDate(): string {
   const now = new Date();
   const y = now.getFullYear();
   const m = String(now.getMonth() + 1).padStart(2, '0');

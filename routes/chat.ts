@@ -297,12 +297,13 @@ router.post('/conversations/:id/resolutions', async (req, res): Promise<any> => 
 // the agent what tab/date/resource the user is currently looking at.
 router.post('/', async (req, res): Promise<any> => {
   const { uuid }: User = res.locals.user;
-  const { messages, context, effort, deniedProposalCount } = req.body as {
+  const { messages, context, effort, deniedProposalCount, today } = req.body as {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     messages: any[];
     context?: ChatContext;
     effort?: 'none' | 'minimal' | 'low' | 'medium' | 'high';
     deniedProposalCount?: number;
+    today?: unknown;
   };
 
   if (!Array.isArray(messages)) {
@@ -311,8 +312,14 @@ router.post('/', async (req, res): Promise<any> => {
   if (!isValidChatContext(context)) {
     return res.status(400).json({ message: 'context must describe { tab?, selectedDate?, focusedResource? }' });
   }
+  if (today !== undefined && (typeof today !== 'string' || !BARE_DATE.test(today))) {
+    return res.status(400).json({ message: 'today must be a YYYY-MM-DD date string' });
+  }
 
-  const selectedDate = context?.selectedDate ?? new Date().toISOString().slice(0, 10);
+  // The client's local date, with the server's UTC date as a fallback (wrong in
+  // US evenings). `selectedDate` is the day being viewed and defaults to today.
+  const resolvedToday = typeof today === 'string' && BARE_DATE.test(today) ? today : new Date().toISOString().slice(0, 10);
+  const selectedDate = context?.selectedDate ?? resolvedToday;
 
   try {
     const conversationId = await resolveActiveConversationId(uuid);
@@ -338,6 +345,7 @@ router.post('/', async (req, res): Promise<any> => {
 
     const result = await streamChat({
       userUuid: uuid,
+      today: resolvedToday,
       selectedDate,
       tab: context?.tab,
       focusedResource: context?.focusedResource,
