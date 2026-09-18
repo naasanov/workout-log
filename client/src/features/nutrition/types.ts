@@ -1,9 +1,37 @@
-// Client-side mirror of the backend contract in main/workout-log/schemas/nutrition.ts.
-// Kept in sync by hand (the client is a separate Vite/TS project).
+// Type-only re-exports of the server's nutrition contract (see shared/nutrition.ts).
+// `import type` here and at every call site keeps zod and the server's validation
+// logic out of the client bundle. Client-only UI types are declared below.
+export type {
+  Meal,
+  EntrySource,
+  IngredientSource,
+  Per100g,
+  FoodPortion,
+  FoodSearchResult,
+  IngredientInput,
+  IngredientRow,
+  ProposeIngredient,
+  ProposeEntryArgs,
+  EntryInput,
+  EntryRow,
+  DayTotals,
+  DayResponse,
+  Goals,
+  CustomServing,
+  CustomFoodInput,
+  ProposeCustomFoodIngredient,
+  ProposeCustomFoodServing,
+  ProposeCustomFoodArgs,
+  CustomFoodRow,
+} from '../../../../shared/nutrition';
 
-export type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snack';
-export type EntrySource = 'manual' | 'text' | 'photo' | 'barcode' | 'mixed' | 'custom';
-export type IngredientSource = 'usda' | 'off' | 'manual' | 'custom' | 'unc';
+import type {
+  Meal,
+  EntryRow,
+  EntryInput,
+  ProposeEntryArgs,
+  FoodSearchResult,
+} from '../../../../shared/nutrition';
 
 export const MEALS: Meal[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
@@ -13,44 +41,6 @@ export const MEAL_LABELS: Record<Meal, string> = {
   dinner: 'Dinner',
   snack: 'Snack / Other',
 };
-
-export interface Per100g {
-  calories: number;
-  protein_g: number;
-  carbs_g: number;
-  fat_g: number;
-  fiber_g?: number | null;
-  sugar_g?: number | null;
-  sodium_mg?: number | null;
-}
-
-// A household serving size, e.g. { label: "medium", grams: 118 }.
-// `grams` = weight of ONE unit (effective grams = quantity * grams).
-export interface FoodPortion {
-  label: string;
-  grams: number;
-}
-
-export interface FoodSearchResult {
-  name: string;
-  source: 'usda' | 'off' | 'custom' | 'unc';
-  source_ref: string;
-  // Weight basis: null for a serving-basis result (UNC dining) — see per_serving.
-  per100g: Per100g | null;
-  // Serving basis (UNC dining): nutrients for ONE serving, no gram equivalent.
-  // Exactly one of per100g / per_serving is set (never both, never neither).
-  per_serving?: Per100g | null;
-  // Display label for the serving per_serving is measured in (e.g. "1/2 cup").
-  serving_label?: string | null;
-  serving_grams?: number | null;
-  // Open Food Facts' human-readable serving text (e.g. "3 slices (63 g)"),
-  // when the source publishes one. Null/absent when OFF has no serving_size.
-  serving_description?: string | null;
-  // Serving sizes attached inline for the top result(s) (#8).
-  portions?: FoodPortion[] | null;
-  // For custom items: disambiguate food vs meal for badge display.
-  kind?: 'food' | 'meal';
-}
 
 // ---- Barcode chat attachment (a scanned barcode attached to a chat message) ----
 // The screenshot (`imageDataUrl`) is UI-ONLY — it renders as the chip thumbnail
@@ -78,186 +68,12 @@ export interface ImageRedactedData {
   mediaType: string;
 }
 
-export interface IngredientInput {
-  name: string;
-  // Weight basis: null for a serving-basis row (UNC dining) — see serving_qty
-  // / serving_label. Exactly one basis is set (never both, never neither).
-  grams: number | null;
-  source: IngredientSource;
-  source_ref?: string | null;
-  calories: number;
-  protein_g: number;
-  carbs_g: number;
-  fat_g: number;
-  // Optional micros (Phase B — custom foods & meals)
-  fiber_g?: number | null;
-  sugar_g?: number | null;
-  sodium_mg?: number | null;
-  // Serving basis: an alternative to `grams` for foods with no gram weight
-  // (e.g. UNC's "1/2 cup", "1 each"). Both fields are set together or not at all.
-  serving_qty?: number | null;
-  serving_label?: string | null;
-}
-export interface IngredientRow extends IngredientInput {
-  id: number;
-}
-
-// A proposed ingredient: an IngredientInput plus optional serving metadata so the
-// editor can pre-select a real serving ("1 medium") instead of raw grams (#10).
-// `grams` is the RESOLVED effective grams (quantity * unit grams). unit==='g' = raw grams.
-export interface ProposeIngredient extends IngredientInput {
-  quantity?: number | null;
-  unit?: string | null;
-  portions?: FoodPortion[] | null;
-}
-
-// What the agent's propose_entry tool emits (no localDate; serving-aware rows).
-// `notes` is OPTIONAL — populated ONLY when the AI needs to explain a confusing
-// or non-obvious choice (e.g. odd decimal grams, ambiguous food selection). Must
-// NOT be an always-present summary.
-export interface ProposeEntryArgs {
-  meal: Meal;
-  name: string;
-  source: EntrySource;
-  barcode?: string | null;
-  raw_llm_json?: unknown;
-  ingredients: ProposeIngredient[];
-  notes?: string | null;
-  // Which day to log this under. Optional: omitted means the day the user
-  // is currently viewing (see NutritionToolRenderers' ProposeEntryRenderer).
-  date?: string;
-}
-
-export interface EntryInput {
-  localDate: string; // YYYY-MM-DD
-  meal: Meal;
-  name: string;
-  source: EntrySource;
-  barcode?: string | null;
-  raw_llm_json?: unknown;
-  ingredients: IngredientInput[];
-  // Provenance for entries logged from a custom food/meal (non-authoritative).
-  from_custom_food_id?: number | null;
-}
-
-export interface EntryRow {
-  id: number;
-  date: string; // YYYY-MM-DD
-  logged_at: string;
-  meal: Meal;
-  name: string;
-  source: EntrySource;
-  calories: number;
-  protein_g: number;
-  carbs_g: number;
-  fat_g: number;
-  fiber_g: number | null;
-  sugar_g: number | null;
-  sodium_mg: number | null;
-  barcode: string | null;
-  ingredients: IngredientRow[];
-}
-
-export interface DayTotals {
-  calories: number;
-  protein_g: number;
-  carbs_g: number;
-  fat_g: number;
-  fiber_g: number;
-  sugar_g: number;
-  sodium_mg: number;
-}
-export interface DayResponse {
-  date: string;
-  totals: DayTotals;
-  entries: EntryRow[];
-}
-
-export interface Goals {
-  calories?: number | null;
-  protein_g?: number | null;
-  carbs_g?: number | null;
-  fat_g?: number | null;
-  fiber_g?: number | null;
-}
-
 // ---- EntryEditor props contract (S2 implements the component) ----
 // Phase 1 implements 'manual-add' and 'manual-edit'. 'proposal' is wired in Phase 2.
 export type EntryEditorMode =
   | { kind: 'manual-add'; date: string; defaultMeal?: Meal }
   | { kind: 'manual-edit'; date: string; entry: EntryRow }
   | { kind: 'proposal'; date: string; proposal: ProposeEntryArgs };
-
-// ---- Custom Foods & Meals (Phase B — mirrors schemas/nutrition.ts) ----
-
-/** A user-defined serving size (by grams or fraction of batch). */
-export interface CustomServing {
-  id?: number;
-  label: string;
-  def_type: 'grams' | 'fraction';
-  def_value: number;
-  grams: number;
-  sort_order?: number;
-}
-
-/** Payload for creating or updating a custom food/meal. */
-export interface CustomFoodInput {
-  kind: 'food' | 'meal';
-  name: string;
-  notes?: string | null;
-  status: 'draft' | 'saved';
-  ingredients: IngredientInput[];
-  servings: CustomServing[];
-}
-
-/** What the agent's propose_custom_food tool emits: full builder payload for
- * creating a reusable custom food or meal. Rendered as an inline MealBuilder
- * card in the agent chat; on confirm the client POSTs to /nutrition/custom-foods. */
-export interface ProposeCustomFoodIngredient extends IngredientInput {
-  quantity?: number | null;
-  unit?: string | null;
-  portions?: FoodPortion[] | null;
-}
-
-export interface ProposeCustomFoodServing {
-  label: string;
-  def_type: 'grams' | 'fraction';
-  def_value: number;
-}
-
-export interface ProposeCustomFoodArgs {
-  kind: 'food' | 'meal';
-  name: string;
-  notes?: string | null;
-  ingredients: ProposeCustomFoodIngredient[];
-  servings: ProposeCustomFoodServing[];
-}
-
-/** A custom food/meal row returned from the server. */
-export interface CustomFoodRow {
-  id: number;
-  kind: 'food' | 'meal';
-  status: 'draft' | 'saved';
-  name: string;
-  notes?: string | null;
-  total_grams: number;
-  // Batch macros
-  calories: number;
-  protein_g: number;
-  carbs_g: number;
-  fat_g: number;
-  fiber_g?: number | null;
-  sugar_g?: number | null;
-  sodium_mg?: number | null;
-  // Derived per-100g macros
-  per100g: Per100g;
-  // Resolved ingredients (with ids)
-  ingredients: (IngredientInput & { id: number })[];
-  // Resolved servings (with ids and sort_order)
-  servings: (CustomServing & { id: number; sort_order: number })[];
-  created_at: string;
-  updated_at: string;
-}
 
 export interface EntryEditorProps {
   // `open` is ignored when `inline` is true (the editor renders in-flow in the

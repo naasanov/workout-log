@@ -19,7 +19,7 @@ let nutritionTools;
 
 test.before(() => {
   ({ proposeEntryToolArgsSchema, proposeEntryArgsSchema } = db.requireTs(
-    path.join(__dirname, '../schemas/nutrition.ts'),
+    path.join(__dirname, '../shared/nutrition.ts'),
   ));
   ({ resolveProposeIngredient, nutritionTools } = db.requireTs(
     path.join(__dirname, '../services/agent/tools/nutrition.ts'),
@@ -112,7 +112,7 @@ test("the propose_entry tool's inputSchema documents date and keeps it optional"
   assert.match(dateField.description || '', /Omit for the day the user is currently viewing/);
 
   // Still optional — a payload without it must still validate against the
-  // tool's own inputSchema (not just the shared schemas/nutrition.ts copy).
+  // tool's own inputSchema (not just the shared/nutrition.ts copy).
   const result = tools.propose_entry.inputSchema.safeParse(baseArgs());
   assert.equal(result.success, true);
 });

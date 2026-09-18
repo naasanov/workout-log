@@ -10,7 +10,7 @@ import { authenticateToken } from './auth';
 import SqlError from '../utils/sqlErrors';
 import { streamNutritionChat } from '../services/nutrition/agent';
 import * as nutritionStore from '../services/nutrition/store';
-import type { EntryInput } from '../schemas/nutrition';
+import type { EntryInput } from '../shared/nutrition';
 import * as workoutsStore from '../services/workouts';
 import * as habitsStore from '../services/habits/store';
 const { NO_REFERENCE_ERROR, WRONG_VALUE_ERROR } = SqlError;
@@ -663,7 +663,7 @@ router.post('/nutrition/entry', async (req, res): Promise<any> => {
             raw_llm_json: proposedEntry,
             // Ingredients carry EITHER a weight basis (grams) OR a serving basis
             // (serving_qty + serving_label) — never both, never neither (see
-            // checkIngredientBasis in schemas/nutrition.ts). A UNC dining ingredient
+            // checkIngredientBasis in shared/nutrition.ts). A UNC dining ingredient
             // has no gram weight to report, so `grams: null` here is legitimate, not
             // a bug — the serving fields are what make that row meaningful, and both
             // bases must be carried through faithfully for the exactly-one-basis

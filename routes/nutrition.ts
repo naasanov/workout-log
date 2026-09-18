@@ -4,7 +4,7 @@ import { authenticateToken } from './auth';
 import { validateId } from '../utils/validation';
 import handleSqlError from '../utils/handleSqlError';
 import { User } from '../types';
-import { entryInputSchema, goalsSchema, customFoodInputSchema, proposalResolutionInputSchema } from '../schemas/nutrition';
+import { entryInputSchema, goalsSchema, customFoodInputSchema, proposalResolutionInputSchema } from '../shared/nutrition';
 import * as store from '../services/nutrition/store';
 import { searchAllFoodsWithPortions, lookupBarcode, getPortions } from '../services/nutrition/providers';
 import { streamNutritionChat } from '../services/nutrition/agent';

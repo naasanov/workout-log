@@ -1,7 +1,7 @@
 // Shared contract for the Nutrition feature: zod request schemas + TypeScript
-// row/response types. Backend validates requests with these; the client mirrors
-// the types in client/src/features/nutrition/types.ts (kept in sync by hand —
-// the two npm projects don't share a tsconfig).
+// row/response types. The server validates requests with these; the client
+// imports the types only (see client/src/features/nutrition/types.ts), so no
+// zod runtime code reaches the client bundle.
 import { z } from 'zod';
 
 export const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
@@ -132,6 +132,10 @@ export const foodSearchResultSchema = z
     // Only meaningful alongside per_serving.
     serving_label: z.string().nullable().optional(),
     serving_grams: z.number().positive().nullable().optional(),
+    // Open Food Facts' human-readable serving text (e.g. "3 slices (63 g)"),
+    // when the source publishes one. Null/absent when OFF has no serving_size,
+    // and always absent for non-OFF sources.
+    serving_description: z.string().nullable().optional(),
     // Household serving sizes, attached inline for the top result(s) so the agent
     // can propose real servings without a separate get_portions call (#8). May be
     // omitted/empty when not (yet) fetched; the foodPortionSchema is defined below.

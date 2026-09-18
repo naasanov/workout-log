@@ -4,6 +4,7 @@ import { getUserEmail, getOwnerUsageReport } from '../services/nutrition/usage';
 import { getActualCostReport } from '../services/nutrition/openaiCosts';
 import handleSqlError from '../utils/handleSqlError';
 import { User } from '../types';
+import type { OwnerUsageReport } from '../shared/nutritionUsage';
 
 const router = Router();
 router.use(authenticateToken);
@@ -65,8 +66,9 @@ router.get('/usage', async (req, res): Promise<any> => {
     // Actual cost is org/project-wide (OpenAI has no per-user billing split),
     // so it's fetched for the range regardless of the userUuid filter above.
     const actualCost = await getActualCostReport(from, to);
+    const report: OwnerUsageReport = { from, to, ...data, actualCost };
     return res.status(200).json({
-      data: { from, to, ...data, actualCost },
+      data: report,
       message: 'AI usage report retrieved',
     });
   } catch (error) {

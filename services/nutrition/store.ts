@@ -22,8 +22,8 @@ import {
   CustomFoodRow,
   CustomServing,
   IngredientInput as IngredientInputSchema,
-} from '../../schemas/nutrition';
-import { FoodSearchResult } from '../../schemas/nutrition';
+} from '../../shared/nutrition';
+import { FoodSearchResult } from '../../shared/nutrition';
 
 /** Sum ingredient macros to produce entry-level totals. */
 function sumIngredients(ingredients: IngredientInput[]): {
