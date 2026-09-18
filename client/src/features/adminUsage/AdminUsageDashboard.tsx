@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { Info } from 'lucide-react';
 import { useAdminUsageReport } from './api';
 import { computeRange, DEFAULT_RANGE_DAYS } from './range';
-import { formatUsd, formatUsdPrecise, formatCompactNumber, formatPercent, formatAverage } from './format';
+import { formatUsd, formatCompactNumber, formatPercent, formatAverage } from './format';
 import type { UserUsageBreakdown } from './types';
 import styles from '../../styles/AdminUsageDashboard.module.scss';
 
@@ -39,6 +39,9 @@ const COLOR_UNCACHED = '#3987e5';
 const COLOR_CACHED = '#199e70';
 const COLOR_OUTPUT = '#d95926';
 const COLOR_COST = '#70EB70';
+// Dark-mode categorical slot 7 (violet), distinct from every other hue already
+// on this dashboard, for the actual-billed-cost series overlaid on COLOR_COST.
+const COLOR_ACTUAL_COST = '#9085e9';
 
 // Shortens a uuid for display when a user has no email on file (e.g. a
 // deleted account), so the per-user breakdown still identifies the row.
@@ -74,13 +77,17 @@ function AdminUsageDashboard() {
   const totals = report?.totals;
   const byUser = report?.byUser ?? [];
 
-  const dailyChartData = useMemo(
-    () => (report?.daily ?? []).map((d) => ({
+  const actualCost = report?.actualCost ?? null;
+  const hasActualCost = actualCost?.status === 'ok';
+
+  const dailyChartData = useMemo(() => {
+    const actualByDate = new Map((actualCost?.daily ?? []).map((d) => [d.date, d.costUsd]));
+    return (report?.daily ?? []).map((d) => ({
       ...d,
       label: format(new Date(`${d.day}T00:00:00`), 'MMM d'),
-    })),
-    [report],
-  );
+      actualCostUsd: actualByDate.get(d.day),
+    }));
+  }, [report, actualCost]);
 
   const totalInputTokens = totals ? totals.uncachedInputTokens + totals.cachedInputTokens : 0;
   const cacheHitRate = totalInputTokens > 0 ? (totals?.cachedInputTokens ?? 0) / totalInputTokens : NaN;
@@ -184,6 +191,14 @@ function AdminUsageDashboard() {
               </span>
               <span className={styles.statValue}>{formatUsd(totals.costUsd)}</span>
             </div>
+            {actualCost && (
+              <div className={styles.statTile}>
+                <span className={styles.statLabel}>Actual billed cost</span>
+                <span className={styles.statValue}>
+                  {hasActualCost ? formatUsd(actualCost?.totalUsd ?? 0) : 'Unavailable'}
+                </span>
+              </div>
+            )}
             <div className={styles.statTile}>
               <span className={styles.statLabel}>Turns</span>
               <span className={styles.statValue}>{formatCompactNumber(totals.turns)}</span>
@@ -191,7 +206,7 @@ function AdminUsageDashboard() {
             <div className={styles.statTile}>
               <span className={styles.statLabel}>Avg cost / turn</span>
               <span className={styles.statValue}>
-                {formatUsdPrecise(totals.turns > 0 ? totals.costUsd / totals.turns : 0)}
+                {formatUsd(totals.turns > 0 ? totals.costUsd / totals.turns : 0)}
               </span>
             </div>
             <div className={styles.statTile}>
@@ -220,7 +235,31 @@ function AdminUsageDashboard() {
             </p>
           )}
 
+          {hasActualCost && (
+            <p className={styles.note}>
+              Actual billed cost comes from OpenAI's organization-wide billing (not scoped to the
+              user filter above) and typically lags about a day behind real usage.
+            </p>
+          )}
+          {actualCost?.status === 'unavailable' && (
+            <p className={styles.note}>
+              {actualCost?.message ?? 'Actual billed cost is temporarily unavailable.'}
+            </p>
+          )}
+
           <h3 className={styles.chartHeading}>Estimated cost per day</h3>
+          {hasActualCost && (
+            <div className={styles.legend}>
+              <span className={styles.legendItem}>
+                <span className={styles.legendSwatch} style={{ backgroundColor: COLOR_COST }} />
+                Estimated
+              </span>
+              <span className={styles.legendItem}>
+                <span className={styles.legendSwatch} style={{ backgroundColor: COLOR_ACTUAL_COST }} />
+                Actual billed
+              </span>
+            </div>
+          )}
           <div className={styles.chartWrap}>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={dailyChartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
@@ -240,9 +279,20 @@ function AdminUsageDashboard() {
                 />
                 <Tooltip
                   contentStyle={TOOLTIP_STYLE}
-                  formatter={(value) => [formatUsdPrecise(Number(value)), 'Cost']}
+                  formatter={(value, name) => [
+                    formatUsd(Number(value)),
+                    name === 'actualCostUsd' ? 'Actual billed' : 'Estimated',
+                  ]}
                 />
                 <Bar dataKey="costUsd" fill={COLOR_COST} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                {hasActualCost && (
+                  <Bar
+                    dataKey="actualCostUsd"
+                    fill={COLOR_ACTUAL_COST}
+                    radius={[4, 4, 0, 0]}
+                    isAnimationActive={false}
+                  />
+                )}
               </BarChart>
             </ResponsiveContainer>
           </div>

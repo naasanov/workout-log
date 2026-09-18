@@ -7,21 +7,8 @@ const usdFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 2,
 });
 
-// Per-turn cost is usually a few cents, so it gets more precision than a
-// headline total does.
-const usdPreciseFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 4,
-});
-
 export function formatUsd(value: number): string {
   return usdFormatter.format(value);
-}
-
-export function formatUsdPrecise(value: number): string {
-  return usdPreciseFormatter.format(value);
 }
 
 const compactFormatter = new Intl.NumberFormat('en-US', {
