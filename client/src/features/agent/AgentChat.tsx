@@ -58,6 +58,7 @@ import {
   startNewConversation,
   fetchResolutions,
   saveResolution,
+  getTodayLocalDate,
   CONVERSATION_LIST_KEY,
 } from './api';
 import type { StoredChatMessage, ProposalResolution } from './api';
@@ -662,9 +663,13 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
       ...(msgText ? [{ type: 'text' as const, text: msgText }] : []),
     ];
 
+    // `today` is the client's real local date, sent on every send regardless
+    // of tab -- distinct from `context.selectedDate`, which is only the day
+    // being viewed (e.g. the nutrition tab's date picker) and is absent on
+    // tabs with no such picker. See routes/chat.ts and #369.
     await sendMessage(
       { parts } as Parameters<typeof sendMessage>[0],
-      { body: { context, deniedProposalCount } },
+      { body: { context, deniedProposalCount, today: getTodayLocalDate() } },
     );
   }, [canSend, text, pendingDenialCount, context, sendMessage, composerPlugin]);
 

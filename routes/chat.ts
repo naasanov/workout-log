@@ -297,12 +297,13 @@ router.post('/conversations/:id/resolutions', async (req, res): Promise<any> => 
 // the agent what tab/date/resource the user is currently looking at.
 router.post('/', async (req, res): Promise<any> => {
   const { uuid }: User = res.locals.user;
-  const { messages, context, effort, deniedProposalCount } = req.body as {
+  const { messages, context, effort, deniedProposalCount, today } = req.body as {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     messages: any[];
     context?: ChatContext;
     effort?: 'none' | 'minimal' | 'low' | 'medium' | 'high';
     deniedProposalCount?: number;
+    today?: unknown;
   };
 
   if (!Array.isArray(messages)) {
@@ -311,8 +312,17 @@ router.post('/', async (req, res): Promise<any> => {
   if (!isValidChatContext(context)) {
     return res.status(400).json({ message: 'context must describe { tab?, selectedDate?, focusedResource? }' });
   }
+  if (today !== undefined && (typeof today !== 'string' || !BARE_DATE.test(today))) {
+    return res.status(400).json({ message: 'today must be a YYYY-MM-DD date string' });
+  }
 
-  const selectedDate = context?.selectedDate ?? new Date().toISOString().slice(0, 10);
+  // The client's real local date (#369), sent on every request regardless of
+  // tab. Falls back to the server's UTC date only when absent/malformed --
+  // that fallback is wrong in US evenings, which is why the client always
+  // sends its own. `selectedDate` (the day being viewed, e.g. the nutrition
+  // tab's date picker) falls back to `today` when the client has no picker.
+  const resolvedToday = typeof today === 'string' && BARE_DATE.test(today) ? today : new Date().toISOString().slice(0, 10);
+  const selectedDate = context?.selectedDate ?? resolvedToday;
 
   try {
     const conversationId = await resolveActiveConversationId(uuid);
@@ -338,6 +348,7 @@ router.post('/', async (req, res): Promise<any> => {
 
     const result = await streamChat({
       userUuid: uuid,
+      today: resolvedToday,
       selectedDate,
       tab: context?.tab,
       focusedResource: context?.focusedResource,

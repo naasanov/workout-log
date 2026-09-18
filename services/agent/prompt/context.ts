@@ -17,6 +17,12 @@ export interface ConfirmedResult {
 }
 
 export interface VolatileContextInput {
+  /**
+   * ISO-8601 date string: YYYY-MM-DD — the user's real local "today",
+   * independent of what day they're viewing. Relative-day phrases like
+   * "yesterday" resolve against this, never against `selectedDate` (#369).
+   */
+  today: string;
   /** ISO-8601 date string: YYYY-MM-DD — the day the user is currently viewing */
   selectedDate: string;
   /** Name of the client tab the user is currently on (e.g. "workouts", "nutrition"). */
@@ -57,6 +63,7 @@ function summariseEntries(entries: VolatileContextInput['recentEntries']): strin
 
 /** Assemble the volatile tail of the system prompt from this request's context. */
 export function buildVolatileContext({
+  today,
   selectedDate,
   tab,
   focusedResource,
@@ -67,12 +74,19 @@ export function buildVolatileContext({
   deniedProposalCount,
   confirmedResults,
 }: VolatileContextInput): string {
+  // The user may be viewing a day other than today (e.g. the nutrition tab's
+  // date picker on a past day). When that happens, both dates are surfaced
+  // separately and the totals line is labeled with the viewed day so the
+  // model never mistakes "viewing" for "now" (#369).
+  const viewingOtherDay = selectedDate !== today;
+  const totalsLabel = viewingOtherDay ? `${selectedDate} so far` : `Today (${today}) so far`;
+
   let block = `\
-TODAY'S DATE: ${selectedDate}
+TODAY'S DATE: ${today}${viewingOtherDay ? `\nVIEWING DAY: ${selectedDate}` : ''}
 
 ## User context
 **Goals:** ${goalsLine || 'not set'}
-**Today (${selectedDate}) so far:** ${Math.round(todayTotals.calories)} kcal, ${Math.round(todayTotals.protein_g)}g P, ${Math.round(todayTotals.carbs_g)}g C, ${Math.round(todayTotals.fat_g)}g F
+**${totalsLabel}:** ${Math.round(todayTotals.calories)} kcal, ${Math.round(todayTotals.protein_g)}g P, ${Math.round(todayTotals.carbs_g)}g C, ${Math.round(todayTotals.fat_g)}g F
 
 **Recent meals (last 3 days):**
 ${summariseEntries(recentEntries)}`;
