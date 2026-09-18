@@ -8,7 +8,7 @@ const router = Router();
 const TOKEN_RE = /^[0-9a-f]{32}$/;
 
 /**
- * GET /:token — unauthenticated so GitHub's image proxy (and anyone with the
+ * GET /:token is unauthenticated so GitHub's image proxy (and anyone with the
  * link) can fetch a feedback screenshot straight from the DB. The token is
  * unguessable, so knowing it is the access control; no user/session check.
  */

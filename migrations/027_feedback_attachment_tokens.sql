@@ -1,10 +1,6 @@
--- Unguessable per-attachment token so images are served straight from this
--- app's own DB instead of GitHub's Contents API (#358) -- that upload never
--- worked because the token lacks Contents:write, so every screenshot showed
--- up as "(1 attachment failed to upload)". NULL for rows inserted earlier.
--- ADD COLUMN and ADD UNIQUE KEY are combined into one ALTER so a re-run hits
--- a single tolerated 1060 (duplicate column), not an untolerated "duplicate
--- key name" from a separate ADD KEY statement. migrate.js tolerates 1050/1060.
+-- Unguessable per-attachment token, so screenshots are served from this app's own DB (#358).
+-- One combined ALTER keeps a re-run to a single tolerated 1060 (duplicate column) error.
+-- Rows inserted before this migration keep a NULL token.
 
 ALTER TABLE feedback_attachments
   ADD COLUMN public_token CHAR(32) NULL AFTER image_data,
