@@ -27,15 +27,30 @@ const RANGE_DEFS = [
 const CHART_RIGHT_MARGIN_PX = 16;
 const Y_AXIS_WIDTH_PX = 48;
 
+const RANGE_STORAGE_KEY = 'bodyWeightRangeKey';
+const DEFAULT_RANGE_KEY = '3M';
+
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
+}
+
+// Falls back to the default whenever storage is unavailable or holds a key
+// that no longer matches a range chip.
+function loadStoredRangeKey() {
+  try {
+    const stored = localStorage.getItem(RANGE_STORAGE_KEY);
+    if (stored && RANGE_DEFS.some(r => r.key === stored)) return stored;
+  } catch {
+    // Storage may be unavailable (private mode, disabled cookies, etc).
+  }
+  return DEFAULT_RANGE_KEY;
 }
 
 function BodyWeightTracker() {
   const [weight, setWeight] = useState('');
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [deleteId, setDeleteId] = useState(null);
-  const [rangeKey, setRangeKey] = useState('3M');
+  const [rangeKey, setRangeKey] = useState(loadStoredRangeKey);
   const [panOffsetMs, setPanOffsetMs] = useState(0);
   const chartWrapRef = useRef(null);
   const { user } = useAuth();
@@ -143,20 +158,36 @@ function BodyWeightTracker() {
     return { windowStartMs: startMs, windowEndMs: endMs, rangeMs: spanMs, maxPanOffsetMs: maxOffset, effectivePanOffsetMs: offset };
   }, [rawChartData, rangeDef, panOffsetMs]);
 
-  const chartData = useMemo(
-    () => chartDataFull.filter(p => p.rawDate >= windowStartMs && p.rawDate <= windowEndMs),
-    [chartDataFull, windowStartMs, windowEndMs]
-  );
+  // In-window points plus the single nearest point just outside each edge, so
+  // the line runs off the chart instead of stopping dead at the window edge.
+  // allowDataOverflow on the X axis clips those edge points from view.
+  const { chartData, inWindowData } = useMemo(() => {
+    const inWindow = [];
+    let before = null;
+    let after = null;
+    for (const p of chartDataFull) {
+      if (p.rawDate < windowStartMs) {
+        if (!before || p.rawDate > before.rawDate) before = p;
+      } else if (p.rawDate > windowEndMs) {
+        if (!after || p.rawDate < after.rawDate) after = p;
+      } else {
+        inWindow.push(p);
+      }
+    }
+    const extended = before ? [before, ...inWindow] : inWindow;
+    if (after) extended.push(after);
+    return { chartData: extended, inWindowData: inWindow };
+  }, [chartDataFull, windowStartMs, windowEndMs]);
 
   const yDomain = useMemo(() => {
-    const values = chartData.flatMap(p => [p.weight, p.smoothedWeight]).filter(v => v != null);
+    const values = inWindowData.flatMap(p => [p.weight, p.smoothedWeight]).filter(v => v != null);
     if (!values.length) return ['auto', 'auto'];
     const dataMin = Math.min(...values);
     const dataMax = Math.max(...values);
     const range = dataMax - dataMin;
     const padding = range > 0 ? range * 0.15 : Math.max(dataMax * 0.1, 5);
     return [Math.max(0, Math.floor(dataMin - padding)), Math.ceil(dataMax + padding)];
-  }, [chartData]);
+  }, [inWindowData]);
 
   const isPanned = effectivePanOffsetMs > 0;
   const panDisabled = rangeDef.days == null || maxPanOffsetMs <= 0;
@@ -173,9 +204,28 @@ function BodyWeightTracker() {
     disabled: panDisabled,
   });
 
+  // The two boundary points added to chartData exist only so the line runs
+  // off the chart edge; they must not render as visible dots themselves.
+  function renderWeightDot(props) {
+    const { cx, cy, payload, index } = props;
+    if (payload.rawDate < windowStartMs || payload.rawDate > windowEndMs) return null;
+    return <circle key={`dot-${index}`} cx={cx} cy={cy} r={4} fill="#70EB70" />;
+  }
+
+  function renderActiveWeightDot(props) {
+    const { cx, cy, payload, index } = props;
+    if (payload.rawDate < windowStartMs || payload.rawDate > windowEndMs) return null;
+    return <circle key={`active-dot-${index}`} cx={cx} cy={cy} r={6} fill="#70EB70" />;
+  }
+
   function handleRangeChange(key) {
     setRangeKey(key);
     setPanOffsetMs(0);
+    try {
+      localStorage.setItem(RANGE_STORAGE_KEY, key);
+    } catch {
+      // Ignore storage failures; the choice just won't persist.
+    }
   }
 
   return (
@@ -274,8 +324,8 @@ function BodyWeightTracker() {
                 <Line
                   dataKey="weight"
                   stroke="none"
-                  dot={{ fill: '#70EB70', r: 4 }}
-                  activeDot={isDragging ? false : { r: 6 }}
+                  dot={renderWeightDot}
+                  activeDot={isDragging ? false : renderActiveWeightDot}
                   isAnimationActive={false}
                 />
               </ComposedChart>
