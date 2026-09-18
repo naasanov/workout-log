@@ -233,7 +233,7 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
             // dividing by zero (same spirit as scaleRowMacros's guards).
             const firstServing = customFood.servings[0];
             const scale =
-              firstServing && customFood.total_grams > 0
+              firstServing && customFood.total_grams != null && customFood.total_grams > 0
                 ? firstServing.grams / customFood.total_grams
                 : 1;
             // A meal's own ingredients mirror IngredientInput, so a stored

@@ -45,5 +45,10 @@ export default defineConfig({
   server: {
     port: 3001,
     host: true,
+    // Dev server reads shared/ from the repo root, one level above this
+    // project's own root (client/), which Vite's default fs.allow excludes.
+    fs: {
+      allow: ['..'],
+    },
   },
 });

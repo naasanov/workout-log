@@ -30,27 +30,30 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-/** Get the display macros for a food row (first custom serving or per-100g). */
+/** Get the display macros for a food row (first custom serving or per-100g).
+ * per100g is null for a batch with at least one serving-basis ingredient (no
+ * gram equivalent to derive a rate from); such a batch shows zero macros here. */
 function displayMacros(item: CustomFoodRow) {
+  const per100g = item.per100g ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
   if (item.servings.length > 0) {
     const s = item.servings[0];
     const g = s.grams;
     const f = g / 100;
     return {
       grams: g,
-      calories: round2(item.per100g.calories * f),
-      protein_g: round2(item.per100g.protein_g * f),
-      carbs_g: round2(item.per100g.carbs_g * f),
-      fat_g: round2(item.per100g.fat_g * f),
+      calories: round2(per100g.calories * f),
+      protein_g: round2(per100g.protein_g * f),
+      carbs_g: round2(per100g.carbs_g * f),
+      fat_g: round2(per100g.fat_g * f),
       label: s.label,
     };
   }
   return {
     grams: 100,
-    calories: round2(item.per100g.calories),
-    protein_g: round2(item.per100g.protein_g),
-    carbs_g: round2(item.per100g.carbs_g),
-    fat_g: round2(item.per100g.fat_g),
+    calories: round2(per100g.calories),
+    protein_g: round2(per100g.protein_g),
+    carbs_g: round2(per100g.carbs_g),
+    fat_g: round2(per100g.fat_g),
     label: '100g',
   };
 }
