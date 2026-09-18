@@ -420,7 +420,7 @@ export function applyNewPortions(row: EditorRow, newPortions: FoodPortion[]): Ed
  * exactly one basis per row: `grams` for a weight row, `serving_qty` +
  * `serving_label` for a serving row — never both, never neither (server-
  * enforced invariant, see the ingredientInputSchema refine in
- * schemas/nutrition.ts). `scale` (default 1) is an optional macro/amount
+ * shared/nutrition.ts). `scale` (default 1) is an optional macro/amount
  * multiplier for callers that batch-scale (MealBuilder's per-batch × N) —
  * it's unitless, so it applies identically to a weight row's grams or a
  * serving row's serving_qty.

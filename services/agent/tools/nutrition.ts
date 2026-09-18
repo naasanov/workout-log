@@ -9,8 +9,8 @@ import {
   proposeEntryArgsSchema,
   proposeEntryToolArgsSchema,
   proposeCustomFoodArgsSchema,
-} from '../../../schemas/nutrition';
-import type { Per100g, ProposeIngredient, ProposeIngredientArgs } from '../../../schemas/nutrition';
+} from '../../../shared/nutrition';
+import type { Per100g, ProposeIngredient, ProposeIngredientArgs } from '../../../shared/nutrition';
 import * as store from '../../nutrition/store';
 import * as providers from '../../nutrition/providers';
 import { searchUncFoods, getUncMenu, listUncLocations, getUncFood } from '../../nutrition/unc';

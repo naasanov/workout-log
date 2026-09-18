@@ -11,7 +11,7 @@
 //     In-memory cache keyed by fdcId. Never throw on a single bad match — return [].
 //   - lookupBarcode: GET https://world.openfoodfacts.org/api/v2/product/<code>.json
 //     (send a descriptive User-Agent). Return null when status:0 (not found).
-import { FoodSearchResult, FoodPortion } from '../../schemas/nutrition';
+import { FoodSearchResult, FoodPortion } from '../../shared/nutrition';
 import { searchCustomFoods } from './store';
 
 const USER_AGENT = 'WorkoutLogApp/1.0 (nutrition tracker; contact: admin@example.com)';
@@ -20,13 +20,8 @@ const USER_AGENT = 'WorkoutLogApp/1.0 (nutrition tracker; contact: admin@example
 // Devanagari, CJK, Hangul, Thai). Used to drop OFF results with no English name at all.
 const NON_LATIN_SCRIPT = /[Ѐ-ӿ؀-ۿऀ-ॿ぀-ヿ一-鿿가-힯฀-๿]/;
 
-// FoodSearchResult plus Open Food Facts' human-readable serving text (e.g.
-// "3 slices (63 g)"). Kept local to this file rather than on the shared
-// FoodSearchResult type, since only OFF-sourced results ever set it.
-type OffFoodResult = FoodSearchResult & { serving_description?: string | null };
-
 // In-memory cache: source_ref → FoodSearchResult
-const cache = new Map<string, OffFoodResult>();
+const cache = new Map<string, FoodSearchResult>();
 
 // In-memory cache for portions: "source:ref" → FoodPortion[]
 const portionsCache = new Map<string, FoodPortion[]>();
@@ -208,7 +203,7 @@ async function searchOFF(query: string): Promise<FoodSearchResult[]> {
         const calories = n['energy-kcal_100g'] ?? n['energy_100g'];
         if (calories === undefined || calories === null) continue;
         const sourceRef = p.id ?? p._id ?? `off-${encodeURIComponent(name)}`;
-        const result: OffFoodResult = {
+        const result: FoodSearchResult = {
           name,
           source: 'off',
           source_ref: String(sourceRef),
@@ -551,7 +546,7 @@ export async function lookupBarcode(code: string): Promise<FoodSearchResult | nu
     const caloriesRaw = n['energy-kcal_100g'] ?? n['energy_100g'];
     if (caloriesRaw === undefined || caloriesRaw === null) return null;
 
-    const result: OffFoodResult = {
+    const result: FoodSearchResult = {
       name: name || `Product ${code}`,
       source: 'off',
       source_ref: code,

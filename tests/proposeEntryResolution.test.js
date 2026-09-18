@@ -21,7 +21,7 @@ let resolveProposeIngredient;
 
 test.before(() => {
   ({ proposeIngredientArgsSchema, proposeEntryToolArgsSchema, proposeEntryArgsSchema } = db.requireTs(
-    path.join(__dirname, '../schemas/nutrition.ts'),
+    path.join(__dirname, '../shared/nutrition.ts'),
   ));
   ({ resolveProposeIngredient } = db.requireTs(path.join(__dirname, '../services/agent/tools/nutrition.ts')));
 });
