@@ -14,6 +14,7 @@ import habits from './routes/habits';
 import nutrition from './routes/nutrition';
 import chat from './routes/chat';
 import feedback from './routes/feedback';
+import feedbackAttachments from './routes/feedbackAttachments';
 import apiV1 from './routes/apiV1';
 import flags from './routes/flags';
 import admin from './routes/admin';
@@ -42,6 +43,9 @@ app.use('/api/body-weight', bodyWeight);
 app.use('/api/habits', habits);
 app.use('/api/nutrition', nutrition);
 app.use('/api/chat', chat);
+// Mounted ahead of the authenticated /api/feedback router so GitHub's image
+// proxy can fetch a screenshot by its unguessable token with no auth.
+app.use('/api/feedback/attachments', feedbackAttachments);
 app.use('/api/feedback', feedback);
 app.use('/api/v1', apiV1);
 app.use('/api/flags', flags);
