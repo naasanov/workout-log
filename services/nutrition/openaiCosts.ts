@@ -1,11 +1,6 @@
-// Actual billed cost from OpenAI's Organization Costs API, supplementing the
-// locally-estimated cost in usage.ts. Requires OPENAI_ADMIN_KEY (an Admin API
-// key, not a regular project key); optionally scoped to OPENAI_PROJECT_ID.
-//
-// Response shape confirmed against OpenAI's published cookbook example for
-// GET /v1/organization/costs: { object: 'page', data: Bucket[], has_more,
-// next_page }, where each Bucket is { start_time, end_time, results }, and
-// each result is { amount: { value, currency }, project_id, ... }.
+// Actual billed cost from OpenAI's Organization Costs API (needs an Admin key in
+// OPENAI_ADMIN_KEY, optionally scoped by OPENAI_PROJECT_ID). Pages are
+// { data: [{ start_time, results: [{ amount: { value } }] }], has_more, next_page }.
 const OPENAI_COSTS_URL = 'https://api.openai.com/v1/organization/costs';
 const BUCKET_WIDTH = '1d';
 const MAX_BUCKETS_PER_PAGE = 180;
@@ -114,7 +109,7 @@ function bucketsToDaily(buckets: OpenAiCostBucket[]): ActualCostDaily[] {
   const totals = new Map<string, number>();
   for (const bucket of buckets) {
     const date = new Date(bucket.start_time * 1000).toISOString().slice(0, 10);
-    const bucketTotal = bucket.results.reduce((sum, r) => sum + (r.amount?.value ?? 0), 0);
+    const bucketTotal = bucket.results.reduce((sum, r) => sum + (Number(r.amount?.value) || 0), 0);
     totals.set(date, (totals.get(date) ?? 0) + bucketTotal);
   }
   return Array.from(totals.entries())
@@ -124,7 +119,7 @@ function bucketsToDaily(buckets: OpenAiCostBucket[]): ActualCostDaily[] {
 
 /**
  * Actual OpenAI-billed cost for [from, to] (both YYYY-MM-DD, UTC days,
- * `to` inclusive), org/project-wide -- never scoped to one user. Returns
+ * `to` inclusive), org/project-wide and never scoped to one user. Returns
  * null when OPENAI_ADMIN_KEY is unset (feature off), or a report whose
  * status is 'unavailable' on any API failure; never throws.
  */
