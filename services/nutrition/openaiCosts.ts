@@ -1,29 +1,14 @@
 // Actual billed cost from OpenAI's Organization Costs API (needs an Admin key in
 // OPENAI_ADMIN_KEY, optionally scoped by OPENAI_PROJECT_ID). Pages are
 // { data: [{ start_time, results: [{ amount: { value } }] }], has_more, next_page }.
+import type { ActualCostDaily, ActualCostReport } from '../../shared/nutritionUsage';
+
 const OPENAI_COSTS_URL = 'https://api.openai.com/v1/organization/costs';
 const BUCKET_WIDTH = '1d';
 const MAX_BUCKETS_PER_PAGE = 180;
 const MAX_PAGES = 20;
 const FETCH_TIMEOUT_MS = 10_000;
 const CACHE_TTL_MS = 10 * 60 * 1000;
-
-export interface ActualCostDaily {
-  /** YYYY-MM-DD, UTC day (matches ai_usage's daily grouping). */
-  date: string;
-  costUsd: number;
-}
-
-export type ActualCostStatus = 'ok' | 'unavailable';
-
-export interface ActualCostReport {
-  status: ActualCostStatus;
-  /** Null when status is 'unavailable'. */
-  totalUsd: number | null;
-  daily: ActualCostDaily[];
-  /** Set only when status is 'unavailable', for display next to the tile. */
-  message?: string;
-}
 
 interface OpenAiCostAmount {
   value: number;

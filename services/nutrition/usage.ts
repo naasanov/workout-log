@@ -3,6 +3,7 @@
 import { RowDataPacket } from 'mysql2';
 import { parseISO } from 'date-fns';
 import pool from '../../database';
+import type { UsagePeriodStats, DailyUsageStats, UserUsageBreakdown } from '../../shared/nutritionUsage';
 
 // USD per 1M tokens (per 1K calls for web search). Token defaults match OpenAI's
 // line-item billing (#325), where cached input costs a tenth of uncached input.
@@ -204,37 +205,12 @@ function resolveRange(from: string, to: string): { fromValue: Date; toValue: Dat
   return { fromValue, toValue: parseISO(to), toOperator: '<=' };
 }
 
-export interface UsagePeriodStats {
-  /** Number of recorded chat turns (one ai_usage row per completed turn). */
-  turns: number;
-  /** Model invocations across those turns, equal to `steps` since each step is one call. */
-  modelCalls: number;
-  steps: number;
-  toolCalls: number;
-  webSearchCalls: number;
-  uncachedInputTokens: number;
-  cachedInputTokens: number;
-  outputTokens: number;
-  reasoningTokens: number;
-  costUsd: number;
-}
-
-export interface DailyUsageStats extends UsagePeriodStats {
-  /** YYYY-MM-DD, in the database's local date representation. */
-  day: string;
-}
-
-export interface UserUsageBreakdown extends UsagePeriodStats {
-  userUuid: string;
-  /** Null when the user row has no email on file (e.g. a deleted account). */
-  email: string | null;
-}
-
-export interface OwnerUsageReport {
+// The full owner-usage report body (with `from`/`to`/`actualCost`) is the shared
+// OwnerUsageReport type; this narrower shape is just this function's own return value,
+// assembled into that full report by routes/admin.ts.
+export interface UsageAggregate {
   totals: UsagePeriodStats;
   daily: DailyUsageStats[];
-  /** Per-user totals for the same [from, to] window, always unfiltered by `userUuid`
-   *  so the dashboard's user filter has every user in range to choose from. */
   byUser: UserUsageBreakdown[];
 }
 
@@ -276,7 +252,7 @@ export async function getOwnerUsageReport(
   from: string,
   to: string,
   userUuid?: string,
-): Promise<OwnerUsageReport> {
+): Promise<UsageAggregate> {
   const { fromValue, toValue, toOperator } = resolveRange(from, to);
   const userFilter = userUuid ? 'AND user_uuid = UUID_TO_BIN(?)' : '';
   const rangeParams = userUuid ? [fromValue, toValue, userUuid] : [fromValue, toValue];
