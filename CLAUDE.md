@@ -4,6 +4,11 @@ Express + TypeScript + MySQL server at the repo root, React + Vite client under 
 They are **separate npm projects**: the client has its own `package.json` and `node_modules`,
 and Heroku installs it independently (`heroku-postbuild`).
 
+Server/client shared shapes (zod schemas + their inferred types, or plain TS types for a
+server-computed response) live in `shared/` at the repo root, read by both tsconfigs. Client
+imports from `shared/` must be `import type` only, so no server runtime code (zod included)
+reaches the client bundle.
+
 ## Validating a change
 
 Always use these scripts rather than invoking the underlying tools by hand. They exist
