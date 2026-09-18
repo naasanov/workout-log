@@ -11,6 +11,16 @@
 
 export const CHANGELOG = [
   {
+    date: '2026-09-17',
+    title: 'Smoother weight chart and the right day for “yesterday”',
+    items: [
+      { text: 'Asking the assistant to log something for “yesterday” now uses the real yesterday, even while you are viewing a different day', issues: [369] },
+      { text: 'The body weight line now runs smoothly off the edge of the chart as you swipe back, instead of stopping short', issues: [368] },
+      { text: 'The body weight chart remembers the time range you last picked', issues: [367] },
+      { text: 'Screenshots attached to feedback now come through with your report', issues: [358] },
+    ],
+  },
+  {
     date: '2026-09-15',
     title: 'Log food for any day, fresher chats, and a calmer red',
     items: [
