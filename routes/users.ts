@@ -66,8 +66,8 @@ router.put('/agent-instructions', async (req, res): Promise<any> => {
     if (!parsed.success) {
         return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Invalid request body' });
     }
-    // A trimmed-empty value (blank or whitespace-only) is stored as NULL —
-    // "no instructions set" — rather than an empty string.
+    // A trimmed-empty value (blank or whitespace-only) is stored as NULL,
+    // meaning no instructions are set, rather than an empty string.
     const instructions = parsed.data.instructions.length > 0 ? parsed.data.instructions : null;
     try {
         await pool.query<ResultSetHeader>(`

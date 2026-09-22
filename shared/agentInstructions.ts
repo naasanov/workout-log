@@ -8,7 +8,7 @@ import { z } from 'zod';
 export const AGENT_INSTRUCTIONS_MAX_LENGTH = 1000;
 
 // PUT /users/agent-instructions body. Trimmed before the length check, so
-// whitespace alone never counts against the limit -- routes/users.ts stores
+// whitespace alone never counts against the limit; routes/users.ts stores
 // a trimmed-empty result as NULL rather than an empty string.
 export const agentInstructionsSchema = z.object({
   instructions: z.string().trim().max(AGENT_INSTRUCTIONS_MAX_LENGTH),

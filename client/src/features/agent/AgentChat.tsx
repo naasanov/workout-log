@@ -66,8 +66,9 @@ import type { AgentChatContext, ProposalResolutionState } from './registry';
 // Built-in generic tool renderers self-register on import.
 import './proposals/MutationProposalCard';
 import styles from './AgentChat.module.scss';
-import { ChevronDown, Plus, Square, Send, MessageSquare, RefreshCw } from 'lucide-react';
+import { ChevronDown, Plus, Square, Send, MessageSquare, RefreshCw, Settings } from 'lucide-react';
 import useIsMobile from '../../hooks/useIsMobile';
+import AgentInstructionsModal from './AgentInstructionsModal';
 
 // ---------------------------------------------------------------------------
 // A composer plugin lets a domain add its own attach buttons and extra
@@ -657,6 +658,9 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
   // Detect mobile to suppress Enter-to-send
   const { isMobile } = useIsMobile();
 
+  // ---- Agent instructions modal (#382) ----
+  const [instructionsOpen, setInstructionsOpen] = useState(false);
+
   // ---- Sheet expand/collapse state ----
   const [expanded, setExpanded] = useState(false);
 
@@ -959,6 +963,17 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
 
             <button
               type="button"
+              className={styles.settingsBtn}
+              onClick={(e) => { e.stopPropagation(); setInstructionsOpen(true); }}
+              onPointerDown={(e) => e.stopPropagation()}
+              aria-label="Agent instructions"
+              title="Agent instructions"
+            >
+              <Settings className={styles.settingsIcon} size={16} aria-hidden="true" />
+            </button>
+
+            <button
+              type="button"
               className={styles.closeBtn}
               onClick={(e) => { e.stopPropagation(); collapse(); }}
               onPointerDown={(e) => e.stopPropagation()}
@@ -967,6 +982,10 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
               <ChevronDown className={styles.collapseSvg} size={16} aria-hidden="true" />
             </button>
           </div>
+        )}
+
+        {instructionsOpen && (
+          <AgentInstructionsModal onClose={() => setInstructionsOpen(false)} />
         )}
 
         {/* overflow-behavior:contain prevents body scroll. When in peek

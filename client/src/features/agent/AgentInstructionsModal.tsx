@@ -1,8 +1,6 @@
-// Modal for editing the user's free-text agent instructions (#382):
-// personal preferences folded into the agent's system prompt after the
-// stable core/domain sections (see services/agent/prompt/userInstructions.ts).
-// Mounted conditionally by its caller (see AgentChat.tsx's gear button), so
-// it is always "open" while rendered rather than taking an `open` prop.
+// Modal for editing the user's free-text agent instructions (#382). Mounted
+// conditionally by its caller (see AgentChat.tsx's gear button), so it is
+// always "open" while rendered rather than taking an `open` prop.
 import { useEffect, useState } from 'react';
 import Modal from '../../components/Modal.jsx';
 import { useAgentInstructions, usePutAgentInstructions } from './instructionsApi';
@@ -12,7 +10,7 @@ export interface AgentInstructionsModalProps {
   onClose: () => void;
 }
 
-// Mirrors shared/agentInstructions.ts's AGENT_INSTRUCTIONS_MAX_LENGTH -- kept
+// Mirrors shared/agentInstructions.ts's AGENT_INSTRUCTIONS_MAX_LENGTH, kept
 // as a plain client-side constant since client imports from shared/ must be
 // type-only (no server runtime code, zod included, in the client bundle).
 const MAX_LENGTH = 1000;
@@ -61,10 +59,9 @@ export default function AgentInstructionsModal({ onClose }: AgentInstructionsMod
         </div>
 
         <p className={styles.hint}>
-          Tell the agent how you would like it to respond -- tone, units, level of detail,
-          anything else you want it to default to. These are preferences, not rules: they
-          cannot override how the agent works, and it still only proposes changes for you
-          to confirm.
+          Tell the agent how you'd like it to respond, such as tone, units, or level of
+          detail. These are preferences: they can't change how the agent works, and it
+          still only proposes changes for you to confirm.
         </p>
 
         {isLoading ? (
