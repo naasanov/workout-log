@@ -27,8 +27,8 @@
   transition: height 0.3s cubic-bezier(0.32, 0.72, 0, 1);
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  // safe-area-inset-bottom on the sheet itself ensures the entire sheet
-  // (including rounded corners) clears the home indicator on iPhone.
+  // The sheet is the only element that applies safe-area-inset-bottom, so
+  // the whole sheet clears the iPhone home indicator exactly once.
   padding-bottom: env(safe-area-inset-bottom);
 
   &:focus { outline: none; }
@@ -321,6 +321,32 @@
   border-radius: 50%;
   background-color: rgba(vars.$primary, 0.7);
   animation: pulse 1.2s ease-in-out infinite;
+}
+
+// "Connecting…" row shown while a send awaits its first byte. Matches the
+// collapsed "Thinking…" line (muted small text plus a pulsing dot).
+.connectingIndicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 2px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(vars.$text, 0.45);
+}
+
+.connectingSpinner {
+  display: block;
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: rgba(vars.$primary, 0.7);
+  animation: pulse 1.2s ease-in-out infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 }
 
 .bubbleText {
@@ -785,14 +811,8 @@
   gap: 6px;
   padding: 4px 12px 10px;
 
-  // Flush to the bottom of the sheet, clear of the home indicator via
-  // `env(safe-area-inset-bottom)` (0 on a zero-inset device, where the plain
-  // 10px base still applies). Mobile-only; desktop resets it below.
-  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-
-  @media (min-width: #{vars.$mobile-width + 1px}) {
-    padding-bottom: 10px;
-  }
+  // A flat 10px gap under the textarea on every viewport. The home-indicator
+  // inset comes from .sheet, which wraps this row.
 }
 
 // textarea — 16px on mobile prevents iOS from zooming on focus.
