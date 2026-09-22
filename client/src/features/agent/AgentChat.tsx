@@ -223,6 +223,30 @@ function setItemWithQuotaRetry(key: string, value: string) {
   }
 }
 
+// Redacts every OTHER cached conversation once per page load, so a device
+// already at quota still recovers: the current conversation's own rewrite
+// is often too small to throw and never triggers eviction on its own.
+let sweptStaleImageCache = false;
+function sweepStaleImageCache() {
+  if (sweptStaleImageCache) return;
+  sweptStaleImageCache = true;
+  const keys: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(LS_PREFIX)) keys.push(k);
+  }
+  for (const key of keys) {
+    const raw = localStorage.getItem(key);
+    if (!raw || !raw.includes('"data:')) continue;
+    try {
+      const messages = JSON.parse(raw) as UIMessage[];
+      localStorage.setItem(key, JSON.stringify(redactMessagesForCache(messages)));
+    } catch {
+      localStorage.removeItem(key); // server is the source of truth
+    }
+  }
+}
+
 function saveMessagesForConversation(id: number, messages: UIMessage[]) {
   try {
     const key = lsKey(id);
@@ -474,6 +498,10 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
   useEffect(() => {
     fetchAndApplyActive(undefined, true).then(applied => evaluateDangling(applied));
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    sweepStaleImageCache();
   }, []);
 
   // On window focus / visibilitychange — refetch so runs that completed
