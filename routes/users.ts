@@ -9,6 +9,7 @@ import { authenticateToken } from "./auth";
 import { User } from "../types";
 import { tabPreferencesSchema } from "../schemas/tabPreferences";
 import { getTabPreferences, putTabPreferences } from "../services/tabPreferences";
+import { agentInstructionsSchema } from "../shared/agentInstructions";
 
 const router = Router();
 router.use(authenticateToken);
@@ -37,6 +38,50 @@ router.put('/tab-preferences', async (req, res): Promise<any> => {
     } catch (error) {
         return handleSqlError(error, res);
     }
+});
+
+// #382: per-user free-text instructions folded into the agent's system
+// prompt (see services/agent/prompt/userInstructions.ts).
+router.get('/agent-instructions', async (req, res): Promise<any> => {
+    const { uuid }: User = res.locals.user;
+    let data: RowDataPacket;
+    try {
+        [[data]] = await pool.query<RowDataPacket[]>(`
+            SELECT agent_instructions
+            FROM users
+            WHERE user_uuid = UUID_TO_BIN(?);
+        `, [uuid]);
+    } catch (error) {
+        return handleSqlError(error, res);
+    }
+    return res.status(200).json({
+        data: { instructions: data?.agent_instructions ?? null },
+        message: "Successfully retrieved agent instructions",
+    });
+});
+
+router.put('/agent-instructions', async (req, res): Promise<any> => {
+    const { uuid }: User = res.locals.user;
+    const parsed = agentInstructionsSchema.safeParse(req.body);
+    if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Invalid request body' });
+    }
+    // A trimmed-empty value (blank or whitespace-only) is stored as NULL —
+    // "no instructions set" — rather than an empty string.
+    const instructions = parsed.data.instructions.length > 0 ? parsed.data.instructions : null;
+    try {
+        await pool.query<ResultSetHeader>(`
+            UPDATE users
+            SET agent_instructions = ?
+            WHERE user_uuid = UUID_TO_BIN(?);
+        `, [instructions, uuid]);
+    } catch (error) {
+        return handleSqlError(error, res);
+    }
+    return res.status(200).json({
+        data: { instructions },
+        message: "Agent instructions saved",
+    });
 });
 
 // Create
