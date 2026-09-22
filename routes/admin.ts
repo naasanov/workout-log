@@ -1,6 +1,13 @@
 import { Router } from 'express';
 import { authenticateToken } from './auth';
-import { getUserEmail, getOwnerUsageReport } from '../services/nutrition/usage';
+import {
+  getUserEmail,
+  getOwnerUsageReport,
+  getDailyUserCosts,
+  apportionBilledCost,
+  narrowBilledCostToUser,
+  toBilledCostReport,
+} from '../services/nutrition/usage';
 import { getActualCostReport } from '../services/nutrition/openaiCosts';
 import handleSqlError from '../utils/handleSqlError';
 import { User } from '../types';
@@ -66,7 +73,20 @@ router.get('/usage', async (req, res): Promise<any> => {
     // Actual cost is org/project-wide (OpenAI has no per-user billing split),
     // so it's fetched for the range regardless of the userUuid filter above.
     const actualCost = await getActualCostReport(from, to);
-    const report: OwnerUsageReport = { from, to, ...data, actualCost };
+
+    // Billed cost apportions actualCost's daily totals across users by their
+    // estimated-cost share (see apportionBilledCost). Only attempted when the
+    // Costs API actually returned data; otherwise the dashboard falls back to
+    // each row's own `costUsd` estimate, same as before this feature existed.
+    let billedCost = null;
+    if (actualCost?.status === 'ok') {
+      const estimates = await getDailyUserCosts(from, to);
+      const billedByDay = new Map(actualCost.daily.map((d) => [d.date, d.costUsd]));
+      const apportioned = apportionBilledCost(estimates, billedByDay);
+      billedCost = userUuid ? narrowBilledCostToUser(apportioned, userUuid) : toBilledCostReport(apportioned);
+    }
+
+    const report: OwnerUsageReport = { from, to, ...data, actualCost, billedCost };
     return res.status(200).json({
       data: report,
       message: 'AI usage report retrieved',

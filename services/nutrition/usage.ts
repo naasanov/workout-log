@@ -3,7 +3,12 @@
 import { RowDataPacket } from 'mysql2';
 import { parseISO } from 'date-fns';
 import pool from '../../database';
-import type { UsagePeriodStats, DailyUsageStats, UserUsageBreakdown } from '../../shared/nutritionUsage';
+import type {
+  UsagePeriodStats,
+  DailyUsageStats,
+  UserUsageBreakdown,
+  BilledCostReport,
+} from '../../shared/nutritionUsage';
 
 // USD per 1M tokens (per 1K calls for web search). Token defaults match OpenAI's
 // line-item billing (#325), where cached input costs a tenth of uncached input.
@@ -298,5 +303,160 @@ export async function getOwnerUsageReport(
       email: (row.email as string | null) ?? null,
       ...toStats(row),
     })),
+  };
+}
+
+export interface DailyUserEstimate {
+  /** YYYY-MM-DD; the same UTC day grouping DATE_FORMAT(created_at, ...) produces above. */
+  day: string;
+  userUuid: string;
+  costUsd: number;
+}
+
+/**
+ * Estimated cost summed by (day, user) across the full [from, to] range, always
+ * unfiltered by user -- apportioning a day's billed total needs every user's
+ * share of that day, not just one. Used by apportionBilledCost below.
+ */
+export async function getDailyUserCosts(from: string, to: string): Promise<DailyUserEstimate[]> {
+  const { fromValue, toValue, toOperator } = resolveRange(from, to);
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT
+       DATE_FORMAT(created_at, '%Y-%m-%d') AS day,
+       BIN_TO_UUID(user_uuid) AS userUuid,
+       COALESCE(SUM(cost_usd), 0) AS costUsd
+     FROM ai_usage
+     WHERE created_at >= ? AND created_at ${toOperator} ?
+     GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d'), user_uuid`,
+    [fromValue, toValue],
+  );
+  return rows.map((row) => ({
+    day: String(row.day),
+    userUuid: String(row.userUuid),
+    costUsd: Number(row.costUsd),
+  }));
+}
+
+interface DayBilledFigure {
+  day: string;
+  billedUsd: number;
+  estimated: boolean;
+}
+
+interface UserBilledFigure {
+  userUuid: string;
+  billedUsd: number;
+}
+
+/** Per-(day, user) apportioned amount, the basis for narrowing a report to one user. */
+interface PerUserDailyFigure {
+  day: string;
+  userUuid: string;
+  billedUsd: number;
+}
+
+export interface ApportionedBilledCost {
+  totalUsd: number;
+  unattributedUsd: number;
+  estimatedDayCount: number;
+  daily: DayBilledFigure[];
+  byUser: UserBilledFigure[];
+  perUserDaily: PerUserDailyFigure[];
+}
+
+/**
+ * Splits each day's billed total across users in proportion to their share of
+ * that day's summed estimated cost (`estimates`). A day absent from `billedByDay`
+ * (the Costs API hasn't reported it yet, typically only today) falls back to its
+ * estimated total and is flagged `estimated: true`. A day present in `billedByDay`
+ * with zero estimated usage keeps its billed amount as unattributed rather than
+ * being dropped or assigned to anyone. Both inputs must key days by the same UTC
+ * day string. Pure and DB/network-free so it's unit-testable on its own.
+ */
+export function apportionBilledCost(
+  estimates: DailyUserEstimate[],
+  billedByDay: Map<string, number>,
+): ApportionedBilledCost {
+  const dayTotals = new Map<string, number>();
+  const dayUserEstimates = new Map<string, Map<string, number>>();
+  for (const { day, userUuid, costUsd } of estimates) {
+    dayTotals.set(day, (dayTotals.get(day) ?? 0) + costUsd);
+    if (!dayUserEstimates.has(day)) dayUserEstimates.set(day, new Map());
+    const userMap = dayUserEstimates.get(day)!;
+    userMap.set(userUuid, (userMap.get(userUuid) ?? 0) + costUsd);
+  }
+
+  const allDays = Array.from(new Set([...dayTotals.keys(), ...billedByDay.keys()])).sort();
+
+  const daily: DayBilledFigure[] = [];
+  const perUserDaily: PerUserDailyFigure[] = [];
+  const userTotals = new Map<string, number>();
+  let totalUsd = 0;
+  let unattributedUsd = 0;
+  let estimatedDayCount = 0;
+
+  for (const day of allDays) {
+    const estimateTotal = dayTotals.get(day) ?? 0;
+    const billed = billedByDay.get(day);
+    const hasBilled = billed !== undefined;
+    const billedUsd = hasBilled ? billed! : estimateTotal;
+    if (!hasBilled) estimatedDayCount += 1;
+
+    const userEstimates = dayUserEstimates.get(day);
+    if (userEstimates && estimateTotal > 0) {
+      for (const [userUuid, userEstimate] of userEstimates) {
+        const share = (userEstimate / estimateTotal) * billedUsd;
+        perUserDaily.push({ day, userUuid, billedUsd: share });
+        userTotals.set(userUuid, (userTotals.get(userUuid) ?? 0) + share);
+      }
+    } else {
+      // Billed cost with nobody to attribute it to (no estimated usage that
+      // day): keep it in the range total, but not in any user's total.
+      unattributedUsd += billedUsd;
+    }
+
+    daily.push({ day, billedUsd, estimated: !hasBilled });
+    totalUsd += billedUsd;
+  }
+
+  return {
+    totalUsd,
+    unattributedUsd,
+    estimatedDayCount,
+    daily,
+    byUser: Array.from(userTotals.entries()).map(([userUuid, billedUsd]) => ({ userUuid, billedUsd })),
+    perUserDaily,
+  };
+}
+
+/** Narrows a full (unfiltered) apportionment to one user's share, mirroring how
+ *  getOwnerUsageReport narrows `totals`/`daily` when a `userUuid` filter is given.
+ *  `unattributedUsd`/`byUser` stay range-wide since neither belongs to one user. */
+export function narrowBilledCostToUser(full: ApportionedBilledCost, userUuid: string): BilledCostReport {
+  const userDailyByDay = new Map(
+    full.perUserDaily.filter((p) => p.userUuid === userUuid).map((p) => [p.day, p.billedUsd]),
+  );
+  const daily = full.daily.map((d) => ({
+    day: d.day,
+    billedCostUsd: userDailyByDay.get(d.day) ?? 0,
+    estimated: d.estimated,
+  }));
+  return {
+    totalUsd: daily.reduce((sum, d) => sum + d.billedCostUsd, 0),
+    unattributedUsd: full.unattributedUsd,
+    estimatedDayCount: full.estimatedDayCount,
+    daily,
+    byUser: full.byUser.map((u) => ({ userUuid: u.userUuid, billedCostUsd: u.billedUsd })),
+  };
+}
+
+/** Converts a full (unfiltered) apportionment into the report shape as-is. */
+export function toBilledCostReport(full: ApportionedBilledCost): BilledCostReport {
+  return {
+    totalUsd: full.totalUsd,
+    unattributedUsd: full.unattributedUsd,
+    estimatedDayCount: full.estimatedDayCount,
+    daily: full.daily.map((d) => ({ day: d.day, billedCostUsd: d.billedUsd, estimated: d.estimated })),
+    byUser: full.byUser.map((u) => ({ userUuid: u.userUuid, billedCostUsd: u.billedUsd })),
   };
 }
