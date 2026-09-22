@@ -294,45 +294,38 @@ function Totals({ rows }: TotalsProps) {
   // sumRows (ingredientMath) already skips null grams from serving-basis rows
   // so a mixed batch's gram total isn't corrupted into NaN.
   const totals = sumRows(rows);
-  // sumRows sums fiber_g across rows treating a null as 0, so a batch with no
-  // fiber data at all sums to a bare 0 — indistinguishable from a genuine 0g.
-  // Track "any row actually reports fiber" separately for the placeholder below.
+  // sumRows treats a null fiber_g as 0, so an all-null batch would otherwise
+  // read as a genuine 0g. Tracked separately for the placeholder below.
   const hasFiber = rows.some(r => r.fiber_g != null);
 
   // #380: one compact, non-wrapping row (was 6 wide items wrapping to two
-  // lines on mobile). Units are abbreviated to single letters (P/C/F/Fib) so
-  // the whole line fits at 320px; see .totals/.totalsRow in the stylesheet.
+  // lines on mobile). Items are spaced by .totalsRow's flex gap, not visible
+  // separator glyphs, and units are abbreviated so the row fits at 320px.
   const stats: React.ReactNode[] = [
-    // No row carries a real weight (all-serving entry, e.g. UNC dining
-    // items) — the true total weight is unknown/not applicable, not 0.
-    // Show an em dash so this can't be misread as "0g of food" or as a
-    // bug in the macro math below. Don't "simplify" this back to
-    // `round2(totals.grams)}g` — see hasWeight's doc comment.
+    // No row carries a real weight (e.g. an all-serving UNC entry): show an
+    // em dash rather than a number, since that's unknown, not a real 0g.
+    // Don't simplify this to `round2(totals.grams)}g`; see hasWeight's doc.
     totals.hasWeight
       ? <span key="w"><strong>{round2(totals.grams)}</strong>g</span>
       : <span key="w"><strong>—</strong></span>,
-    <span key="k"><strong>{Math.round(totals.calories)}</strong> kcal</span>,
+    <span key="k"><strong>{Math.round(totals.calories)}</strong>cal</span>,
     <span key="p"><strong>{round2(totals.protein_g)}</strong>P</span>,
     <span key="c"><strong>{round2(totals.carbs_g)}</strong>C</span>,
     <span key="f"><strong>{round2(totals.fat_g)}</strong>F</span>,
-    // Fiber is frequently absent from a source's data. A dash-only
+    // Fiber is frequently absent from a source's data; a dash-only
     // placeholder (no bold number) distinguishes "no fiber data" from a
-    // genuine "0g fiber", same intent as the weight dash above.
+    // genuine 0g, the same intent as the weight dash above.
     hasFiber
       ? <span key="fib"><strong>{round2(totals.fiber_g)}</strong>Fib</span>
       : <span key="fib">–Fib</span>,
   ];
 
-  const parts: React.ReactNode[] = [];
-  stats.forEach((stat, i) => {
-    if (i > 0) parts.push(<span key={`sep${i}`} className={styles.totalsSep}>·</span>);
-    parts.push(stat);
-  });
-
   return (
     <div className={styles.totals}>
+      {/* #380: visually hidden below the width where it no longer fits
+          (see .totalsLabel), but always present for assistive tech. */}
       <span className={styles.totalsLabel}>Total</span>
-      <span className={styles.totalsRow}>{parts}</span>
+      <span className={styles.totalsRow}>{stats}</span>
     </div>
   );
 }
