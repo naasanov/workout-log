@@ -989,6 +989,25 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
             </div>
           )}
 
+          {/* "Connecting…" indicator — bridges the gap between a send and the
+              first streamed byte (status 'submitted'), so the send always
+              gets an immediate visual response. Only this client's own
+              sendMessage sets 'submitted', so it never shows on page
+              load/rehydration or for a resumed/polled conversation. */}
+          {status === 'submitted' && (
+            <div className={`${styles.messageGroup} ${styles.messageGroupAssistant}`}>
+              <div
+                className={styles.connectingIndicator}
+                role="status"
+                aria-live="polite"
+                aria-label="Connecting to assistant"
+              >
+                <span className={styles.connectingSpinner} aria-hidden="true" />
+                <span>Connecting…</span>
+              </div>
+            </div>
+          )}
+
           {/* Poll "working" indicator — shown while a dangling server-side
               run is being polled and this client is NOT streaming live. */}
           {pollingActive && !isStreaming && (
