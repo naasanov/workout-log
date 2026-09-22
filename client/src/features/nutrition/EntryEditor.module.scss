@@ -416,32 +416,51 @@
 }
 
 // Live totals
+// #380: a single non-wrapping row at any width down to 320px. .totalsRow
+// holds the stat/separator spans as inline content (not flex children) so it
+// can shrink its own font-size without each stat becoming its own flex item.
 .totals {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
+  align-items: baseline;
+  gap: 6px;
   padding: 12px 14px;
   background-color: rgba(vars.$primary, 0.07);
   border: 1px solid rgba(vars.$primary-border, 0.4);
   border-radius: 10px;
-  align-items: center;
+  overflow-x: hidden;
 }
 
 .totalsLabel {
+  flex-shrink: 0;
   font-size: 13px;
   font-weight: 700;
   color: vars.$primary;
   text-transform: uppercase;
-  margin-right: 4px;
 }
 
-.totalsStat {
+.totalsRow {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
   font-size: 14px;
   color: rgba(vars.$text, 0.85);
 
   strong {
     color: vars.$text;
     font-weight: 600;
+  }
+
+  @media (max-width: 380px) {
+    font-size: 12px;
+  }
+}
+
+.totalsSep {
+  margin: 0 5px;
+  color: rgba(vars.$text, 0.4);
+
+  @media (max-width: 380px) {
+    margin: 0 3px;
   }
 }
 

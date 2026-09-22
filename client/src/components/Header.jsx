@@ -61,6 +61,10 @@ function Header({
   const [internalEditMode, setInternalEditMode] = useState(false);
   // #314: lazy init so localStorage is only read once, on mount.
   const [hasUnreadChangelog, setHasUnreadChangelog] = useState(hasUnseenChangelog);
+  // #379: the dot only makes sense once we know who's signed in. `user` is
+  // `undefined` while auth is still loading and `null` when signed out —
+  // both read as "no dot", not just a signed-out user.
+  const showUnreadDot = user != null && hasUnreadChangelog;
 
   const openChangelog = () => {
     setChangelogOpen(true);
@@ -119,12 +123,15 @@ function Header({
           <button
             className={styles.changelogBtn}
             onClick={openChangelog}
-            aria-label={hasUnreadChangelog ? "What's new (unread updates)" : "What's new"}
+            aria-label={showUnreadDot ? "What's new (unread updates)" : "What's new"}
             title="What's new"
           >
             <ScrollText className={styles.changelogIcon} size={16} aria-hidden="true" />
-            {/* #314: unread dot, decorative only; state is on aria-label above. */}
-            {hasUnreadChangelog && (
+            {/* #314/#379: unread dot, decorative only; state is on aria-label
+                above. Only a signed-in user has a meaningful "seen" state, so
+                the dot never renders while signed out or while auth is still
+                loading (`user` undefined). */}
+            {showUnreadDot && (
               <span className={styles.changelogBadge} aria-hidden="true" />
             )}
           </button>
