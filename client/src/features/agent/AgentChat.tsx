@@ -161,10 +161,86 @@ function pruneOldEntries(prefix: string, currentKey: string) {
   toRemove.forEach(k => localStorage.removeItem(k));
 }
 
+// ---------------------------------------------------------------------------
+// Redact embedded image bytes before caching to localStorage — mirrors
+// redactParts() in scripts/chatImageRedaction.js, so the cache only ever
+// holds the same "no longer available" shape the server's own nightly
+// retention job leaves behind. A `file` part's `url` (an attached photo) or
+// a `data-barcodeAttachment` part's `data.imageDataUrl` (a scanned barcode's
+// preview) can each be a multi-hundred-KB base64 JPEG data URL; a handful of
+// cached conversations holding those is enough to blow the ~5MB origin
+// quota, after which every other localStorage.setItem in the app throws and
+// is silently swallowed. Only the cached copy is redacted here — the
+// in-memory `messages` driving the live session keep their images.
+// ---------------------------------------------------------------------------
+function isDataUri(value: unknown): value is string {
+  return typeof value === 'string' && value.startsWith('data:');
+}
+
+function redactPartForCache(part: UIMessage['parts'][number]): UIMessage['parts'][number] {
+  if (part.type === 'file') {
+    const filePart = part as unknown as { mediaType: string; url: string };
+    if (filePart.mediaType?.startsWith('image/') && isDataUri(filePart.url)) {
+      return { type: 'data-imageRedacted', data: { mediaType: filePart.mediaType } } as unknown as UIMessage['parts'][number];
+    }
+    return part;
+  }
+
+  if (part.type === 'data-barcodeAttachment') {
+    const barcodePart = part as unknown as { data: { imageDataUrl?: string | null } };
+    if (isDataUri(barcodePart.data?.imageDataUrl)) {
+      return {
+        ...part,
+        data: { ...barcodePart.data, imageDataUrl: null, imageRedacted: true },
+      } as unknown as UIMessage['parts'][number];
+    }
+    return part;
+  }
+
+  return part;
+}
+
+function redactMessagesForCache(messages: UIMessage[]): UIMessage[] {
+  return messages.map(message => ({ ...message, parts: message.parts.map(redactPartForCache) }));
+}
+
+// Evicts every other peak.agentChat.* cache entry (messages + resolutions,
+// across every conversation but the one being written) so a write that's
+// still over quota can free space without touching anything else the app
+// keeps in localStorage.
+function evictOtherAgentChatCacheEntries(exceptKey: string) {
+  const keys: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k !== exceptKey && (k.startsWith(LS_PREFIX) || k.startsWith(LS_RESOLUTIONS_PREFIX))) {
+      keys.push(k);
+    }
+  }
+  keys.forEach(k => localStorage.removeItem(k));
+}
+
+// Writes `value` to `key`; on a quota error, evicts every other agent-chat
+// cache entry and retries once, so this cache can never starve the rest of
+// the app's localStorage usage. Still-failing after that is swallowed, same
+// as the plain best-effort writes elsewhere in this module.
+function setItemWithQuotaRetry(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    try {
+      evictOtherAgentChatCacheEntries(key);
+      localStorage.setItem(key, value);
+    } catch {
+      // still over quota after eviction — give up silently
+    }
+  }
+}
+
 function saveMessagesForConversation(id: number, messages: UIMessage[]) {
   try {
-    localStorage.setItem(lsKey(id), JSON.stringify(messages));
-    pruneOldEntries(LS_PREFIX, lsKey(id));
+    const key = lsKey(id);
+    setItemWithQuotaRetry(key, JSON.stringify(redactMessagesForCache(messages)));
+    pruneOldEntries(LS_PREFIX, key);
   } catch {
     // storage full — ignore
   }
@@ -184,8 +260,9 @@ function loadResolutionsForConversation(id: number): ResolutionEntry[] {
 
 function saveResolutionsForConversation(id: number, entries: ResolutionEntry[]) {
   try {
-    localStorage.setItem(resolutionsKey(id), JSON.stringify(entries));
-    pruneOldEntries(LS_RESOLUTIONS_PREFIX, resolutionsKey(id));
+    const key = resolutionsKey(id);
+    setItemWithQuotaRetry(key, JSON.stringify(entries));
+    pruneOldEntries(LS_RESOLUTIONS_PREFIX, key);
   } catch {
     // storage full — ignore
   }
