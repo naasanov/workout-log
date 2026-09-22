@@ -80,19 +80,38 @@ function AdminUsageDashboard() {
   const actualCost = report?.actualCost ?? null;
   const hasActualCost = actualCost?.status === 'ok';
 
+  // billedCost is non-null exactly when actualCost.status === 'ok' (routes/admin.ts only
+  // apportions once the Costs API has returned data), so it's the single flag for whether
+  // billed figures replace estimates in the tiles/table/chart below.
+  const billedCost = report?.billedCost ?? null;
+  const hasBilledCost = !!billedCost;
+  const billedByUser = useMemo(
+    () => new Map((billedCost?.byUser ?? []).map((u) => [u.userUuid, u.billedCostUsd])),
+    [billedCost],
+  );
+
   const dailyChartData = useMemo(() => {
     const actualByDate = new Map((actualCost?.daily ?? []).map((d) => [d.date, d.costUsd]));
+    const billedByDate = new Map((billedCost?.daily ?? []).map((d) => [d.day, d]));
     return (report?.daily ?? []).map((d) => ({
       ...d,
       label: format(new Date(`${d.day}T00:00:00`), 'MMM d'),
       actualCostUsd: actualByDate.get(d.day),
+      billedCostUsd: billedByDate.get(d.day)?.billedCostUsd,
+      billedEstimated: billedByDate.get(d.day)?.estimated ?? false,
     }));
-  }, [report, actualCost]);
+  }, [report, actualCost, billedCost]);
 
   const totalInputTokens = totals ? totals.uncachedInputTokens + totals.cachedInputTokens : 0;
   const cacheHitRate = totalInputTokens > 0 ? (totals?.cachedInputTokens ?? 0) / totalInputTokens : NaN;
-  const showOldDataNote = from < USAGE_SCHEMA_CUTOFF;
+  // Once billed cost is shown, it's the real OpenAI-billed figure rather than our
+  // internal per-turn estimate, so the pre-cutoff overstatement this note warns
+  // about no longer applies to the number actually on screen.
+  const showOldDataNote = from < USAGE_SCHEMA_CUTOFF && !hasBilledCost;
   const isEmpty = !!totals && totals.turns === 0;
+  const avgCostPerTurn = totals && totals.turns > 0
+    ? (hasBilledCost ? billedCost!.totalUsd : totals.costUsd) / totals.turns
+    : 0;
 
   return (
     <section className={styles.container}>
@@ -174,30 +193,46 @@ function AdminUsageDashboard() {
       ) : totals ? (
         <>
           <div className={styles.statsGrid}>
-            <div className={styles.statTile}>
-              <span className={styles.statLabel}>
-                Estimated cost
-                {showOldDataNote && (
-                  <button
-                    type="button"
-                    className={styles.infoButton}
-                    aria-expanded={showCutoffNote}
-                    aria-label="Why pre-cutoff cost may be overstated"
-                    onClick={() => setShowCutoffNote((v) => !v)}
-                  >
-                    <Info size={12} />
-                  </button>
-                )}
-              </span>
-              <span className={styles.statValue}>{formatUsd(totals.costUsd)}</span>
-            </div>
-            {actualCost && (
+            {hasBilledCost ? (
               <div className={styles.statTile}>
-                <span className={styles.statLabel}>Actual billed cost</span>
+                <span className={styles.statLabel}>Billed cost</span>
                 <span className={styles.statValue}>
-                  {hasActualCost ? formatUsd(actualCost?.totalUsd ?? 0) : 'Unavailable'}
+                  {formatUsd(billedCost!.totalUsd)}
+                  {billedCost!.estimatedDayCount > 0 && (
+                    <span className={styles.estimatedTag} title="Includes days OpenAI hasn't billed yet">
+                      *
+                    </span>
+                  )}
                 </span>
               </div>
+            ) : (
+              <>
+                <div className={styles.statTile}>
+                  <span className={styles.statLabel}>
+                    Estimated cost
+                    {showOldDataNote && (
+                      <button
+                        type="button"
+                        className={styles.infoButton}
+                        aria-expanded={showCutoffNote}
+                        aria-label="Why pre-cutoff cost may be overstated"
+                        onClick={() => setShowCutoffNote((v) => !v)}
+                      >
+                        <Info size={12} />
+                      </button>
+                    )}
+                  </span>
+                  <span className={styles.statValue}>{formatUsd(totals.costUsd)}</span>
+                </div>
+                {actualCost && (
+                  <div className={styles.statTile}>
+                    <span className={styles.statLabel}>Actual billed cost</span>
+                    <span className={styles.statValue}>
+                      {hasActualCost ? formatUsd(actualCost?.totalUsd ?? 0) : 'Unavailable'}
+                    </span>
+                  </div>
+                )}
+              </>
             )}
             <div className={styles.statTile}>
               <span className={styles.statLabel}>Turns</span>
@@ -205,9 +240,7 @@ function AdminUsageDashboard() {
             </div>
             <div className={styles.statTile}>
               <span className={styles.statLabel}>Avg cost / turn</span>
-              <span className={styles.statValue}>
-                {formatUsd(totals.turns > 0 ? totals.costUsd / totals.turns : 0)}
-              </span>
+              <span className={styles.statValue}>{formatUsd(avgCostPerTurn)}</span>
             </div>
             <div className={styles.statTile}>
               <span className={styles.statLabel}>Cache hit rate</span>
@@ -235,20 +268,24 @@ function AdminUsageDashboard() {
             </p>
           )}
 
-          {hasActualCost && (
+          {hasBilledCost && (
             <p className={styles.note}>
-              Actual billed cost comes from OpenAI's organization-wide billing (not scoped to the
-              user filter above) and typically lags about a day behind real usage.
+              Billed cost is OpenAI's organization-wide billing (not scoped to the user filter
+              above), apportioned to each user by their share of that day's estimated usage.
+              {billedCost!.estimatedDayCount > 0 &&
+                ` Includes ${billedCost!.estimatedDayCount} day${billedCost!.estimatedDayCount === 1 ? '' : 's'} OpenAI hasn't billed yet (marked *), shown at their estimated cost.`}
+              {billedCost!.unattributedUsd >= 0.005 &&
+                ` ${formatUsd(billedCost!.unattributedUsd)} of billed cost isn't tied to any user's usage and is included in the total only.`}
             </p>
           )}
-          {actualCost?.status === 'unavailable' && (
+          {!hasBilledCost && actualCost?.status === 'unavailable' && (
             <p className={styles.note}>
               {actualCost?.message ?? 'Actual billed cost is temporarily unavailable.'}
             </p>
           )}
 
-          <h3 className={styles.chartHeading}>Estimated cost per day</h3>
-          {hasActualCost && (
+          <h3 className={styles.chartHeading}>{hasBilledCost ? 'Billed cost per day' : 'Estimated cost per day'}</h3>
+          {!hasBilledCost && hasActualCost && (
             <div className={styles.legend}>
               <span className={styles.legendItem}>
                 <span className={styles.legendSwatch} style={{ backgroundColor: COLOR_COST }} />
@@ -281,17 +318,23 @@ function AdminUsageDashboard() {
                   contentStyle={TOOLTIP_STYLE}
                   formatter={(value, name) => [
                     formatUsd(Number(value)),
-                    name === 'actualCostUsd' ? 'Actual billed' : 'Estimated',
+                    name === 'actualCostUsd' ? 'Actual billed' : name === 'billedCostUsd' ? 'Billed' : 'Estimated',
                   ]}
                 />
-                <Bar dataKey="costUsd" fill={COLOR_COST} radius={[4, 4, 0, 0]} isAnimationActive={false} />
-                {hasActualCost && (
-                  <Bar
-                    dataKey="actualCostUsd"
-                    fill={COLOR_ACTUAL_COST}
-                    radius={[4, 4, 0, 0]}
-                    isAnimationActive={false}
-                  />
+                {hasBilledCost ? (
+                  <Bar dataKey="billedCostUsd" fill={COLOR_COST} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                ) : (
+                  <>
+                    <Bar dataKey="costUsd" fill={COLOR_COST} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                    {hasActualCost && (
+                      <Bar
+                        dataKey="actualCostUsd"
+                        fill={COLOR_ACTUAL_COST}
+                        radius={[4, 4, 0, 0]}
+                        isAnimationActive={false}
+                      />
+                    )}
+                  </>
                 )}
               </BarChart>
             </ResponsiveContainer>
@@ -352,7 +395,7 @@ function AdminUsageDashboard() {
                     <tr>
                       <th>User</th>
                       <th>Turns</th>
-                      <th>Cost</th>
+                      <th>{hasBilledCost ? 'Billed cost' : 'Cost'}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -364,7 +407,7 @@ function AdminUsageDashboard() {
                       >
                         <td>{userLabel(u)}</td>
                         <td>{formatCompactNumber(u.turns)}</td>
-                        <td>{formatUsd(u.costUsd)}</td>
+                        <td>{formatUsd(hasBilledCost ? (billedByUser.get(u.userUuid) ?? 0) : u.costUsd)}</td>
                       </tr>
                     ))}
                   </tbody>

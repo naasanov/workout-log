@@ -8,5 +8,8 @@ export type {
   ActualCostDaily,
   ActualCostStatus,
   ActualCostReport,
+  BilledCostByUser,
+  BilledCostDaily,
+  BilledCostReport,
   OwnerUsageReport,
 } from '../../../../shared/nutritionUsage';

@@ -118,6 +118,14 @@
   width: 100%;
 }
 
+.estimatedTag {
+  margin-left: 2px;
+  font-size: 14px;
+  font-weight: 600;
+  color: vars.$primary;
+  cursor: default;
+}
+
 .infoButton {
   display: inline-flex;
   align-items: center;
