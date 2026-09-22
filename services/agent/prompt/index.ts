@@ -2,9 +2,12 @@
 import { CORE_PROMPT } from './core';
 import { NUTRITION_DOMAIN_PROMPT, UNC_DINING_PROMPT } from './nutrition';
 import { buildVolatileContext, VolatileContextInput, ConfirmedResult } from './context';
+import { buildUserInstructionsSection } from './userInstructions';
 
 export interface BuildSystemPromptInput extends VolatileContextInput {
   uncEnabled: boolean;
+  /** The user's own free-text agent preferences (#382), or null/undefined when unset. */
+  userInstructions?: string | null;
 }
 
 /**
@@ -12,7 +15,9 @@ export interface BuildSystemPromptInput extends VolatileContextInput {
  *   1. CORE_PROMPT — shared role/rules, byte-identical on every request.
  *   2. Per-domain stable sections (nutrition, then UNC dining if enabled) —
  *      identical for a given account across requests.
- *   3. The volatile tail from buildVolatileContext — date, goals, today's
+ *   3. The user's own instructions (#382), when set — per-account but stable
+ *      across a given account's requests, unlike the volatile tail below.
+ *   4. The volatile tail from buildVolatileContext — date, goals, today's
  *      totals, recent meals, autoConfirm/deniedProposalCount flags — which
  *      can differ on every single request.
  *
@@ -25,9 +30,12 @@ export interface BuildSystemPromptInput extends VolatileContextInput {
 export function buildSystemPrompt(input: BuildSystemPromptInput): string {
   const sections = [CORE_PROMPT, NUTRITION_DOMAIN_PROMPT];
   if (input.uncEnabled) sections.push(UNC_DINING_PROMPT);
+  const userSection = buildUserInstructionsSection(input.userInstructions);
+  if (userSection) sections.push(userSection);
   sections.push(buildVolatileContext(input));
   return sections.join('\n\n');
 }
 
 export { CORE_PROMPT, NUTRITION_DOMAIN_PROMPT, UNC_DINING_PROMPT };
+export { buildUserInstructionsSection };
 export type { ConfirmedResult };

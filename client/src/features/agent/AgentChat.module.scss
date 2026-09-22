@@ -191,6 +191,31 @@
   animation: spin 1s linear infinite;
 }
 
+// Opens AgentInstructionsModal, same touch target as the other header buttons.
+.settingsBtn {
+  min-width: 36px;
+  min-height: 36px;
+  background: transparent;
+  border: none;
+  color: rgba(vars.$text, 0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 0;
+  touch-action: auto;
+
+  &:active {
+    color: vars.$primary;
+    background-color: rgba(vars.$primary, 0.1);
+  }
+}
+
+.settingsIcon {
+  display: block; // iOS Safari SVG fix
+}
+
 .closeBtn {
   min-width: 36px;
   min-height: 36px;

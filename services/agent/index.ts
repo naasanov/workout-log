@@ -3,7 +3,9 @@
 // domain modules, and returns the StreamTextResult for the caller to pipe.
 import { streamText, stepCountIs, convertToModelMessages } from 'ai';
 import type { ModelMessage, ToolSet } from 'ai';
+import { RowDataPacket } from 'mysql2';
 import { openai } from '@ai-sdk/openai';
+import pool from '../../database';
 import * as store from '../nutrition/store';
 import { recordUsage, usageDataFromFinishResult } from '../nutrition/usage';
 import { getUserFlags } from '../flags';
@@ -20,6 +22,15 @@ import { trimHistoryForReplay } from './history';
  * read-only tools (query_series, list_resources, get_resource).
  */
 export const TOOL_MODULES: ToolModule[] = [nutritionTools, mutationTools, ...readToolModules];
+
+/** Read a user's own agent instructions (#382), or null when they have none set. */
+async function fetchUserInstructions(userUuid: string): Promise<string | null> {
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT agent_instructions FROM users WHERE user_uuid = UUID_TO_BIN(?)`,
+    [userUuid],
+  );
+  return rows[0]?.agent_instructions ?? null;
+}
 
 export interface ChatOptions {
   userUuid: string;
@@ -171,11 +182,12 @@ export async function streamChat({
   // getUserFlags never throws on its own (see services/flags.ts), but the .catch
   // here matches the defensive style of the other three so a flag lookup can
   // never take down the whole chat turn even under future changes.
-  const [recent, goals, todayDay, flags] = await Promise.all([
+  const [recent, goals, todayDay, flags, userInstructions] = await Promise.all([
     store.recentEntries(userUuid, 3).catch(() => []),
     store.getGoals(userUuid).catch(() => ({ calories: null, protein_g: null, carbs_g: null, fat_g: null })),
     store.getDay(userUuid, selectedDate).catch(() => ({ date: selectedDate, totals: { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 }, entries: [] })),
     getUserFlags(userUuid).catch(() => ({ unc_dining: false })),
+    fetchUserInstructions(userUuid).catch(() => null),
   ]);
 
   const uncEnabled = flags.unc_dining;
@@ -193,6 +205,7 @@ export async function streamChat({
 
   const system = buildSystemPrompt({
     uncEnabled,
+    userInstructions,
     today: resolvedToday,
     selectedDate,
     tab,

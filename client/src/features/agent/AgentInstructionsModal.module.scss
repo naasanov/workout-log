@@ -1,0 +1,138 @@
+@use "../../styles/variables" as vars;
+// Matches NutritionGoalsModal/FeedbackModal sizing for visual consistency.
+.modalContent {
+  max-width: 420px !important;
+}
+
+.modal {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px 20px 20px;
+
+  @media (max-width: vars.$mobile-width) {
+    padding: 18px 16px 16px;
+    gap: 16px;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: vars.$text;
+}
+
+.hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(vars.$text, 0.6);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(vars.$text, 0.6);
+  text-transform: uppercase;
+}
+
+.textarea {
+  background-color: rgba(vars.$surface, 0.5);
+  color: vars.$text;
+  border: 2px solid rgba(vars.$surface-border, 0.6);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 15px;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.5;
+
+  &::placeholder {
+    color: rgba(vars.$text, 0.3);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: vars.$primary-border;
+  }
+
+  &.textareaError {
+    border-color: rgba(vars.$error, 0.6);
+  }
+}
+
+.charCount {
+  align-self: flex-end;
+  font-size: 12px;
+  color: rgba(vars.$text, 0.45);
+
+  &.charCountError {
+    color: vars.$error;
+  }
+}
+
+.loadingState {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(vars.$text, 0.5);
+}
+
+.errorMsg {
+  margin: 0;
+  font-size: 14px;
+  color: vars.$error;
+}
+
+.footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+%btn-base {
+  min-height: 48px;
+  padding: 10px 24px;
+  border-radius: vars.$border-radius;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.saveBtn {
+  @extend %btn-base;
+  background-color: vars.$primary;
+  color: vars.$background;
+
+  &:not(:disabled):active {
+    background-color: vars.$primary-dark;
+  }
+}
+
+.cancelBtn {
+  @extend %btn-base;
+  background-color: transparent;
+  color: rgba(vars.$text, 0.75);
+  border: 2px solid vars.$surface-border;
+}
