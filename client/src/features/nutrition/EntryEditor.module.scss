@@ -428,6 +428,11 @@
   border: 1px solid rgba(vars.$primary-border, 0.4);
   border-radius: 10px;
   overflow-x: hidden;
+
+  @media (max-width: 380px) {
+    gap: 4px;
+    padding: 10px 10px;
+  }
 }
 
 .totalsLabel {
@@ -436,6 +441,14 @@
   font-weight: 700;
   color: vars.$primary;
   text-transform: uppercase;
+
+  // #380: at the narrowest supported width, uppercase transform widens the
+  // word "Total" for no benefit — dropping it (plus a smaller size) buys
+  // back space for the stats row without losing the label entirely.
+  @media (max-width: 380px) {
+    font-size: 11px;
+    text-transform: none;
+  }
 }
 
 .totalsRow {
@@ -451,7 +464,7 @@
   }
 
   @media (max-width: 380px) {
-    font-size: 12px;
+    font-size: 9px;
   }
 }
 
@@ -459,8 +472,10 @@
   margin: 0 5px;
   color: rgba(vars.$text, 0.4);
 
+  // #380: at 320-380px every pixel is spoken for; the "·" glyph itself is
+  // enough of a visual break without extra margin around it.
   @media (max-width: 380px) {
-    margin: 0 3px;
+    margin: 0;
   }
 }
 
