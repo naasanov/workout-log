@@ -27,10 +27,8 @@
   transition: height 0.3s cubic-bezier(0.32, 0.72, 0, 1);
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  // safe-area-inset-bottom on the sheet itself ensures the entire sheet
-  // (including rounded corners) clears the home indicator on iPhone. This is
-  // the only place the inset is applied — .composer below adds its own flat
-  // base padding on top, not a second inset.
+  // The sheet is the only element that applies safe-area-inset-bottom, so
+  // the whole sheet clears the iPhone home indicator exactly once.
   padding-bottom: env(safe-area-inset-bottom);
 
   &:focus { outline: none; }
@@ -325,11 +323,8 @@
   animation: pulse 1.2s ease-in-out infinite;
 }
 
-// "Connecting…" indicator — shown from the moment a message is sent until
-// the first byte of the reply streams in (useChat status 'submitted'), so a
-// send always gets an immediate visual response. Same minimal row look as
-// ReasoningBubble's collapsed "Thinking…" line (muted small text + a
-// pulsing dot), not a chat bubble, since there's no reply content yet.
+// "Connecting…" row shown while a send awaits its first byte. Matches the
+// collapsed "Thinking…" line (muted small text plus a pulsing dot).
 .connectingIndicator {
   display: flex;
   align-items: center;
@@ -816,9 +811,8 @@
   gap: 6px;
   padding: 4px 12px 10px;
 
-  // The home-indicator inset is applied once, on .sheet's own padding-bottom
-  // (it wraps the whole sheet, including this row) — this is just the flat
-  // 10px base gap under the textarea/send button, same on mobile and desktop.
+  // A flat 10px gap under the textarea on every viewport. The home-indicator
+  // inset comes from .sheet, which wraps this row.
 }
 
 // textarea — 16px on mobile prevents iOS from zooming on focus.

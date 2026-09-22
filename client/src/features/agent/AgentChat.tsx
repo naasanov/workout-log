@@ -161,18 +161,9 @@ function pruneOldEntries(prefix: string, currentKey: string) {
   toRemove.forEach(k => localStorage.removeItem(k));
 }
 
-// ---------------------------------------------------------------------------
-// Redact embedded image bytes before caching to localStorage — mirrors
-// redactParts() in scripts/chatImageRedaction.js, so the cache only ever
-// holds the same "no longer available" shape the server's own nightly
-// retention job leaves behind. A `file` part's `url` (an attached photo) or
-// a `data-barcodeAttachment` part's `data.imageDataUrl` (a scanned barcode's
-// preview) can each be a multi-hundred-KB base64 JPEG data URL; a handful of
-// cached conversations holding those is enough to blow the ~5MB origin
-// quota, after which every other localStorage.setItem in the app throws and
-// is silently swallowed. Only the cached copy is redacted here — the
-// in-memory `messages` driving the live session keep their images.
-// ---------------------------------------------------------------------------
+// The cache stores images in the same redacted shape as redactParts() in
+// scripts/chatImageRedaction.js, because base64 photos would fill the ~5MB
+// localStorage quota and silently break every other write in the app.
 function isDataUri(value: unknown): value is string {
   return typeof value === 'string' && value.startsWith('data:');
 }
@@ -204,10 +195,8 @@ function redactMessagesForCache(messages: UIMessage[]): UIMessage[] {
   return messages.map(message => ({ ...message, parts: message.parts.map(redactPartForCache) }));
 }
 
-// Evicts every other peak.agentChat.* cache entry (messages + resolutions,
-// across every conversation but the one being written) so a write that's
-// still over quota can free space without touching anything else the app
-// keeps in localStorage.
+// Removes every agent-chat cache entry except `exceptKey`, leaving the rest
+// of the app's localStorage untouched.
 function evictOtherAgentChatCacheEntries(exceptKey: string) {
   const keys: string[] = [];
   for (let i = 0; i < localStorage.length; i++) {
@@ -219,10 +208,8 @@ function evictOtherAgentChatCacheEntries(exceptKey: string) {
   keys.forEach(k => localStorage.removeItem(k));
 }
 
-// Writes `value` to `key`; on a quota error, evicts every other agent-chat
-// cache entry and retries once, so this cache can never starve the rest of
-// the app's localStorage usage. Still-failing after that is swallowed, same
-// as the plain best-effort writes elsewhere in this module.
+// Best-effort write that, on a quota error, evicts the other agent-chat
+// cache entries and retries once, so this cache never starves other keys.
 function setItemWithQuotaRetry(key: string, value: string) {
   try {
     localStorage.setItem(key, value);
@@ -231,7 +218,7 @@ function setItemWithQuotaRetry(key: string, value: string) {
       evictOtherAgentChatCacheEntries(key);
       localStorage.setItem(key, value);
     } catch {
-      // still over quota after eviction — give up silently
+      // Still over quota after eviction, so the cache write is skipped.
     }
   }
 }
@@ -989,11 +976,9 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
             </div>
           )}
 
-          {/* "Connecting…" indicator — bridges the gap between a send and the
-              first streamed byte (status 'submitted'), so the send always
-              gets an immediate visual response. Only this client's own
-              sendMessage sets 'submitted', so it never shows on page
-              load/rehydration or for a resumed/polled conversation. */}
+          {/* Shown between a send and the first streamed byte. Only this
+              client's own sendMessage sets 'submitted', so page loads and
+              polled runs never show it. */}
           {status === 'submitted' && (
             <div className={`${styles.messageGroup} ${styles.messageGroupAssistant}`}>
               <div
