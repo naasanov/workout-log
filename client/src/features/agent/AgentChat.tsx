@@ -161,10 +161,97 @@ function pruneOldEntries(prefix: string, currentKey: string) {
   toRemove.forEach(k => localStorage.removeItem(k));
 }
 
+// The cache stores images in the same redacted shape as redactParts() in
+// scripts/chatImageRedaction.js, because base64 photos would fill the ~5MB
+// localStorage quota and silently break every other write in the app.
+function isDataUri(value: unknown): value is string {
+  return typeof value === 'string' && value.startsWith('data:');
+}
+
+function redactPartForCache(part: UIMessage['parts'][number]): UIMessage['parts'][number] {
+  if (part.type === 'file') {
+    const filePart = part as unknown as { mediaType: string; url: string };
+    if (filePart.mediaType?.startsWith('image/') && isDataUri(filePart.url)) {
+      return { type: 'data-imageRedacted', data: { mediaType: filePart.mediaType } } as unknown as UIMessage['parts'][number];
+    }
+    return part;
+  }
+
+  if (part.type === 'data-barcodeAttachment') {
+    const barcodePart = part as unknown as { data: { imageDataUrl?: string | null } };
+    if (isDataUri(barcodePart.data?.imageDataUrl)) {
+      return {
+        ...part,
+        data: { ...barcodePart.data, imageDataUrl: null, imageRedacted: true },
+      } as unknown as UIMessage['parts'][number];
+    }
+    return part;
+  }
+
+  return part;
+}
+
+function redactMessagesForCache(messages: UIMessage[]): UIMessage[] {
+  return messages.map(message => ({ ...message, parts: message.parts.map(redactPartForCache) }));
+}
+
+// Removes every agent-chat cache entry except `exceptKey`, leaving the rest
+// of the app's localStorage untouched.
+function evictOtherAgentChatCacheEntries(exceptKey: string) {
+  const keys: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k !== exceptKey && (k.startsWith(LS_PREFIX) || k.startsWith(LS_RESOLUTIONS_PREFIX))) {
+      keys.push(k);
+    }
+  }
+  keys.forEach(k => localStorage.removeItem(k));
+}
+
+// Best-effort write that, on a quota error, evicts the other agent-chat
+// cache entries and retries once, so this cache never starves other keys.
+function setItemWithQuotaRetry(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    try {
+      evictOtherAgentChatCacheEntries(key);
+      localStorage.setItem(key, value);
+    } catch {
+      // Still over quota after eviction, so the cache write is skipped.
+    }
+  }
+}
+
+// Redacts every OTHER cached conversation once per page load, so a device
+// already at quota still recovers: the current conversation's own rewrite
+// is often too small to throw and never triggers eviction on its own.
+let sweptStaleImageCache = false;
+function sweepStaleImageCache() {
+  if (sweptStaleImageCache) return;
+  sweptStaleImageCache = true;
+  const keys: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(LS_PREFIX)) keys.push(k);
+  }
+  for (const key of keys) {
+    const raw = localStorage.getItem(key);
+    if (!raw || !raw.includes('"data:')) continue;
+    try {
+      const messages = JSON.parse(raw) as UIMessage[];
+      localStorage.setItem(key, JSON.stringify(redactMessagesForCache(messages)));
+    } catch {
+      localStorage.removeItem(key); // server is the source of truth
+    }
+  }
+}
+
 function saveMessagesForConversation(id: number, messages: UIMessage[]) {
   try {
-    localStorage.setItem(lsKey(id), JSON.stringify(messages));
-    pruneOldEntries(LS_PREFIX, lsKey(id));
+    const key = lsKey(id);
+    setItemWithQuotaRetry(key, JSON.stringify(redactMessagesForCache(messages)));
+    pruneOldEntries(LS_PREFIX, key);
   } catch {
     // storage full — ignore
   }
@@ -184,8 +271,9 @@ function loadResolutionsForConversation(id: number): ResolutionEntry[] {
 
 function saveResolutionsForConversation(id: number, entries: ResolutionEntry[]) {
   try {
-    localStorage.setItem(resolutionsKey(id), JSON.stringify(entries));
-    pruneOldEntries(LS_RESOLUTIONS_PREFIX, resolutionsKey(id));
+    const key = resolutionsKey(id);
+    setItemWithQuotaRetry(key, JSON.stringify(entries));
+    pruneOldEntries(LS_RESOLUTIONS_PREFIX, key);
   } catch {
     // storage full — ignore
   }
@@ -410,6 +498,10 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
   useEffect(() => {
     fetchAndApplyActive(undefined, true).then(applied => evaluateDangling(applied));
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    sweepStaleImageCache();
   }, []);
 
   // On window focus / visibilitychange — refetch so runs that completed
@@ -909,6 +1001,23 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
           {chatError && !isDisconnectError(chatError) && (
             <div className={styles.messageGroup}>
               <ErrorBubble error={chatError} />
+            </div>
+          )}
+
+          {/* Shown between a send and the first streamed byte. Only this
+              client's own sendMessage sets 'submitted', so page loads and
+              polled runs never show it. */}
+          {status === 'submitted' && (
+            <div className={`${styles.messageGroup} ${styles.messageGroupAssistant}`}>
+              <div
+                className={styles.connectingIndicator}
+                role="status"
+                aria-live="polite"
+                aria-label="Connecting to assistant"
+              >
+                <span className={styles.connectingSpinner} aria-hidden="true" />
+                <span>Connecting…</span>
+              </div>
             </div>
           )}
 
