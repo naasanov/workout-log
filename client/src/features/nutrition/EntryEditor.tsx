@@ -33,7 +33,6 @@ import {
   type EditorRow,
   nextKey,
   emptyRow,
-  round2,
   sumRows,
   rowFromStoredIngredient,
   ingredientInputFromRow,
@@ -294,30 +293,38 @@ function Totals({ rows }: TotalsProps) {
   // sumRows (ingredientMath) already skips null grams from serving-basis rows
   // so a mixed batch's gram total isn't corrupted into NaN.
   const totals = sumRows(rows);
+  // sumRows treats a null fiber_g as 0, so an all-null batch would otherwise
+  // read as a genuine 0g. Tracked separately for the placeholder below.
+  const hasFiber = rows.some(r => r.fiber_g != null);
+
+  // #380: a compact row that wraps only as a last resort. Values here are
+  // whole numbers (an at-a-glance total; per-row figures keep full round2
+  // precision) so a 4-digit total still fits without clipping at 320px.
+  const stats: React.ReactNode[] = [
+    // No row carries a real weight (e.g. an all-serving UNC entry): show an
+    // em dash rather than a number, since that's unknown, not a real 0g.
+    // Don't simplify this to `Math.round(totals.grams)}g`; see hasWeight's doc.
+    totals.hasWeight
+      ? <span key="w"><strong>{Math.round(totals.grams)}</strong>g</span>
+      : <span key="w"><strong>—</strong></span>,
+    <span key="k"><strong>{Math.round(totals.calories)}</strong>cal</span>,
+    <span key="p"><strong>{Math.round(totals.protein_g)}</strong>P</span>,
+    <span key="c"><strong>{Math.round(totals.carbs_g)}</strong>C</span>,
+    <span key="f"><strong>{Math.round(totals.fat_g)}</strong>F</span>,
+    // Fiber is frequently absent from a source's data; a dash-only
+    // placeholder (no bold number) distinguishes "no fiber data" from a
+    // genuine 0g, the same intent as the weight dash above.
+    hasFiber
+      ? <span key="fib"><strong>{Math.round(totals.fiber_g)}</strong>Fib</span>
+      : <span key="fib">–Fib</span>,
+  ];
 
   return (
     <div className={styles.totals}>
+      {/* #380: visually hidden below the width where it no longer fits
+          (see .totalsLabel), but always present for assistive tech. */}
       <span className={styles.totalsLabel}>Total</span>
-      <span className={styles.totalsStat}>
-        {/* No row carries a real weight (all-serving entry, e.g. UNC dining
-            items) — the true total weight is unknown/not applicable, not 0.
-            Show an em dash so this can't be misread as "0g of food" or as a
-            bug in the macro math below. Don't "simplify" this back to
-            `round2(totals.grams)}g` — see hasWeight's doc comment. */}
-        {totals.hasWeight ? <><strong>{round2(totals.grams)}</strong>g</> : <strong>—</strong>}
-      </span>
-      <span className={styles.totalsStat}>
-        <strong>{Math.round(totals.calories)}</strong> kcal
-      </span>
-      <span className={styles.totalsStat}>
-        <strong>{round2(totals.protein_g)}</strong>g prot
-      </span>
-      <span className={styles.totalsStat}>
-        <strong>{round2(totals.carbs_g)}</strong>g carbs
-      </span>
-      <span className={styles.totalsStat}>
-        <strong>{round2(totals.fat_g)}</strong>g fat
-      </span>
+      <span className={styles.totalsRow}>{stats}</span>
     </div>
   );
 }

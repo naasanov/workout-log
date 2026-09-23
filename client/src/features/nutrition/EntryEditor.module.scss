@@ -416,32 +416,81 @@
 }
 
 // Live totals
+// #380: fits a worst-case (4-digit grams/cal, 3-digit macros) total in one
+// row down to a realistic width. .totalsRow's flex gap spaces items, not
+// glyphs; nothing is ever clipped, only wrapped as a last resort.
 .totals {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
+  align-items: baseline;
+  gap: 6px;
   padding: 12px 14px;
   background-color: rgba(vars.$primary, 0.07);
   border: 1px solid rgba(vars.$primary-border, 0.4);
   border-radius: 10px;
-  align-items: center;
 }
 
 .totalsLabel {
+  flex-shrink: 0;
   font-size: 13px;
   font-weight: 700;
   color: vars.$primary;
   text-transform: uppercase;
-  margin-right: 4px;
+
+  // #380: below 363px a typical total can't fit an 11px row next to the
+  // label, so it's visually hidden (same clip technique as Modal's .srOnly)
+  // rather than removed, keeping it in the accessibility tree.
+  @media (max-width: 362px) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }
 
-.totalsStat {
+.totalsRow {
+  display: flex;
+  // The breakpoints below fit a typical total (3-digit grams/cal, 2-digit
+  // macros) on one line. A larger total wraps to a second line rather than
+  // being clipped.
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
   font-size: 14px;
   color: rgba(vars.$text, 0.85);
+
+  // Each stat is itself a flex item; without this a flex item's default
+  // shrink squeezes its text below readable width instead of the row
+  // genuinely overflowing, which would hide a real fit failure.
+  > span {
+    flex-shrink: 0;
+  }
 
   strong {
     color: vars.$text;
     font-weight: 600;
+  }
+
+  // #380: three steps down to an 11px floor (never smaller), each fit to a
+  // typical total against the modal's real content width. See .totalsLabel
+  // for where the label hides.
+  @media (max-width: 403px) {
+    font-size: 13px;
+  }
+
+  @media (max-width: 389px) {
+    font-size: 12px;
+  }
+
+  @media (max-width: 376px) {
+    font-size: 11px;
   }
 }
 

@@ -81,6 +81,21 @@ function resolveBaseUrl(req: Request): string {
 type AttachmentRow = { token: string };
 
 /**
+ * Build the GitHub issue title: `[submitter][category][tool] excerpt`.
+ * `submitterEmail` is the local part before '@' only — the repo is public,
+ * so the full address never goes into the title — or `unknown` when the
+ * submitter's email couldn't be resolved. Newlines in the message are
+ * flattened to spaces and anything past 60 characters is truncated with '...'.
+ */
+export function buildIssueTitle(body: Pick<FeedbackBody, 'category' | 'tool' | 'message'>, submitterEmail: string): string {
+  const excerpt = body.message.slice(0, 60).replace(/\n/g, ' ');
+  const categoryLabel = body.category ?? 'other';
+  const tool = body.tool ?? 'other';
+  const submitterTag = submitterEmail === 'unknown' ? 'unknown' : submitterEmail.split('@')[0];
+  return `[${submitterTag}][${categoryLabel}][${tool}] ${excerpt}${body.message.length > 60 ? '...' : ''}`;
+}
+
+/**
  * Create a GitHub issue for the submitted feedback and record its issue
  * number on the feedback row. Best-effort — never throws; a GitHub or DB
  * failure here must not affect the already-saved feedback submission.
@@ -97,10 +112,9 @@ async function createGithubIssue(
 
   try {
     const repo = getGithubRepo();
-    const excerpt = body.message.slice(0, 60).replace(/\n/g, ' ');
     const categoryLabel = body.category ?? 'other';
     const tool = body.tool ?? 'other';
-    const title = `[${categoryLabel}][${tool}] ${excerpt}${body.message.length > 60 ? '...' : ''}`;
+    const title = buildIssueTitle(body, submitterEmail);
 
     // Attachments are already saved in the DB (see the POST handler), so the
     // issue body just links back to this app's own public attachment route.
