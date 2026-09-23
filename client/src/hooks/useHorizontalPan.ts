@@ -2,19 +2,31 @@ import { useCallback, useRef, useState } from 'react';
 
 const DRAG_THRESHOLD_PX = 8;
 
+type DragState = {
+  startX: number;
+  lastX: number;
+  pointerId: number;
+  dragging: boolean;
+};
+
+type UseHorizontalPanOptions = {
+  onPanBy: (dx: number) => void;
+  disabled?: boolean;
+};
+
 // Tells a horizontal drag apart from a tap so panning a chart doesn't fight its
 // tooltip. Past the threshold it reports pixel deltas via onPanBy, and
 // isDragging lets the caller hide hover UI meanwhile.
-function useHorizontalPan({ onPanBy, disabled = false } = {}) {
+function useHorizontalPan({ onPanBy, disabled = false }: UseHorizontalPanOptions) {
   const [isDragging, setIsDragging] = useState(false);
-  const dragRef = useRef(null);
+  const dragRef = useRef<DragState | null>(null);
 
-  const onPointerDown = useCallback((e) => {
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
     if (disabled) return;
     dragRef.current = { startX: e.clientX, lastX: e.clientX, pointerId: e.pointerId, dragging: false };
   }, [disabled]);
 
-  const onPointerMove = useCallback((e) => {
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
     const drag = dragRef.current;
     if (!drag || disabled) return;
     if (!drag.dragging) {
@@ -22,7 +34,7 @@ function useHorizontalPan({ onPanBy, disabled = false } = {}) {
       drag.dragging = true;
       setIsDragging(true);
       try {
-        e.target.setPointerCapture(drag.pointerId);
+        (e.target as Element).setPointerCapture(drag.pointerId);
       } catch (_) {
         // Some pointer sources (e.g. simulated events) don't support capture.
       }
