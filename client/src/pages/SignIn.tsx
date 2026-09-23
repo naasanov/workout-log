@@ -1,17 +1,19 @@
 import { useState, useEffect } from "react";
+import type { FormEvent } from "react";
 import { useUser } from "../context/UserProvider";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import styles from "../styles/Authentication.module.scss";
 import { login } from "../api/authApi";
 import useDocumentTitle from "../hooks/useDocumentTitle";
+import { isAxiosError } from "axios";
 
 function SignIn() {
   useDocumentTitle("Sign In · Peak"); // #236: unique per-page tab title
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [emailMessage, setEmailMessage] = useState(null);
-  const [pwdMessage, setPwdMessage] = useState(null);
+  const [emailMessage, setEmailMessage] = useState<string | null>(null);
+  const [pwdMessage, setPwdMessage] = useState<string | null>(null);
   const [message, setMessage] = useState("")
   const { setUser } = useUser();
   const navigate = useNavigate();
@@ -37,7 +39,7 @@ function SignIn() {
     return true;
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setMessage("")
 
@@ -56,7 +58,7 @@ function SignIn() {
       loggedUser = await login(email, password);
     }
     catch (error) {
-      if (error.response?.status === 401) {
+      if (isAxiosError(error) && error.response?.status === 401) {
         return setMessage("Incorrect email or password");
       }
       return setMessage("Internal Server Error");
@@ -68,7 +70,15 @@ function SignIn() {
 
   return (
     <>
-      <Header />
+      {/* Explicit undefined: Header.jsx has no defaults for these nav-drawer
+          props, so its inferred type requires them even though SignIn, with
+          no drawer of its own, always renders it uncontrolled. */}
+      <Header
+        drawerOpen={undefined}
+        onDrawerOpenChange={undefined}
+        editMode={undefined}
+        onEditModeChange={undefined}
+      />
       <div className={styles.signin}>
         <span>Sign in to your workout log</span>
         <div>
@@ -76,7 +86,7 @@ function SignIn() {
             <div className={styles.input}>
               <label htmlFor="email">Email</label>
               <input
-                className={emailMessage ? styles.error : null}
+                className={emailMessage ? styles.error : undefined}
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 type="text"
@@ -89,7 +99,7 @@ function SignIn() {
             <div className={styles.input}>
               <label htmlFor="password">Password</label>
               <input
-                className={pwdMessage ? styles.error : null}
+                className={pwdMessage ? styles.error : undefined}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 type="password"
