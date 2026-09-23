@@ -436,10 +436,10 @@
   color: vars.$primary;
   text-transform: uppercase;
 
-  // #380: below 418px a worst-case total (4-digit grams/cal, 3-digit
-  // macros) can't fit an 11px row next to the label, so it's visually
-  // hidden (same clip technique as Modal's .srOnly), never display:none.
-  @media (max-width: 417px) {
+  // #380: below 363px a typical total can't fit an 11px row next to the
+  // label, so it's visually hidden (same clip technique as Modal's .srOnly)
+  // rather than removed, keeping it in the accessibility tree.
+  @media (max-width: 362px) {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -454,9 +454,9 @@
 
 .totalsRow {
   display: flex;
-  // Last resort only: the breakpoints below are fit to a realistic worst
-  // case, so this should rarely trigger. An extreme total wraps to a
-  // second line rather than being silently clipped.
+  // The breakpoints below fit a typical total (3-digit grams/cal, 2-digit
+  // macros) on one line. A larger total wraps to a second line rather than
+  // being clipped.
   flex-wrap: wrap;
   align-items: baseline;
   gap: 4px 6px;
@@ -479,17 +479,17 @@
   }
 
   // #380: three steps down to an 11px floor (never smaller), each fit to a
-  // worst-case total (4-digit grams/cal, 3-digit macros) against the
-  // modal's real content width. See .totalsLabel for where it hides.
-  @media (max-width: 468px) {
+  // typical total against the modal's real content width. See .totalsLabel
+  // for where the label hides.
+  @media (max-width: 403px) {
     font-size: 13px;
   }
 
-  @media (max-width: 451px) {
+  @media (max-width: 389px) {
     font-size: 12px;
   }
 
-  @media (max-width: 434px) {
+  @media (max-width: 376px) {
     font-size: 11px;
   }
 }
