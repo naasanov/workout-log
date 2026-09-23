@@ -5,8 +5,8 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery } from '@tanstack/react-query';
 import styles from "../styles/Workouts.module.scss";
 import CollapseButton from "./CollapseButton.jsx";
-import useAuth from '../hooks/useAuth.js';
-import clientApi from "../api/clientApi.js";
+import useAuth from '../hooks/useAuth';
+import clientApi from "../api/clientApi";
 import { v4 as uuid } from "uuid";
 import { MoreVertical } from 'lucide-react';
 
@@ -96,7 +96,7 @@ function Section({ setSections, section }) {
   // imperative fetch keyed only on section.id never re-runs on its own.
   // `movements` stays local state, synced from the query below, so the
   // existing optimistic add/remove/rename handlers can keep updating it
-  // directly without waiting on a round trip (same pattern Workouts.jsx
+  // directly without waiting on a round trip (same pattern Workouts.tsx
   // uses for its own `sections` local state).
   const movementsQuery = useQuery({
     queryKey: ['movements', 'section', section.id],

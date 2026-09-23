@@ -1,9 +1,9 @@
 import { useState, useMemo, useRef } from 'react';
 import { ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
-import clientApi from '../api/clientApi.js';
-import useAuth from '../hooks/useAuth.js';
-import useHorizontalPan from '../hooks/useHorizontalPan.js';
+import clientApi from '../api/clientApi';
+import useAuth from '../hooks/useAuth';
+import useHorizontalPan from '../hooks/useHorizontalPan';
 import ConfirmModal from './ConfirmModal.jsx';
 import styles from '../styles/BodyWeightTracker.module.scss';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';

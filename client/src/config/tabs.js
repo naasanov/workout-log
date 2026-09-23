@@ -1,7 +1,7 @@
 // Single source of truth for the four top-level "tools" (tabs). Keys must match
 // the server's TAB_KEYS in schemas/tabPreferences.ts (kept in sync by hand — the
 // client and server are separate npm projects). Consolidates constants that used
-// to be duplicated in Workouts.jsx and NavDrawer.jsx.
+// to be duplicated in Workouts.tsx and NavDrawer.jsx.
 
 export const TABS = {
   WORKOUTS: 'workouts',
@@ -13,7 +13,7 @@ export const TABS = {
 
 // Owner-only admin page (#325). It is a `?tab=` value but not a user-configurable tool,
 // so it stays out of DEFAULT_ORDER/VALID_TABS and the "Add tools" list; owner status
-// gates it instead (NavDrawer.jsx, Workouts.jsx).
+// gates it instead (NavDrawer.jsx, Workouts.tsx).
 export const ADMIN_USAGE_TAB = 'admin-usage';
 
 export const TAB_LABELS = {

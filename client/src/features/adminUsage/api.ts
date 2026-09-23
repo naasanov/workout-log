@@ -1,7 +1,7 @@
 // React Query hooks for the owner-only AI usage dashboard. Mirrors
 // nutrition/api.ts: shared axios instance, { data, message } envelope unwrapped.
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import clientApi from '../../api/clientApi.js';
+import clientApi from '../../api/clientApi';
 import type { OwnerUsageReport } from './types';
 
 export const adminUsageKeys = {

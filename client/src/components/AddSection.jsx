@@ -1,8 +1,8 @@
 import { useError } from '../context/ErrorProvider';
 import styles from "../styles/Workouts.module.scss";
 import { Plus } from 'lucide-react';
-import useAuth from '../hooks/useAuth.js';
-import clientApi from '../api/clientApi.js';
+import useAuth from '../hooks/useAuth';
+import clientApi from '../api/clientApi';
 import { v4 as uuid } from 'uuid';
 
 function AddSection({ setSections }) {

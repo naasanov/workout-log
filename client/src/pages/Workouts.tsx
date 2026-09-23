@@ -9,13 +9,14 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import styles from "../styles/Workouts.module.scss";
 import Header from '../components/Header.jsx';
-import clientApi from '../api/clientApi.js';
-import useAuth from '../hooks/useAuth.js';
+import clientApi from '../api/clientApi';
+import useAuth from '../hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { TABS, TAB_LABELS, ADMIN_USAGE_TAB } from '../config/tabs';
 import { useTabPreferences } from '../api/tabPreferences';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import AgentChat from '../features/agent/AgentChat';
+import type { AgentChatHandle } from '../features/agent/AgentChat';
 import { useNutritionComposerExtras } from '../features/nutrition/NutritionComposerExtras';
 import AdminUsageDashboard from '../features/adminUsage/AdminUsageDashboard';
 import { useIsOwner } from '../features/adminUsage/api';
@@ -26,8 +27,12 @@ import { computeRange, DEFAULT_RANGE_DAYS } from '../features/adminUsage/range';
 import '../features/nutrition/NutritionToolRenderers';
 import '../features/nutrition/NutritionBarcodeChip';
 
+// A workouts-tree section, as returned by GET /sections/user. Only `id` is read
+// here; the rest is passed through opaquely to Section/AddSection.
+type WorkoutSection = { id: number };
+
 function Workouts() {
-  const [sections, setSections] = useState([]);
+  const [sections, setSections] = useState<WorkoutSection[]>([]);
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -44,7 +49,7 @@ function Workouts() {
   // Nutrition's currently-viewed day, reported up by NutritionTracker so the
   // page-level chat below can include it in context while nutrition is
   // active. Nutrition is the only tab with a per-day concept today.
-  const [nutritionSelectedDate, setNutritionSelectedDate] = useState(null);
+  const [nutritionSelectedDate, setNutritionSelectedDate] = useState<string | null>(null);
 
   // Nutrition's camera/barcode composer plugin, wired into the single
   // global AgentChat instance on every tab: scanning a barcode or attaching
@@ -63,11 +68,11 @@ function Workouts() {
   // Resolve the tab to render. Logged-out → Workouts only. Logged-in → the
   // requested tab if it's enabled, else the first enabled tab (the homepage).
   // null = show the empty state (logged-in with no enabled tabs). #110
-  let activeTab;
+  let activeTab: string | null;
   if (!loggedIn) {
     activeTab = TABS.WORKOUTS;
   } else if (enabledTabs.length > 0) {
-    activeTab = enabledTabs.includes(tabParam) ? tabParam : enabledTabs[0];
+    activeTab = enabledTabs.includes(tabParam ?? '') ? tabParam : enabledTabs[0];
   } else {
     activeTab = null;
   }
@@ -90,7 +95,7 @@ function Workouts() {
 
   const sectionsQuery = useQuery({
     queryKey: ['sections'],
-    queryFn: async () => {
+    queryFn: async (): Promise<WorkoutSection[]> => {
       const res = await clientApi.get('/sections/user');
       return res.data.data ?? [];
     },
@@ -126,7 +131,7 @@ function Workouts() {
   // AgentChatHandle) -- lets chat history's "Continue" action pull in the
   // conversation it just reactivated and pop the sheet open, without
   // threading a second, competing "open" state through this page.
-  const agentChatRef = useRef(null);
+  const agentChatRef = useRef<AgentChatHandle | null>(null);
   const handleConversationContinued = useCallback(() => {
     agentChatRef.current?.openActiveConversation();
   }, []);

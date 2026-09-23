@@ -9,8 +9,8 @@
 // transaction, so a failure partway through leaves the earlier items
 // genuinely applied — see executeMutationBatch's doc comment for how that's
 // reported rather than hidden.
-import clientApi from '../../../api/clientApi.js';
-import queryClient from '../../../api/queryClient.js';
+import clientApi from '../../../api/clientApi';
+import queryClient from '../../../api/queryClient';
 import type { MutationInput } from './mutationTypes';
 
 // ---------------------------------------------------------------------------

@@ -4,7 +4,7 @@ import { useUser } from "../context/UserProvider";
 function useAuth() {
   const { user } = useUser()
   const withAuth = useCallback(
-    async (fn) => {
+    async function run<T>(fn: () => Promise<T>): Promise<T | null> {
       if (!user) return null;
       try {
         return await fn();

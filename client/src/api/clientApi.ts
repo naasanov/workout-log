@@ -1,22 +1,31 @@
 import axios from "axios";
+import type { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from "axios";
 import { jwtDecode } from "jwt-decode";
+
 // In production the client is served same-origin as the API, so default to the
 // relative `/api` base; local dev overrides this via VITE_API_URL in .env.local.
-const URL = import.meta.env.VITE_API_URL || '/api';
+const URL: string = import.meta.env.VITE_API_URL || '/api';
 axios.defaults.withCredentials = true;
 
-const clientApi = axios.create({
+// Shape of the `{ message }` error envelope every route handler returns.
+type ApiErrorBody = { message?: string };
+
+// A request config that has already gone through one refresh-and-retry cycle,
+// so the 401 handler below doesn't loop forever on a request that still fails.
+type RetryableConfig = InternalAxiosRequestConfig & { _retry?: boolean };
+
+const clientApi: AxiosInstance = axios.create({
   withCredentials: true,
   baseURL: URL
 })
 
-function isTokenExpired(token) {
+function isTokenExpired(token: string | null): boolean {
   if (!token) return true;
   const { exp } = jwtDecode(token);
-  return Date.now() >= exp * 1000;
+  return Date.now() >= exp! * 1000;
 }
 
-async function refreshToken() {
+async function refreshToken(): Promise<string> {
   try {
     const res = await axios.post(`${URL}/auth/token`);
     const token = res.data.data.accessToken;
@@ -40,12 +49,12 @@ clientApi.interceptors.request.use(
 
 // Track whether a token-refresh is already in flight so concurrent 401s
 // don't each trigger a separate refresh call.
-let refreshingPromise = null;
+let refreshingPromise: Promise<string> | null = null;
 
 clientApi.interceptors.response.use(
   response => response,
-  async (error) => {
-    const originalRequest = error.config;
+  async (error: AxiosError<ApiErrorBody>) => {
+    const originalRequest: RetryableConfig = error.config!;
 
     // Only attempt refresh on a 401 that hasn't already been retried.
     if (error.response?.status === 401 && !originalRequest._retry) {

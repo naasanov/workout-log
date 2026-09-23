@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
-import clientApi from '../api/clientApi.js';
-import { useUser } from '../context/UserProvider.jsx';
+import clientApi from '../api/clientApi';
+import { useUser } from '../context/UserProvider';
 import Modal from './Modal.jsx';
 import styles from '../styles/WeightGraphModal.module.scss';
 

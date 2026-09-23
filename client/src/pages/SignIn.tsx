@@ -1,18 +1,19 @@
 import { useState, useEffect } from "react";
+import type { FormEvent } from "react";
 import { useUser } from "../context/UserProvider";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import styles from "../styles/Authentication.module.scss";
-import { signup } from "../api/authApi";
-import clientApi from "../api/clientApi";
+import { login } from "../api/authApi";
 import useDocumentTitle from "../hooks/useDocumentTitle";
+import { isAxiosError } from "axios";
 
 function SignIn() {
-  useDocumentTitle("Sign Up · Peak"); // #236: unique per-page tab title
+  useDocumentTitle("Sign In · Peak"); // #236: unique per-page tab title
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [emailMessage, setEmailMessage] = useState(null);
-  const [pwdMessage, setPwdMessage] = useState(null);
+  const [emailMessage, setEmailMessage] = useState<string | null>(null);
+  const [pwdMessage, setPwdMessage] = useState<string | null>(null);
   const [message, setMessage] = useState("")
   const { setUser } = useUser();
   const navigate = useNavigate();
@@ -38,79 +39,54 @@ function SignIn() {
     return true;
   }
 
-  /** Password requirements:
-   * - At least 8 characters
-   * - At least one uppercase letter
-   * - At least one lowercase letter
-   * - At least one number
-   * - At lesat one symbol
-   */
-  const validatePassword = () => {
-    let msg = null;
-    if (password.trim() === "") {
-      msg = "Please enter a password";
-    }
-    else if (password.trim().length < 8) {
-      msg = "Password must be at least 8 characters";
-    }
-    else if (!/[A-Z]/.test(password)) {
-      msg = "Password must include an uppercase letter";
-    }
-    else if (!/[a-z]/.test(password)) {
-      msg = "Password must include a lowercase letter";
-    }
-    else if (!/\d/.test(password)) {
-      msg = "Password must include a number";
-    }
-    else if (!/[^\w\s]/.test(password)) {
-      msg = "Password must include a symbol";
-    }
-    if (msg !== null) {
-      setPwdMessage(msg);
-      return false;
-    }
-    return true;
-  }
-
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setMessage("");
+    setMessage("")
 
-    const emailValid = validateEmail();
-    const passwordValid = validatePassword();
-    if (!emailValid || !passwordValid) {
-      return;
+    let error = false;
+    if (!validateEmail()) {
+      error = true;
     }
+    if (password.trim() === "") {
+      setPwdMessage("Please enter a password");
+      error = true;
+    }
+    if (error) return;
 
-    let res;
+    let loggedUser;
     try {
-      await signup(email, password);
-      res = await clientApi.get('/users')
+      loggedUser = await login(email, password);
     }
     catch (error) {
-      if (error.response?.status === 409) {
-        return setMessage('Account with this email already exists')
+      if (isAxiosError(error) && error.response?.status === 401) {
+        return setMessage("Incorrect email or password");
       }
-      else {
-        return setMessage("Internal Server Error");
-      }
+      return setMessage("Internal Server Error");
     }
 
-    setUser(res.data.data);
+    setUser(loggedUser);
     navigate('/');
   }
 
   return (
     <>
-      <Header />
+      {/* Explicit undefined: Header.jsx has no defaults for these nav-drawer
+          props, so its inferred type requires them even though SignIn, with
+          no drawer of its own, always renders it uncontrolled. */}
+      <Header
+        drawerOpen={undefined}
+        onDrawerOpenChange={undefined}
+        editMode={undefined}
+        onEditModeChange={undefined}
+      />
       <div className={styles.signin}>
-        <span>Make an account</span>
+        <span>Sign in to your workout log</span>
         <div>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} method="post" >
             <div className={styles.input}>
               <label htmlFor="email">Email</label>
               <input
-                className={emailMessage ? styles.error : null}
+                className={emailMessage ? styles.error : undefined}
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 type="text"
@@ -123,13 +99,13 @@ function SignIn() {
             <div className={styles.input}>
               <label htmlFor="password">Password</label>
               <input
-                className={pwdMessage ? styles.error : null}
+                className={pwdMessage ? styles.error : undefined}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 type="password"
                 id="password"
                 name="password"
-                autoComplete="new-password"
+                autoComplete="current-password"
               />
               {pwdMessage && <span>{pwdMessage}</span>}
             </div>
@@ -137,8 +113,8 @@ function SignIn() {
               <span>{message}</span>
             </div>
             <div className={styles.button}>
-              <button type="submit">Sign Up</button>
-              <span>Already have an account? <Link to='/sign-in'>Sign In</Link></span>
+              <button type="submit">Log in</button>
+              <span>Don't have an account? <Link to="/sign-up">Sign Up</Link></span>
             </div>
           </form>
         </div>

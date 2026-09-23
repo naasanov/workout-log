@@ -4,7 +4,7 @@ import { useEffect } from "react";
 // other document.title handling anywhere) — this is the smallest thing that
 // works. Re-runs whenever `title` changes, so callers whose page swaps
 // content without a route change (e.g. Workouts' tab param) stay in sync.
-function useDocumentTitle(title) {
+function useDocumentTitle(title: string) {
   useEffect(() => {
     document.title = title;
   }, [title]);

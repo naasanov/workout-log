@@ -2,12 +2,12 @@
 // conversation id, not a calendar day. Mirrors the backend contract in
 // routes/chat.ts and services/conversations/store.ts (kept in sync by hand,
 // same convention as features/nutrition/types.ts).
-import clientApi from '../../api/clientApi.js';
+import clientApi from '../../api/clientApi';
 
 export const VITE_API_URL = (import.meta as unknown as { env: Record<string, string> }).env.VITE_API_URL || '/api';
 
 // ---------------------------------------------------------------------------
-// Auth helper — mirrors clientApi.js's interceptor logic. useChat's transport
+// Auth helper — mirrors clientApi.ts's interceptor logic. useChat's transport
 // needs a plain fetch-header function, not an axios instance.
 // ---------------------------------------------------------------------------
 export async function getAccessToken(): Promise<string> {

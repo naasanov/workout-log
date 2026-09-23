@@ -2,7 +2,7 @@
 // nutrition goals hooks (features/nutrition/api.ts): shared axios instance,
 // { data, message } envelope unwrapped, per-user and account-scoped.
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import clientApi from './clientApi.js';
+import clientApi from './clientApi';
 
 export const tabPreferencesKey = ['tab-preferences'];
 
@@ -11,10 +11,10 @@ export const tabPreferencesKey = ['tab-preferences'];
  * in) so the query doesn't run for logged-out visitors. Returns string[] — an
  * empty array means the new-account empty state.
  */
-export function useTabPreferences(enabled) {
+export function useTabPreferences(enabled: boolean) {
   return useQuery({
     queryKey: tabPreferencesKey,
-    queryFn: async () => {
+    queryFn: async (): Promise<string[]> => {
       const res = await clientApi.get('/users/tab-preferences');
       return res.data.data;
     },
@@ -27,13 +27,13 @@ export function useTabPreferences(enabled) {
 export function usePutTabPreferences() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (enabledTabs) => {
+    mutationFn: async (enabledTabs: string[]): Promise<string[]> => {
       const res = await clientApi.put('/users/tab-preferences', { enabledTabs });
       return res.data.data;
     },
-    onMutate: async (enabledTabs) => {
+    onMutate: async (enabledTabs: string[]) => {
       await qc.cancelQueries({ queryKey: tabPreferencesKey });
-      const prev = qc.getQueryData(tabPreferencesKey);
+      const prev = qc.getQueryData<string[]>(tabPreferencesKey);
       qc.setQueryData(tabPreferencesKey, enabledTabs);
       return { prev };
     },
