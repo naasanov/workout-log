@@ -1,0 +1,22 @@
+# Peak
+
+> Peak is a personal fitness and nutrition tracker. It logs workouts and personal
+> records, body weight, habits, and food, and includes an AI assistant that can
+> enter data from a conversation, a photo, or a barcode scan.
+
+## What it does
+
+- Workouts: organize training into sections, movements, and variations, and
+  track weight/rep history and personal records over time.
+- Body weight: log entries and view trends over time.
+- Habits: define habits and tally daily completion.
+- Nutrition: log food entries and macros, including from a barcode scan or a
+  photo of a meal.
+- AI assistant: a chat interface that can propose workout, body weight,
+  habit, and nutrition entries for the user to confirm.
+
+## Pages
+
+- [Sign up](https://peakhq.me/sign-up): create an account
+- [Sign in](https://peakhq.me/sign-in): sign in to an existing account
+- [App](https://peakhq.me/): the tracker itself (requires sign-in)

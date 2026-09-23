@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 
+import { redirectWwwToApex, mountSiteRouting } from './middleware/siteRouting';
 import users from './routes/users';
 import sections from './routes/sections';
 import movements from './routes/movements';
@@ -22,6 +23,10 @@ import admin from './routes/admin';
 dotenv.config();
 
 const app = express();
+const clientBuildDir = path.join(__dirname, "..", "client", "build");
+// Ahead of everything else so a www.peakhq.me request never reaches static
+// files, cookies, or CORS under the wrong origin.
+app.use(redirectWwwToApex);
 // Chat messages can carry base64-encoded image attachments (downscaled to a
 // max-1024px JPEG client-side), which exceed express.json's default 100kb limit.
 app.use(express.json({ limit: '10mb' }));
@@ -32,7 +37,7 @@ app.use(cors({
     origin: process.env.FRONTEND_URL || "http://localhost:3000",
     optionsSuccessStatus: 200
 }))
-app.use(express.static(path.join(__dirname, "..", "client", "build")))
+app.use(express.static(clientBuildDir))
 
 app.use('/api/auth', auth);
 app.use('/api/users', users);
@@ -55,10 +60,7 @@ app.get('/api', (req, res) => {
     res.send("running");
 })
 
-app.get("*", (req, res) => {
-    console.log("get client");
-    res.sendFile(path.join(__dirname, "..", "client", "build", "index.html"));
-});
+mountSiteRouting(app, clientBuildDir);
 
 const port = process.env.PORT || 4000;
 app.listen(port, () => {

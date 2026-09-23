@@ -9,18 +9,37 @@
        CSS variable — keep both literals in sync with $surface in
        variables.scss, which is also the header's background-color. -->
   <meta name="theme-color" content="#282B28" />
-  <meta name="description" content="An app to help you track you personal records in the gym" />
+  <meta name="description" content="Peak tracks workouts and personal records, body weight, habits, and nutrition, with an AI assistant that logs entries for you." />
+  <link rel="canonical" href="https://peakhq.me/" />
   <!-- Mountain brand mark. Color is hardcoded #70EB70 ($primary) here and in
        client/public/mountain.svg since favicons can't read a CSS variable —
        keep both literals in sync with $primary in variables.scss. -->
   <link rel="icon" type="image/svg+xml" href="/mountain.svg" />
   <link rel="apple-touch-icon" href="/logo192.png" />
   <link rel="manifest" href="/manifest.json" />
-  <title>Peak</title>
+  <title>Peak: workout, nutrition and body weight tracker</title>
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Peak" />
+  <meta property="og:title" content="Peak: workout, nutrition and body weight tracker" />
+  <meta property="og:description" content="Peak tracks workouts and personal records, body weight, habits, and nutrition, with an AI assistant that logs entries for you." />
+  <meta property="og:url" content="https://peakhq.me/" />
+  <meta property="og:image" content="https://peakhq.me/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Peak" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Peak: workout, nutrition and body weight tracker" />
+  <meta name="twitter:description" content="Peak tracks workouts and personal records, body weight, habits, and nutrition, with an AI assistant that logs entries for you." />
+  <meta name="twitter:image" content="https://peakhq.me/og-image.png" />
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Only the weight/style combinations used in client/src (see font-weight
+       and font-style usages) -- the full 16-variant set costs far more to
+       fetch than the app needs. -->
   <link
-    href="https://fonts.googleapis.com/css2?family=Sarabun:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap"
     rel="stylesheet">
 </head>
 
