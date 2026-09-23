@@ -227,7 +227,7 @@ function ActionsMenu({ onGoals, onMyFoods }: ActionsMenuProps) {
 
 interface NutritionTrackerProps {
   /** Notified with the currently viewed date on mount and every change, so
-   *  the page-level AgentChat (mounted once in Workouts.jsx, not here) can
+   *  the page-level AgentChat (mounted once in Workouts.tsx, not here) can
    *  include it in the nutrition tab's chat context. */
   onSelectedDateChange?: (date: string) => void;
 }
@@ -536,7 +536,7 @@ export default function NutritionTracker({ onSelectedDateChange }: NutritionTrac
         onClose={handleEditorClose}
       />
 
-      {/* AI Chat bottom-sheet is mounted once, page-level, in Workouts.jsx —
+      {/* AI Chat bottom-sheet is mounted once, page-level, in Workouts.tsx —
           not here — so it survives switching away from this tab. */}
 
       {/* Goals modal */}

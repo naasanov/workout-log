@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
-import clientApi from '../api/clientApi.js';
-import useAuth from '../hooks/useAuth.js';
+import clientApi from '../api/clientApi';
+import useAuth from '../hooks/useAuth';
 import styles from '../styles/HabitTracker.module.scss';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Minus, Plus, X, MoreVertical, ChevronDown } from 'lucide-react';

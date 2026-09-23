@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { logout } from '../api/authApi.js';
-import { useUser } from '../context/UserProvider.jsx';
+import { logout } from '../api/authApi';
+import { useUser } from '../context/UserProvider';
 import { Profile } from './Icons.jsx';
 import ApiKeyModal from './ApiKeyModal.jsx';
 import styles from '../styles/Header.module.scss';

@@ -1,10 +1,10 @@
 // React Query hooks for per-user agent instructions (#382): free-text
 // preferences folded into the agent's system prompt (see
 // services/agent/prompt/userInstructions.ts). Mirrors the tab-preferences
-// hooks (api/tabPreferences.js): shared axios instance, { data, message }
+// hooks (api/tabPreferences.ts): shared axios instance, { data, message }
 // envelope unwrapped.
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import clientApi from '../../api/clientApi.js';
+import clientApi from '../../api/clientApi';
 import type { AgentInstructionsResponse } from '../../../../shared/agentInstructions';
 
 export const agentInstructionsKey = ['agent-instructions'];

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import clientApi from '../../api/clientApi.js';
-import useAuth from '../../hooks/useAuth.js';
-import useIsMobile from '../../hooks/useIsMobile.js';
-import { useError } from '../../context/ErrorProvider.jsx';
+import clientApi from '../../api/clientApi';
+import useAuth from '../../hooks/useAuth';
+import useIsMobile from '../../hooks/useIsMobile';
+import { useError } from '../../context/ErrorProvider';
 import ThinVariation from './ThinVariation.jsx';
 import WideVariation from './WideVariation.jsx';
 import ConfirmModal from '../ConfirmModal.jsx';

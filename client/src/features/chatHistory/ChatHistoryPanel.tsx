@@ -17,7 +17,7 @@ import {
 
 export interface ChatHistoryPanelProps {
   /** Called once a conversation has been made active again via Continue --
-   *  the caller (Workouts.jsx) uses this to pop the chat sheet open onto it. */
+   *  the caller (Workouts.tsx) uses this to pop the chat sheet open onto it. */
   onConversationContinued: () => void;
 }
 

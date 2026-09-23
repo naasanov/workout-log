@@ -2,7 +2,7 @@
 // All calls go through the shared axios instance (same-origin /api base) and
 // unwrap the backend's { data, message } envelope.
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import clientApi from '../../api/clientApi.js';
+import clientApi from '../../api/clientApi';
 import type {
   DayResponse,
   EntryInput,
