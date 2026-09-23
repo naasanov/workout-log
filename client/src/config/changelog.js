@@ -11,6 +11,19 @@
 
 export const CHANGELOG = [
   {
+    date: '2026-09-22',
+    title: 'Your own AI instructions, a new home at peakhq.me, and snappier chat',
+    items: [
+      { text: 'Tell the assistant how you like it to answer, such as tone, units or level of detail. Tap the gear at the top of the chat to set your instructions', issues: [382] },
+      'Peak now lives at peakhq.me. The old address still works',
+      { text: 'After you send a chat message, a “Connecting…” step shows right away so you know it went through', issues: [384] },
+      { text: 'Less empty space under the chat box on iPhone', issues: [383] },
+      { text: 'Photos in old chats no longer fill up your phone’s storage for Peak, which could stop settings like the body weight time range from being saved', issues: [381] },
+      { text: 'The food entry total fits on one line, and now includes fiber', issues: [380] },
+      { text: 'The What’s New dot no longer shows when you are signed out', issues: [379] },
+    ],
+  },
+  {
     date: '2026-09-17',
     title: 'Smoother weight chart and the right day for “yesterday”',
     items: [
