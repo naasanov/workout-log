@@ -33,7 +33,6 @@ import {
   type EditorRow,
   nextKey,
   emptyRow,
-  round2,
   sumRows,
   rowFromStoredIngredient,
   ingredientInputFromRow,
@@ -298,25 +297,25 @@ function Totals({ rows }: TotalsProps) {
   // read as a genuine 0g. Tracked separately for the placeholder below.
   const hasFiber = rows.some(r => r.fiber_g != null);
 
-  // #380: one compact, non-wrapping row (was 6 wide items wrapping to two
-  // lines on mobile). Items are spaced by .totalsRow's flex gap, not visible
-  // separator glyphs, and units are abbreviated so the row fits at 320px.
+  // #380: a compact row that wraps only as a last resort. Values here are
+  // whole numbers (an at-a-glance total; per-row figures keep full round2
+  // precision) so a 4-digit total still fits without clipping at 320px.
   const stats: React.ReactNode[] = [
     // No row carries a real weight (e.g. an all-serving UNC entry): show an
     // em dash rather than a number, since that's unknown, not a real 0g.
-    // Don't simplify this to `round2(totals.grams)}g`; see hasWeight's doc.
+    // Don't simplify this to `Math.round(totals.grams)}g`; see hasWeight's doc.
     totals.hasWeight
-      ? <span key="w"><strong>{round2(totals.grams)}</strong>g</span>
+      ? <span key="w"><strong>{Math.round(totals.grams)}</strong>g</span>
       : <span key="w"><strong>—</strong></span>,
     <span key="k"><strong>{Math.round(totals.calories)}</strong>cal</span>,
-    <span key="p"><strong>{round2(totals.protein_g)}</strong>P</span>,
-    <span key="c"><strong>{round2(totals.carbs_g)}</strong>C</span>,
-    <span key="f"><strong>{round2(totals.fat_g)}</strong>F</span>,
+    <span key="p"><strong>{Math.round(totals.protein_g)}</strong>P</span>,
+    <span key="c"><strong>{Math.round(totals.carbs_g)}</strong>C</span>,
+    <span key="f"><strong>{Math.round(totals.fat_g)}</strong>F</span>,
     // Fiber is frequently absent from a source's data; a dash-only
     // placeholder (no bold number) distinguishes "no fiber data" from a
     // genuine 0g, the same intent as the weight dash above.
     hasFiber
-      ? <span key="fib"><strong>{round2(totals.fiber_g)}</strong>Fib</span>
+      ? <span key="fib"><strong>{Math.round(totals.fiber_g)}</strong>Fib</span>
       : <span key="fib">–Fib</span>,
   ];
 

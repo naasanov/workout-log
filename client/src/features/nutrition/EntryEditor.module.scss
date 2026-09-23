@@ -416,9 +416,9 @@
 }
 
 // Live totals
-// #380: a single non-wrapping row at any width down to 320px. .totalsRow is
-// itself a flex row (gap, not separator glyphs, spaces its items) so it can
-// hold 11px+ text without overflowing; see .totalsLabel for the fallback.
+// #380: fits a worst-case (4-digit grams/cal, 3-digit macros) total in one
+// row down to a realistic width. .totalsRow's flex gap spaces items, not
+// glyphs; nothing is ever clipped, only wrapped as a last resort.
 .totals {
   display: flex;
   align-items: baseline;
@@ -427,7 +427,6 @@
   background-color: rgba(vars.$primary, 0.07);
   border: 1px solid rgba(vars.$primary-border, 0.4);
   border-radius: 10px;
-  overflow-x: hidden;
 }
 
 .totalsLabel {
@@ -437,10 +436,10 @@
   color: vars.$primary;
   text-transform: uppercase;
 
-  // #380: below 363px even an 11px row (.totalsRow's floor) can't fit next
-  // to the label, so it's visually hidden (same clip technique as Modal's
-  // .srOnly) but stays in the accessibility tree, never display:none.
-  @media (max-width: 362px) {
+  // #380: below 418px a worst-case total (4-digit grams/cal, 3-digit
+  // macros) can't fit an 11px row next to the label, so it's visually
+  // hidden (same clip technique as Modal's .srOnly), never display:none.
+  @media (max-width: 417px) {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -455,13 +454,15 @@
 
 .totalsRow {
   display: flex;
-  flex-wrap: nowrap;
+  // Last resort only: the breakpoints below are fit to a realistic worst
+  // case, so this should rarely trigger. An extreme total wraps to a
+  // second line rather than being silently clipped.
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 6px;
+  gap: 4px 6px;
   flex: 1 1 auto;
   min-width: 0;
   white-space: nowrap;
-  overflow: hidden;
   font-size: 14px;
   color: rgba(vars.$text, 0.85);
 
@@ -477,18 +478,18 @@
     font-weight: 600;
   }
 
-  // #380: three steps down to an 11px floor (never smaller), each
-  // threshold measured against the modal's real content width so the row
-  // never overflows. Below 363px .totalsLabel hides instead of shrinking.
-  @media (max-width: 403px) {
+  // #380: three steps down to an 11px floor (never smaller), each fit to a
+  // worst-case total (4-digit grams/cal, 3-digit macros) against the
+  // modal's real content width. See .totalsLabel for where it hides.
+  @media (max-width: 468px) {
     font-size: 13px;
   }
 
-  @media (max-width: 389px) {
+  @media (max-width: 451px) {
     font-size: 12px;
   }
 
-  @media (max-width: 376px) {
+  @media (max-width: 434px) {
     font-size: 11px;
   }
 }
