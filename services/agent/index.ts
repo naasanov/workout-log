@@ -23,6 +23,18 @@ import { trimHistoryForReplay } from './history';
  */
 export const TOOL_MODULES: ToolModule[] = [nutritionTools, mutationTools, ...readToolModules];
 
+export const DEFAULT_AGENT_MODEL = 'gpt-5.6-terra';
+
+/**
+ * The OpenAI model the agent runs on, resolved once here so the `openai(...)`
+ * call and `recordUsage(...)` always agree on which model served the turn.
+ * Falls back to DEFAULT_AGENT_MODEL when AGENT_MODEL is unset or blank.
+ */
+export function resolveAgentModel(): string {
+  const configured = process.env.AGENT_MODEL?.trim();
+  return configured ? configured : DEFAULT_AGENT_MODEL;
+}
+
 /** Read a user's own agent instructions (#382), or null when they have none set. */
 async function fetchUserInstructions(userUuid: string): Promise<string | null> {
   const [rows] = await pool.query<RowDataPacket[]>(
@@ -268,8 +280,10 @@ export async function streamChat({
     })
     .catch(() => {});
 
+  const model = resolveAgentModel();
+
   const result = streamText({
-    model: openai('gpt-5.5'),
+    model: openai(model),
     system,
     messages: modelMessages,
     // Bounds a turn at roughly double the flagship cross-domain analysis case
@@ -285,7 +299,7 @@ export async function streamChat({
     onFinish: ({ usage, steps, toolCalls }) => {
       // Best-effort usage recording -- never await, never throw. `usage` is
       // aggregated across every step of the turn.
-      recordUsage(userUuid, 'gpt-5.5', usageDataFromFinishResult({ usage, steps, toolCalls }));
+      recordUsage(userUuid, model, usageDataFromFinishResult({ usage, steps, toolCalls }));
     },
     tools,
   });
