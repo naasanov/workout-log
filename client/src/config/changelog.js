@@ -11,6 +11,14 @@
 
 export const CHANGELOG = [
   {
+    date: '2026-10-03',
+    title: 'Clearer feedback errors and a simpler instructions screen',
+    items: [
+      { text: 'If your feedback can’t be sent, you now see an error and your message stays put so you can try again, instead of a thank-you that hid the problem', issues: [397] },
+      { text: 'The AI instructions screen gets straight to the point', issues: [395] },
+    ],
+  },
+  {
     date: '2026-09-22',
     title: 'Your own AI instructions, a new home at peakhq.me, and snappier chat',
     items: [
