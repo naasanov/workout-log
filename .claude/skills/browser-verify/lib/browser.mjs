@@ -102,4 +102,4 @@ export async function waitFor(page, predicate, { timeout = 20000, interval = 500
 //     a plain `<span>{value}</span>` until clicked into edit mode, where
 //     they become an `<input>`. Match the span's textContent by default —
 //     don't assume "editable" implies "always an input" without checking
-//     the component (client/src/components/Editable.jsx).
+//     the component (client/src/components/Editable.tsx).

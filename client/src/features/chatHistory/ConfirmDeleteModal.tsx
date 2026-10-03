@@ -1,7 +1,7 @@
 // Confirmation gate for deleting a conversation -- genuinely destructive
 // (removes the conversation, its messages, and its resolutions server-side),
 // so this always sits between the Delete button and the actual mutation.
-import Modal from '../../components/Modal.jsx';
+import Modal from '../../components/Modal';
 import styles from './ConfirmDeleteModal.module.scss';
 
 export interface ConfirmDeleteModalProps {

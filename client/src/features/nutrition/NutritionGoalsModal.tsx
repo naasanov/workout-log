@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import Modal from '../../components/Modal.jsx';
+import Modal from '../../components/Modal';
 import { useGoals, usePutGoals } from './api';
 import type { Goals } from './types';
 import styles from './NutritionGoalsModal.module.scss';

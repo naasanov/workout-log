@@ -92,8 +92,8 @@ test('no component style re-declares a non-monospace font-family', () => {
 
 test('no JSX/TSX sets an inline fontFamily to Sarabun', () => {
   // Only enforced because this sweep removed the last such props (the
-  // recharts tick/tooltip styles in WeightGraphModal.jsx and
-  // BodyWeightTracker.jsx) after confirming the chart text still computes to
+  // recharts tick/tooltip styles in WeightGraphModal.tsx and
+  // BodyWeightTracker.tsx) after confirming the chart text still computes to
   // Sarabun via the global body font-family without them.
   const offenders = [];
   for (const file of jsFiles) {

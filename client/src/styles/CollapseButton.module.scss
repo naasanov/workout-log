@@ -27,7 +27,7 @@
   }
 
   // Accessibility: expand the invisible hit area to 44x44 (WCAG 2.5.5) without
-  // growing the painted 40px chevron button. In Section.jsx this button sits
+  // growing the painted 40px chevron button. In Section.tsx this button sits
   // directly next to SectionMenu's .dotsBtn (see Workouts.module.scss's
   // `.remove` gap, added alongside this) — that gap keeps the two 44px hit
   // areas from overlapping.

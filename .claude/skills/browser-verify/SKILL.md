@@ -211,7 +211,7 @@ signup/cleanup needed; `lib/browser.mjs` defaults to it.
 - A hidden nutrition composer `<textarea placeholder="Describe what you
   ate…">` shadows a bare `textarea` selector. Scope by placeholder or another
   attribute unique to your target.
-- Editable text fields (`client/src/components/Editable.jsx`) render a plain
+- Editable text fields (`client/src/components/Editable.tsx`) render a plain
   `<span>{value}</span>` by default and only become an `<input>` once clicked
   into edit mode. Match the span's `textContent`, not an input's `.value`,
   unless you've actually clicked to edit.
@@ -284,7 +284,7 @@ signup/cleanup needed; `lib/browser.mjs` defaults to it.
   for what the server's `tee()`/`consumeStream` drain persists while the
   client is disconnected.
 - **Tab query-param values are lowercase kebab-case**, from
-  `client/src/config/tabs.js`: `workouts`, `body-weight`, `habits`,
+  `client/src/config/tabs.ts`: `workouts`, `body-weight`, `habits`,
   `nutrition`. `?tab=Nutrition` (title case) is not valid and silently falls
   back to Workouts.
 - **Every tab panel is in the DOM at once; inactive ones are merely

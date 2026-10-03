@@ -4,7 +4,7 @@ import EntryEditor from './EntryEditor';
 import NutritionGoalsModal from './NutritionGoalsModal';
 import MyFoodsSheet from './MyFoodsSheet';
 import MealBuilder from './MealBuilder';
-import ConfirmModal from '../../components/ConfirmModal.jsx';
+import ConfirmModal from '../../components/ConfirmModal';
 import type { EntryEditorMode, EntryRow, Meal } from './types';
 import { MEALS, MEAL_LABELS } from './types';
 import styles from './NutritionTracker.module.scss';

@@ -104,7 +104,7 @@ function SignIn() {
 
   return (
     <>
-      {/* Explicit undefined: Header.jsx has no defaults for these nav-drawer
+      {/* Explicit undefined: Header.tsx has no defaults for these nav-drawer
           props, so its inferred type requires them even though SignUp, with
           no drawer of its own, always renders it uncontrolled. */}
       <Header

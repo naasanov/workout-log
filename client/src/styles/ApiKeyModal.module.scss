@@ -1,6 +1,6 @@
 @use "variables" as vars;
 // Sizing override applied to Radix Dialog.Content for this wider panel.
-// Passed as contentClassName={styles.modalContent} from ApiKeyModal.jsx.
+// Passed as contentClassName={styles.modalContent} from ApiKeyModal.tsx.
 .modalContent {
   max-width: 520px;
 }
