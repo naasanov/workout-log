@@ -95,10 +95,16 @@ export function buildIssueTitle(body: Pick<FeedbackBody, 'category' | 'tool' | '
   return `[${submitterTag}][${categoryLabel}][${tool}] ${excerpt}${body.message.length > 60 ? '...' : ''}`;
 }
 
+type GithubIssueResult =
+  | { ok: true }
+  | { ok: false };
+
 /**
  * Create a GitHub issue for the submitted feedback and record its issue
- * number on the feedback row. Best-effort — never throws; a GitHub or DB
- * failure here must not affect the already-saved feedback submission.
+ * number on the feedback row. Never throws — reports success/failure via
+ * its return value so the caller can decide what the user sees. A failed
+ * follow-up `UPDATE` (issue created, DB write failed) still reports success,
+ * since the issue itself exists; that case is only logged.
  */
 async function createGithubIssue(
   feedbackId: number,
@@ -106,9 +112,9 @@ async function createGithubIssue(
   submitterEmail: string,
   attachmentRows: AttachmentRow[],
   baseUrl: string,
-): Promise<void> {
+): Promise<GithubIssueResult> {
   const token = process.env.GITHUB_TOKEN;
-  if (!token) return;
+  if (!token) return { ok: true };
 
   try {
     const repo = getGithubRepo();
@@ -149,22 +155,32 @@ async function createGithubIssue(
     });
 
     if (!issueRes.ok) {
+      // Logged with the status so an expired/revoked token (401/403) is
+      // obvious in Heroku logs without needing the response body.
       console.error(`[feedback] issue creation failed: ${issueRes.status}`);
-      return;
+      return { ok: false };
     }
 
     const issueData = (await issueRes.json()) as { number?: number };
     if (typeof issueData.number !== 'number') {
       console.error('[feedback] issue creation response had no number');
-      return;
+      return { ok: false };
     }
 
-    await pool.query(
-      `UPDATE feedback SET issue_number = ? WHERE id = ?`,
-      [issueData.number, feedbackId],
-    );
+    try {
+      await pool.query(
+        `UPDATE feedback SET issue_number = ? WHERE id = ?`,
+        [issueData.number, feedbackId],
+      );
+    } catch (err) {
+      // The issue exists, so this is still a success for the user — only
+      // the number fails to land on the feedback row.
+      console.error('[feedback] failed to record issue_number:', err);
+    }
+    return { ok: true };
   } catch (err) {
     console.error('[feedback] GitHub issue creation failed:', err);
+    return { ok: false };
   }
 }
 
@@ -225,8 +241,17 @@ router.post('/', async (req, res): Promise<any> => {
     // ignore
   }
 
-  // Fire-and-forget GitHub issue creation
-  createGithubIssue(feedbackId, parsed.data, submitterEmail, attachmentRows, resolveBaseUrl(req)).catch(() => {});
+  // The DB row (and any attachments) above are kept regardless of what
+  // happens next — a GitHub failure never rolls them back, so a retry after
+  // an error just creates a new row with issue_number left NULL.
+  const issueResult = await createGithubIssue(
+    feedbackId, parsed.data, submitterEmail, attachmentRows, resolveBaseUrl(req),
+  );
+  if (!issueResult.ok) {
+    return res.status(502).json({
+      message: "We couldn't send your feedback right now. Your message is still here, please try again in a bit.",
+    });
+  }
 
   return res.status(200).json({ message: 'Feedback received. Thank you!' });
 });

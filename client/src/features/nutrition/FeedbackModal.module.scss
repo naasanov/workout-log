@@ -256,10 +256,18 @@
   pointer-events: none;
 }
 
+// Banner for a failed submit (e.g. the GitHub issue couldn't be filed) — a
+// tinted, bordered block rather than plain colored text, so it reads as an
+// error state at a glance instead of blending in with the field hints above.
 .errorMsg {
   margin: 0;
   font-size: 14px;
+  font-weight: 600;
   color: vars.$error;
+  background-color: rgba(vars.$error, 0.12);
+  border: 1px solid rgba(vars.$error, 0.4);
+  border-radius: 10px;
+  padding: 10px 12px;
 }
 
 // ---- Success state ----

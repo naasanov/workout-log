@@ -256,9 +256,9 @@ export async function saveResolution(
   await clientApi.post('/nutrition/chat/resolutions', { date, toolCallId, kind, status, displayName });
 }
 
-// ---- App feedback (#1) — POST creates a GitHub issue server-side when a
-// GITHUB_TOKEN is configured, else stores in a feedback table. App-level, not
-// nutrition-scoped, but lives here since the feedback UI ships with this batch.
+// ---- App feedback (#1) — POST always stores the row in a feedback table,
+// then creates a GitHub issue server-side when GITHUB_TOKEN is configured;
+// a failed issue creation surfaces as a thrown error below (#397).
 export async function submitFeedback(input: {
   category?: 'bug' | 'idea' | 'ui' | 'other';
   tool?: string;
