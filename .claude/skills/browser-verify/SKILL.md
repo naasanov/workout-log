@@ -1,37 +1,14 @@
 ---
 name: browser-verify
-description: Runtime-verify a change in this repo (workout-log) by driving the real app in a browser — auth, dev-stack boot, and DOM gotchas are pre-solved here so you don't rediscover them by trial and error. Use before merging/reporting a fix done, for issue-orchestrator's validate step, or any time you'd otherwise reach for the Playwright MCP browser tools on this repo.
+description: Runtime-verify a change in this repo (workout-log) by driving the real app in a browser. One call boots the dev stack (MySQL, server, vite), auth and DOM selectors are pre-solved, so you don't rediscover ports, CORS, or stale selectors by trial and error. Use before merging/reporting a fix done, for issue-orchestrator's validate step, or any time you'd otherwise reach for the Playwright MCP browser tools on this repo.
 ---
 
 # Browser Verify (workout-log)
 
 Runtime validation catches what `tsc`/build cannot: a Y-axis silently anchored
-at 0, a CSS specificity loss, a modal that discards data on Escape. This skill
-exists because doing that validation the first time cost ~15 MCP tool calls
-and a lot of rediscovery (wrong ports, wrong CORS origin, wrong selectors).
-Everything found is captured here so it costs one read instead of a repeat.
-
-## Two ways to verify — pick deliberately
-
-**Standalone script (default).** For a known, repeatable check: seed fixture
-data, drive the UI, assert on computed DOM/values, clean up. One Bash call
-runs the whole thing in an isolated Node+Playwright process; only the final
-result (stdout) enters your context — not a snapshot per step. Use this for
-almost everything, including issue-orchestrator's step-9 validation.
-
-**Interactive Playwright MCP tools.** For genuine exploratory debugging where
-you don't yet know what's wrong and need to see the DOM/screenshot after each
-action to decide the next one. Expensive in context (full accessibility
-snapshot per call) — only reach for it when you actually need that
-step-by-step visibility.
-
-A standalone script cannot attach to the MCP's own open browser tab — its
-Chrome is launched with `--remote-debugging-pipe` (anonymous OS pipe to its
-direct parent process), not `--remote-debugging-port`, so there's no
-websocket endpoint an external process could connect to. This isn't a
-limitation in practice: `lib/browser.mjs` launches its own throwaway browser
-per script, which is what makes the "batch the whole flow, return one result"
-model work at all.
+at 0, a CSS specificity loss, a modal that discards data on Escape. This
+skill exists so that's one `node` call instead of ~10 hand-copied shell
+commands plus a round of selector rediscovery.
 
 ## Setup (once per checkout)
 
@@ -39,348 +16,213 @@ model work at all.
 cd .claude/skills/browser-verify && npm install && npx playwright install chromium
 ```
 
-This installs into an isolated `package.json` here — it does **not** touch
-the project's own `package.json`/`package-lock.json`.
+Isolated `package.json` here: it does **not** touch the project's own
+`package.json`/`package-lock.json`.
 
-## Writing a new check
-
-Copy `examples/verify-weight-graph.mjs`'s shape rather than editing it in
-place. The pattern:
+## The happy path
 
 ```js
 import { launchAuthed, teardown, waitFor } from '../lib/browser.mjs';
+import * as sel from '../lib/selectors.mjs';
 
-const { page, api, appBase, browser } = await launchAuthed();
-let sectionId;
+const { page, api, appBase, browser, stack } = await launchAuthed({ stack: true });
 try {
-  // 1. seed fixtures via `api` (fast — no UI clicks)
-  // 2. page.goto(appBase), drive the UI for the thing under test
-  // 3. assert on computed DOM state (page.evaluate), not screenshots
-  console.log('RESULT', JSON.stringify(result));
+  await page.goto(`${appBase}/?tab=nutrition`); // tabs are a query param, not a route
+  await sel.openChat(page);
+  await page.fill(sel.chatComposer, 'hello');
+  await page.click(sel.chatSend);
+  // ...assert on computed DOM state (page.evaluate), not screenshots...
 } finally {
-  if (sectionId) await api.delete(`sections/${sectionId}`); // cascades: movements, variations, history
-  await teardown({ browser, api });
+  await teardown({ browser, api, stack });
 }
 ```
+
+`{ stack: true }` boots MySQL + the server + vite for you (see below) and
+`teardown` stops them. If a stack is already running and you know its ports,
+`launchAuthed({ apiBase, appBase })` skips booting one, same as before.
+
+## Two ways to verify: pick deliberately
+
+**Standalone script (default).** For a known, repeatable check: seed fixture
+data, drive the UI, assert on computed DOM/values, clean up. One Bash call
+runs the whole thing in an isolated Node+Playwright process; only the final
+result (stdout) enters your context. Use this for almost everything.
+
+**Interactive Playwright MCP tools.** For genuine exploratory debugging where
+you don't yet know what's wrong and need to see the DOM/screenshot after each
+action to decide the next one. Expensive in context (full accessibility
+snapshot per call): only reach for it when you need that step-by-step
+visibility. A standalone script can't attach to the MCP's own browser tab
+(it launches with `--remote-debugging-pipe`, not a websocket port), which is
+fine: `lib/browser.mjs` launches its own throwaway browser per script anyway.
+
+## Writing a new check
+
+Copy `examples/verify-weight-graph.mjs`'s shape. Seed via `api` (fast, no UI
+clicks), drive the UI through `lib/selectors.mjs` rather than hand-rolling
+selectors, assert on `page.evaluate` output, clean up in `finally`.
 
 Run it: `node .claude/skills/browser-verify/examples/your-script.mjs`
 
 ### Test data convention
 
-Prefix every fixture label with `ZZTEST` (`ZZTEST Section`, `ZZTEST
-Movement`, ...). `DELETE /api/sections/:id` cascades to movements →
-variations → variation_history, so deleting the one seeded section cleans up
-everything under it. As a safety net against a killed process leaking rows
-(finally didn't save you once during testing — root cause untracked), you can
-always sweep leftovers directly:
+Prefix every fixture label with `ZZTEST`. `DELETE /api/sections/:id` cascades
+to movements → variations → variation_history, so deleting the one seeded
+section cleans up everything under it. As a safety net against a killed
+process leaking rows, sweep leftovers directly:
 
 ```
 docker exec workout-log-db-1 mysql -udev -pdev workout_log -e \
   "DELETE FROM sections WHERE label LIKE 'ZZTEST%';"
 ```
-(cascades the same way via FK constraints).
 
-Some scenarios can't be created through the API at all — e.g. a legacy
-history row with `reps IS NULL` (the schema now forbids null on insert). For
-those, seed directly with `docker exec ... mysql -udev -pdev workout_log -e
-"INSERT INTO ..."` and clean up the same way.
+Some scenarios can't be created through the API at all (e.g. a legacy history
+row with `reps IS NULL`, which the schema now forbids on insert). Seed those
+directly with `docker exec ... mysql -udev -pdev workout_log -e "INSERT..."`
+and clean up the same way.
 
-## Booting the dev stack
+## What `startStack` does
+
+`lib/stack.mjs`'s `startStack(opts)` (used by `launchAuthed({ stack: true })`)
+runs from either the main checkout or any worktree:
+
+- Picks two free ports (tries 5055/5056 first, else any free pair).
+- Reuses MySQL on `127.0.0.1:3307` if something's already listening there
+  (and tells you which `docker ps` container it is); otherwise runs
+  `docker compose up -d` itself. Either way, runs `npm run db:setup`
+  (idempotent: migrations + the `dev@dev.com`/`dev` seed).
+- Builds the server env from the MAIN checkout's `.env` if present (a
+  worktree has none of its own, but its secrets like `OPENAI_API_KEY` are
+  still useful), then forces `DB_*`, `PORT`, `FRONTEND_URL` (CORS needs an
+  exact origin match), and `ACCESS_TOKEN_SECRET`/`REFRESH_TOKEN_SECRET`
+  (falls back to `x`), then applies `opts.env` last.
+- Installs `node_modules` (server and `client/`) if missing, `npm run build`s
+  the server unless `opts.build === false`, writes `client/.env.local`
+  (refuses to clobber one pointing elsewhere unless `opts.force`), and spawns
+  `node dist/index.js` + `npx vite --strictPort`.
+- Waits for both, reading the server's own log line ("Server running on
+  port") rather than trusting a status code: on macOS, port 5000 answers
+  HTTP as AirPlay Receiver even when your server died of `EADDRINUSE`.
+- Returns `{ apiBase, appBase, stop, logs }`. `stop()` kills exactly what it
+  spawned and is idempotent (also runs on process exit/SIGINT); `logs()`
+  returns the server log text, useful for asserting on a line like
+  `[feedback] issue creation failed: 401`.
+
+Options: `env`/`unsetEnv` (server env overrides, e.g. `{ GITHUB_TOKEN:
+'invalid' }` or `{ AGENT_MODEL: 'gpt-5.4-mini' }`), `build: false`, `force:
+true`, `stopDb: true` (let `stop()` run `docker compose down`, only if this
+call started the container), `serverPort`/`clientPort` hints.
+
+### Manual fallback
+
+If you need the stack up without a script driving it:
 
 ```
-docker compose up -d                                                    # MySQL on host port 3307
-DB_HOST=127.0.0.1 DB_PORT=3307 DB_USERNAME=dev DB_PASSWORD=dev \
-  DB_NAME=workout_log npm run db:setup                                  # schema + dev@dev.com seed
-ACCESS_TOKEN_SECRET=x REFRESH_TOKEN_SECRET=x \
-  DB_PORT=3307 PORT=3000 FRONTEND_URL=http://localhost:3001 node dist/index.js &   # after `npm run build`
-echo "VITE_API_URL=http://localhost:3000/api" > client/.env.local
-cd client && npm run dev &                                              # vite on 3001
+docker compose up -d
+DB_HOST=127.0.0.1 DB_PORT=3307 DB_USERNAME=dev DB_PASSWORD=dev DB_NAME=workout_log npm run db:setup
+ACCESS_TOKEN_SECRET=x REFRESH_TOKEN_SECRET=x DB_PORT=3307 PORT=5055 \
+  FRONTEND_URL=http://localhost:5056 node dist/index.js &
+echo "VITE_API_URL=http://localhost:5055/api" > client/.env.local
+(cd client && npx vite --port 5056 --strictPort &)
 ```
 
-**Ports 3000/3001 are only the default, and both are frequently taken** — on
-macOS port 5000 is AirPlay Receiver (it answers with a plausible HTTP status,
-so a health check "succeeds" while your server actually died of `EADDRINUSE`
-in the background), and 3000 is often another project's container. Any free
-pair works, e.g. 5055/5056, as long as `PORT`, `FRONTEND_URL`, `VITE_API_URL`
-and the script's `apiBase`/`appBase` all agree — the server's CORS check
-demands an exact origin match. `launchAuthed({ apiBase, appBase })` takes the
-override. Always read the server log after boot rather than trusting a
-`curl` status code.
+**Standing login**: `dev@dev.com` / `dev`, seeded by `npm run db:setup`
+(`scripts/seedDev.js` / `seeds/dev_user.sql`). No signup/cleanup needed;
+`lib/browser.mjs` defaults to it.
 
-Why each var is needed, all discovered by hitting the failure first:
-- `docker compose up -d` alone does **not** create any tables anymore —
-  `docker-entrypoint-initdb.d` used to mount a stale subset of migrations
-  (only through `006`, the repo has 17), and did so without recording
-  anything in `schema_migrations`, so it silently disagreed with
-  `scripts/migrate.js` about what schema state the DB was in. Schema is now
-  owned entirely by `npm run migrate` (also what runs in Heroku's release
-  phase, so this is the same code path as production); `npm run db:setup`
-  runs that plus the dev-user seed in one step. This is required on both a
-  brand-new volume **and** an existing one from before this change — an old
-  volume's tables didn't come from `migrate.js`, so `schema_migrations` is
-  still empty on it and needs a first `db:setup` run too.
-- **The full `DB_*` set, not just `DB_PORT`.** `migrate.js`/`seedDev.js` read
-  `DB_HOST`/`DB_USERNAME`/`DB_PASSWORD`/`DB_NAME` straight from `process.env`
-  and do **not** load the root `.env` — so passing only `DB_PORT` fails with
-  `ER_ACCESS_DENIED_ERROR (1045)` even from the main checkout, where `.env`
-  exists. The values above are the ones `docker-compose.yml` provisions
-  (`dev`/`dev`/`workout_log`); they're dev-container credentials, not secrets.
-  Before debugging this, check whether the DB is *already* migrated — it
-  usually is, and the whole step is skippable:
-  `docker exec workout-log-db-1 mysql -udev -pdev workout_log -e "SELECT COUNT(*) FROM schema_migrations;"`
-  (the table's column is `filename`, not `name`).
-- `DB_PORT=3307` — matches `docker-compose.yml`'s host port mapping; both the
-  server's and `migrate.js`'s own default is 3306 (bare MySQL default), which
-  nothing is listening on locally. Needed on the `db:setup` line and the
-  server boot line separately — `migrate.js`/`seedDev.js` don't load `.env`
-  the way the server does, so pass it inline for both.
-- `ACCESS_TOKEN_SECRET` / `REFRESH_TOKEN_SECRET` — the server signs/verifies
-  JWTs with these (`routes/auth.ts`) and has no fallback; without them, login
-  fails. They normally live in the gitignored root `.env`, which **does not
-  exist in a fresh git worktree** (worktrees don't inherit untracked files
-  from the main checkout) — so in a worktree you must pass them explicitly,
-  even a throwaway value works fine for local verification since nothing
-  validates them against anything else.
-- `PORT=3000` and `FRONTEND_URL=http://localhost:3001` — the server's CORS
-  origin check requires an **exact** match with the page's origin (see
-  `index.ts`); get either port wrong and every request fails client-side with
-  a CORS error, not a helpful server-side one.
-- `client/.env.local` with `VITE_API_URL` — without it the client defaults to
-  relative `/api`, which resolves against the vite dev server's own origin
-  (3001), not the API server (3000). This file is gitignored; it didn't exist
-  before a verification session and doesn't need to survive after one.
-- The Docker volume persists across `docker compose down` (no `-v`), so
-  schema/migrations and the seeded `dev@dev.com` user are usually already
-  there on a second run — `npm run db:setup` is idempotent (migrations record
-  themselves in `schema_migrations`; the seed is `INSERT IGNORE`), so it's
-  always safe to re-run rather than guessing whether you need to.
-- **A worktree that runs `docker compose` from its own directory gets its own
-  project** (Compose derives the project name from the directory name by
-  default) and therefore its own `db_data` volume — it does **not** share the
-  main checkout's database, so it starts empty and needs its own `db:setup`
-  run. Don't assume the main checkout's seeded data is visible there.
+## Behavior gotchas (not selectors: those live in `lib/selectors.mjs`)
 
-  **But do not read that as isolation.** Worktree isolation covers files and
-  git state; it does not extend to processes or host resources. Two things
-  break the assumption:
-  - **Host port 3307 is a single global resource.** Separate Compose projects
-    still cannot both bind it, so only one of these databases can be running
-    at a time regardless of how many volumes exist.
-  - **A session that just connects to `127.0.0.1:3307` is using whichever
-    container currently holds the port** — usually the main checkout's. It
-    never ran Compose, so it never got a project or a volume of its own.
-
-  The general rule: anything keyed off the *directory name* rather than the
-  worktree path will silently converge. Check `docker ps` before assuming the
-  database in front of you is yours, and before `docker compose down` (see
-  the cleanup checklist).
-
-**Standing login**: `dev@dev.com` / `dev` — created by `npm run db:setup`
-(specifically `scripts/seedDev.js`, which applies `seeds/dev_user.sql`). No
-signup/cleanup needed; `lib/browser.mjs` defaults to it.
-
-## DOM facts already paid for (don't rediscover these)
-
-- **Tabs are a query param, not a route.** The nutrition tracker is at
-  `/?tab=nutrition`; navigating to `/nutrition` renders the app shell with no
-  tracker in it and every selector then times out for the wrong reason.
-- **Tapping a nutrition entry row opens its editor.** `[class*=entryRow]` is
-  `role="button"` (Enter/Space work too). The row's three-dots `EntryMenu`
-  (first `button` inside the row) still offers Edit / Save as meal / Delete,
-  and its clicks stop propagation, so opening the menu does not open the editor.
-- **The IngredientSheet's confirm button reads "Done", not "Add", when "Add
-  ingredient" reuses the editor's existing empty row** (the default new-entry
-  state). Match `button[class*="doneBtn"]` rather than its text.
-- **`entryInputSchema` wants `localDate`, not `date`**, plus a top-level
-  `source` (`'manual'` for fixtures). Seeding with `date` fails validation.
-- **Seed the entry's date from the LOCAL calendar day, not
-  `toISOString()`.** The tracker defaults to the browser's local day, so a
-  UTC-derived date files the fixture on a day the UI isn't showing and the
-  entry appears to vanish.
-- **Chat-message parts render tool cards straight from the DB.** Seeding a
-  `chat_messages` row (`role='assistant'`, `parts` = a JSON array containing
-  `{"type":"tool-search_foods","state":"output-available","output":[...]}`)
-  is enough to inspect a `ToolCallCard` without an AI turn.
-- **Chat elements overlap enough to defeat Playwright actionability.**
-  Expanding a tool card via `locator.click()` fails with `_reasoningToggle_`
-  / `_messages_` "intercepts pointer events"; call the DOM `.click()` inside
-  `page.evaluate` instead.
-- `[role=dialog]` matches the **off-canvas nav drawer**, not just real
-  modals. Scope with `.closest('[role=dialog]')` from an element already
-  inside your target modal, never query `[role=dialog]` directly.
-- A hidden nutrition composer `<textarea placeholder="Describe what you
-  ate…">` shadows a bare `textarea` selector. Scope by placeholder or another
-  attribute unique to your target.
-- Editable text fields (`client/src/components/Editable.jsx`) render a plain
-  `<span>{value}</span>` by default and only become an `<input>` once clicked
-  into edit mode. Match the span's `textContent`, not an input's `.value`,
-  unless you've actually clicked to edit.
-- **There is no per-variation row wrapper.** Every variation under one
-  movement renders its name cell, weight, reps, and buttons as flat siblings
-  — `.closest()` from a label finds nothing because there's no containing
-  element. Scope by DOM order instead: the Nth name-cell (`div[class*=
-  "_nameCell_"]`) corresponds to the Nth button of that kind, since both come
-  from the same `.map()`.
-- The graph button has no `aria-label` (class-only). Match via
-  `button[class*="graphBtn"]`; CSS-module hashes change, the semantic prefix
-  doesn't.
-- Playwright's `request` baseURL joining treats a **leading `/`** on a
-  request path as absolute-from-origin, silently dropping a `/api` path
-  segment in the base. Keep `apiBase` slash-terminated and call endpoints
-  without a leading slash (`api.post('sections', ...)`, not `'/sections'`).
-- A section-header swipe-to-remove overlay (`_remove_<hash>`) periodically
-  animates over the row and fails Playwright's actionability hit-test,
-  hanging a normal `.click()` indefinitely even though a real user could
-  click it fine. Route around it with a native DOM click via `page.evaluate(()
-  => el.click())` when this happens.
-- `page.waitForFunction()` was unreliable in this setup on predicates that
-  plain `page.evaluate()` confirmed were already true (tried both default and
-  interval polling) — root cause not tracked down. `lib/browser.mjs` exports
-  `waitFor(page, predicate, opts)`, a manual evaluate-in-a-loop, which was
-  proven reliable end-to-end. Prefer it over `waitForFunction`.
-- CSS attribute selectors (`input[value=...]`) only see an input's *initial*
-  attribute, never React's live controlled value as a DOM property — a
-  selector-based wait can time out while the value is visibly on screen.
-  Read `.value` inside `evaluate`/`waitFor` instead.
-- recharts' Y-axis tick **labels** are not inside the `.recharts-yAxis` `<g>`
-  — they're a sibling group, `.recharts-yAxis-tick-labels`. Query that class
-  for tick text, not a descendant of `.recharts-yAxis`.
-- First page load against a **cold** `vite` dev process compiles SCSS on
-  demand and can take several seconds beyond normal fetch+render. Give first
-  waits real headroom (15-20s); it's fast on every subsequent load against
-  the same long-lived process.
-- **`div[class*="_sheet_"]` matches TWO elements** on the nutrition tab:
-  the AI chat's own composer sheet (`features/agent/AgentChat`, first in DOM) and the
-  portaled IngredientSheet dialog (`_sheet_1ofci_*`). A bare `querySelector`
-  gets the chat's. Anchor off content instead —
-  `document.querySelector('input[aria-label="Ingredient name"]').closest('[role=dialog]')`.
-- **There are TWO `<BarcodeScanner>` instances**, and the same shadowing trap:
-  the AI chat composer (`NutritionComposerExtras`) renders a scan button + scanner inline in `MAIN`, which
-  precede the body-appended dialog portal in DOM order. So a bare
-  `button[aria-label="Scan barcode"]` / `button[aria-label="Close barcode
-  scanner"]` resolves to the *chat's*, not the sheet's. Worse, while a Radix
-  modal is open the chat's copy is inert (`pointer-events: none`,
-  `aria-hidden` ancestor) — but `page.evaluate(() => el.click())` fires it
-  anyway, so you get a real scanner overlay that is genuinely untappable.
-  That looks precisely like "the fix under test didn't work" (cost two runs
-  on #251). Scope to the dialog, and prefer `page.mouse.click(x, y)` at the
-  element's center over `el.click()` when the *point* of the check is whether
-  something is tappable — `el.click()` bypasses hit-testing entirely and will
-  happily "succeed" on an inert element.
-- **Camera/`getUserMedia` needs the full Chromium build.** Playwright's
-  default headless `chromium-headless-shell` has no media stack:
-  `getUserMedia` rejects with `NotSupportedError`, and `BarcodeScanner`'s
-  catch-block calls `onClose()`, so the overlay unmounts a moment after it
-  appears. Launch with `channel: 'chromium'` plus
-  `args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-capture']`
-  and `contextOptions: { permissions: ['camera'] }`. `lib/browser.mjs`'s
-  `launchAuthed` takes `launchOptions` / `contextOptions` passthroughs for this.
-- **To simulate a *silently* dead stream** (not a loud disconnect), intercept
-  the request and never settle it: `page.route('**/nutrition/chat', async () => {})`.
-  The fetch stays open, nothing rejects, and `useChat` keeps `status ===
-  'streaming'` — which is the actual #252 failure. Devtools offline/throttling
-  does NOT reproduce it; that produces a fetch rejection, which is the
-  already-handled path. Pair it with direct `chat_messages` inserts to stand in
-  for what the server's `tee()`/`consumeStream` drain persists while the
-  client is disconnected.
-- **Tab query-param values are lowercase kebab-case**, from
-  `client/src/config/tabs.js`: `workouts`, `body-weight`, `habits`,
-  `nutrition`. `?tab=Nutrition` (title case) is not valid and silently falls
-  back to Workouts.
-- **Every tab panel is in the DOM at once; inactive ones are merely
-  invisible.** So `querySelector` finding your element proves nothing about
-  whether you can interact with it — a Playwright `.click()` on an element in
-  a non-active tab hangs the full 30s with `element is not visible` while the
-  selector itself resolves fine. Navigate to the right `?tab=` first, and read
-  "resolved to <button …> but not visible" as "wrong tab", not "wrong selector".
-- **`input[type="date"]` matches at least twice** — the Body Weight tab renders
-  one and it precedes the nutrition date-nav's in DOM order, so a bare
-  selector silently reads the wrong field (its value looks plausible, which is
-  what makes this expensive). Scope via a uniquely-labelled sibling:
-  `document.querySelector('button[aria-label="Previous day"]').parentElement.querySelector('input[type="date"]')`.
-- **`waitFor(page, predicate, opts)` takes no trailing args to forward into the
-  predicate** (unlike Playwright's own `waitForFunction`). Passing a 4th
-  argument is silently ignored and the predicate's parameter arrives
-  `undefined` — which surfaces as a confusing timeout rather than an error.
-  Close over the value or inline it in the predicate body.
-- **The chat sheet's drag handle has no `onClick`.** `[aria-label="Expand AI
-  chat"]` is a `role=button` div wired only to pointer events (the drag
-  gesture) and an Enter/Space `onKeyDown`. A synthetic `.click()` or
-  Playwright `.click()` therefore does nothing at all, the sheet never
-  expands, and every selector for something inside the expanded header (the
-  #297 Reconnect button, Clear, Collapse) times out looking like a wrong
-  selector. Focus it and press Enter instead.
-- **Open the chat with a real click on its FAB, and measure only once it is
-  expanded.** `button[aria-label="Open <Tab> AI chat"]` (e.g. `Open Nutrition
-  AI chat`) needs `page.mouse.click(x, y)` at its center plus ~1.5s for the
-  height animation; `el.click()` left the sheet collapsed. A collapsed sheet is
-  `height: 0; overflow: hidden`, yet messages inside it still report real
-  rects and `checkVisibility()` true, so DOM measurements "pass" on a chat
-  nobody can see. Screenshot to confirm.
-- **Render arbitrary chat messages without an AI turn** by intercepting the
-  hydrate call: `page.route('**/api/chat/active', ...)`, `route.fetch()`, push
-  `{ id, role, parts: [{ type: 'text', text }], interrupted: false, created_at }`
-  onto `body.data.messages`, then `route.fulfill({ response, json: body })`.
-  Nothing is persisted, so there is no cleanup.
-- **`npm test` / `npm run verify` take only `DB_NAME`.** `scripts/testDb.js`
-  defaults the DB user to `root`/`root` because it creates and drops schemas.
-  Copying the server boot line's `DB_USERNAME=dev DB_PASSWORD=dev` onto a test
-  run makes every DB-backed test fail with `ER_DBACCESS_DENIED_ERROR`.
-- **`page.mouse.click(x, y)` at an element's center is the right tool when
-  the question is "can a user actually hit this".** `el.click()` bypasses hit
-  testing and will succeed on an element something else covers, which is
-  exactly the bug class the header buttons keep producing.
-- The API routes require an `Authorization: Bearer <accessToken>` header —
-  the refresh-token cookie alone (which is all the *browser* needs, since the
-  React app exchanges it for an access token on load) is **not** accepted by
-  `authenticateToken` in `routes/auth.ts`. `lib/browser.mjs` wires up both
-  separately: cookie for the browser context, bearer header for the `api`
-  request context used to seed/clean fixtures.
-- **A relative `fetch('/api/...')` inside `page.evaluate` hits VITE, not the API
-  server** — it resolves against the page's origin, and vite answers unknown
-  paths with `index.html`. So the check comes back `status: 200` with an empty
-  parsed body and *looks like it passed* against a server it never contacted.
-  This silently produced two false PASSes in one run (a missing `byUser` key and
-  a `400` validation case reported as `200`). Always assert API shape through the
-  `api` request context, which is absolute and carries the bearer token; keep
-  `page.evaluate` for DOM.
-- **Route paths are not guessable — grep `index.ts` for the mount.** Mounts live
-  there (`app.use('/api/feedback', feedback)`), and the sub-path can be nothing
-  like the UI concept: the changelog badge's endpoint is `feedback/my-issues`,
-  not `feedback/submitted-issues`. A wrong path returns vite's HTML, which fails
-  as `SyntaxError: Unexpected token '<'` rather than a 404.
-- **Column is `users.user_uuid`, not `users.uuid`.** `SELECT BIN_TO_UUID(user_uuid)
-  AS uuid FROM users WHERE email = 'dev@dev.com'` is the way to get the dev
-  user's uuid for direct seeding.
-- **`chat_messages` still has a legacy non-null `date` column** alongside
+- **Tabs are a query param, not a route.** `/?tab=nutrition`; `/nutrition`
+  renders the shell with no tracker in it.
+- **Every tab panel is in the DOM at once**; inactive ones are merely
+  invisible. A selector resolving proves nothing about interactability: a
+  `.click()` on an element in a non-active tab hangs the full 30s with
+  "element is not visible". Navigate to the right `?tab=` first, and read
+  that message as "wrong tab", not "wrong selector".
+- **A relative `fetch('/api/...')` inside `page.evaluate` hits vite, not the
+  API server**: it resolves against the page's own origin, and vite answers
+  unknown paths with `index.html`. This comes back `status: 200` with an
+  empty body and looks like a pass against a server it never contacted.
+  Always assert API shape through the `api` request context (absolute +
+  bearer token); keep `page.evaluate` for DOM only.
+- **`page.waitForFunction()` was unreliable** in this setup on predicates
+  `page.evaluate()` confirmed were already true. Use `lib/browser.mjs`'s
+  `waitFor(page, predicate, opts)` instead: a manual evaluate-in-a-loop,
+  proven reliable end-to-end. It forwards no extra args into the predicate;
+  close over the value or inline it in the predicate body.
+- **`npm test`/`npm run verify` want `root`/`root`, not `dev`/`dev`.**
+  `scripts/testDb.js` defaults to the root DB user because it creates/drops
+  schemas. Copying the server boot line's `DB_USERNAME=dev` onto a test run
+  fails every DB-backed test with `ER_DBACCESS_DENIED_ERROR`.
+- **`resetDb()` uses `DELETE`, not `TRUNCATE`**; ids keep climbing across
+  tests. Never assert a literal id value: seed and read back instead.
+- **`chat_messages` has a legacy non-null `date` column** alongside
   `conversation_id`; a direct INSERT that omits it fails.
-- **You cannot INSERT a second active conversation.** `conversations.uniq_user_active_slot`
-  enforces at most one per user, and merely loading the app creates one, so a
-  seeding INSERT fails with `ER_DUP_ENTRY`. Reuse the row where
-  `archived_at IS NULL` instead — and then delete only your own seeded
-  `chat_messages` in cleanup, never the conversation, or you take real data with it.
+- **At most one active conversation per user** (`uniq_user_active_slot`), and
+  loading the app already creates one. Reuse the row where `archived_at IS
+  NULL` for seeding rather than inserting a second, and in cleanup delete
+  only your own seeded `chat_messages`, never the conversation itself.
+- **Chat-message parts render tool cards straight from the DB.** Seeding a
+  `chat_messages` row (`role='assistant'`, a `parts` JSON array with
+  `{"type":"tool-search_foods","state":"output-available","output":[...]}`)
+  is enough to inspect a `ToolCallCard` with no AI turn.
 - **The changelog "You submitted this!" badge keys off `feedback.issue_number`.**
-  Posting through `POST /feedback` leaves that column NULL (it is set later when
-  the row syncs to GitHub), so a fixture created via the API never badges. Seed
-  the row directly with an `issue_number` that an entry in
+  Posting through `POST /feedback` leaves it NULL (set later when the row
+  syncs to GitHub); seed the row directly with an `issue_number` that
   `client/src/config/changelog.js` actually tags.
-- **An EntryEditor field you are asserting on is an `<input>`, so it is absent
-  from `document.body.innerText`.** Checking for the fixture's name as page text
-  reports `false` even though the card rendered correctly. Read `.value`.
+- recharts' Y-axis tick **labels** live in a sibling group,
+  `.recharts-yAxis-tick-labels`, not inside the `.recharts-yAxis` `<g>`.
+- **First load against a cold `vite`** compiles SCSS on demand and can take
+  several seconds beyond normal fetch+render; give first waits 15-20s+
+  headroom. Fast on every later load against the same long-lived process.
+- **Camera/`getUserMedia` needs the full Chromium build.** The default
+  headless `chromium-headless-shell` has no media stack: `getUserMedia`
+  rejects `NotSupportedError` and `BarcodeScanner` unmounts itself via its
+  catch-block `onClose()`. Launch with `channel: 'chromium'` plus
+  `args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-capture']`
+  and `contextOptions: { permissions: ['camera'] }` (`launchAuthed` passes
+  both through).
+- **An expanded chat sheet renders a full-screen overlay** (`AgentChat.tsx`'s
+  `styles.overlay`) that intercepts clicks on everything else on the page.
+  Collapse it before interacting with anything outside the chat.
+- **`el.click()` bypasses hit-testing** and will "succeed" on an element
+  something else covers or that's inert (`pointer-events: none`). When the
+  actual question is "can a user hit this", use `page.mouse.click(x, y)` at
+  the element's center instead; reserve `page.evaluate(() => el.click())`
+  for routing around an overlay that's a known false positive (e.g. a
+  swipe-affordance that periodically animates over a row).
+- **To simulate a *silently* dead stream** (not a loud disconnect), intercept
+  the request and never settle it: `page.route('**/nutrition/chat', async
+  () => {})`. The fetch stays open, nothing rejects. DevTools
+  offline/throttling does NOT reproduce this: that's a fetch rejection,
+  an already-handled path.
+- **Render arbitrary chat messages without an AI turn** by intercepting the
+  hydrate call: `page.route('**/api/chat/active', ...)`, `route.fetch()`,
+  push a message onto `body.data.messages`, `route.fulfill({ response,
+  json: body })`. Nothing is persisted, so there's no cleanup.
+- CSS attribute selectors (`input[value=...]`) only see an input's *initial*
+  attribute, never React's live controlled value. Read `.value` inside
+  `evaluate`/`waitFor` instead.
+- Route paths are not guessable: grep `index.ts` for the mount. A wrong path
+  returns vite's HTML, which fails as `SyntaxError: Unexpected token '<'`
+  rather than a clean 404.
+- `users.user_uuid`, not `users.uuid`. `SELECT BIN_TO_UUID(user_uuid) AS uuid
+  FROM users WHERE email = 'dev@dev.com'` gets the dev user's uuid.
 
 ## Cleanup checklist after any verification session
 
 - Delete ZZTEST fixtures (the API cascade above, or the direct SQL sweep).
-- `docker compose down` — but **check first whether anything else is using it.**
-  The compose project binds host port 3307, and a second Claude session or a
-  sibling worktree may be pointed at that same container even though it has
-  its own checkout (a worktree only gets its own compose project if it
-  actually runs `docker compose` from its own directory — one that connects
-  to 127.0.0.1:3307 is using YOURS). Tearing it down mid-session breaks their
-  connections and surfaces as a confusing app-level error on their end, not
-  an obvious "container is gone". `docker ps --format '{{.Names}}'` plus a
-  quick ask beats an apology. Data is safe either way as long as you never
-  pass `-v` — the volume is what makes the next boot fast.
-- Kill any `node dist/index.js` / `vite` processes you started.
-- Remove `client/.env.local` if you created it (gitignored, no repo impact,
-  but no reason to leave stray files).
+- If you called `startStack`/`launchAuthed({ stack: true })` yourself and let
+  `teardown`/`stop()` run, this is already done. If you booted the stack by
+  hand, kill your `node dist/index.js`/`vite` processes and remove
+  `client/.env.local` if you created it.
+- `docker compose down` only if you started the container AND nothing else
+  (another session, another worktree) is using host port 3307: `docker ps`
+  first. Never pass `-v`; the volume is what makes the next boot fast.
+
+## Keeping this current
+
+When a selector breaks, fix it in `lib/selectors.mjs` and rerun
+`node examples/smoke-selectors.mjs`: don't append prose here. This file is
+for behavior that costs a wrong assumption, not DOM trivia that costs a
+`grep`.
