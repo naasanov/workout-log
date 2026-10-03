@@ -101,7 +101,7 @@ type GithubIssueResult =
 
 /**
  * Create a GitHub issue for the submitted feedback and record its issue
- * number on the feedback row. Never throws — reports success/failure via
+ * number on the feedback row. Never throws; reports success/failure via
  * its return value so the caller can decide what the user sees. A failed
  * follow-up `UPDATE` (issue created, DB write failed) still reports success,
  * since the issue itself exists; that case is only logged.
@@ -173,7 +173,7 @@ async function createGithubIssue(
         [issueData.number, feedbackId],
       );
     } catch (err) {
-      // The issue exists, so this is still a success for the user — only
+      // The issue exists, so this is still a success for the user; only
       // the number fails to land on the feedback row.
       console.error('[feedback] failed to record issue_number:', err);
     }
@@ -242,7 +242,7 @@ router.post('/', async (req, res): Promise<any> => {
   }
 
   // The DB row (and any attachments) above are kept regardless of what
-  // happens next — a GitHub failure never rolls them back, so a retry after
+  // happens next: a GitHub failure never rolls them back, so a retry after
   // an error just creates a new row with issue_number left NULL.
   const issueResult = await createGithubIssue(
     feedbackId, parsed.data, submitterEmail, attachmentRows, resolveBaseUrl(req),

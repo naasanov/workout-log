@@ -1,6 +1,6 @@
 // Covers #397: a GitHub issue that can't be created (expired token, network
 // error, bad response shape) must surface as an error to the user instead of
-// the usual 200 "Thank you!" — while the feedback row itself, saved before
+// the usual 200 "Thank you!", while the feedback row itself, saved before
 // GitHub is ever contacted, is never rolled back.
 //
 // Stubs global fetch only for requests to api.github.com; every other
@@ -61,7 +61,7 @@ test('feedback GitHub issue creation failure', async (t) => {
   const originalToken = process.env.GITHUB_TOKEN;
 
   // Swapped per-test to control what api.github.com "returns". Every other
-  // URL — in particular this test's own requests to the local server above —
+  // URL (in particular this test's own requests to the local server above)
   // is passed straight through to the real fetch.
   let githubHandler = null;
   global.fetch = (url, init) => {

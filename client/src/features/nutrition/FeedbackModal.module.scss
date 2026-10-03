@@ -256,7 +256,7 @@
   pointer-events: none;
 }
 
-// Banner for a failed submit (e.g. the GitHub issue couldn't be filed) — a
+// Banner for a failed submit (e.g. the GitHub issue couldn't be filed): a
 // tinted, bordered block rather than plain colored text, so it reads as an
 // error state at a glance instead of blending in with the field hints above.
 .errorMsg {
