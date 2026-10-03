@@ -101,60 +101,68 @@ test('usageDataFromFinishResult', async (t) => {
 });
 
 test('computeCost', async (t) => {
-  const originalUncached = process.env.GPT55_INPUT_PER_1M;
-  const originalCached = process.env.GPT55_CACHED_INPUT_PER_1M;
-  const originalOutput = process.env.GPT55_OUTPUT_PER_1M;
-  const originalWebSearch = process.env.WEB_SEARCH_PER_1K_CALLS;
+  const envKeys = ['AGENT_INPUT_PER_1M', 'AGENT_CACHED_INPUT_PER_1M', 'AGENT_OUTPUT_PER_1M', 'WEB_SEARCH_PER_1K_CALLS'];
+  const originalEnv = Object.fromEntries(envKeys.map((k) => [k, process.env[k]]));
 
-  t.after(() => {
-    // usage.ts reads these once at module load, so restoring env vars here
-    // is about hygiene for other test files, not about affecting this
-    // already-loaded module.
-    if (originalUncached === undefined) delete process.env.GPT55_INPUT_PER_1M; else process.env.GPT55_INPUT_PER_1M = originalUncached;
-    if (originalCached === undefined) delete process.env.GPT55_CACHED_INPUT_PER_1M; else process.env.GPT55_CACHED_INPUT_PER_1M = originalCached;
-    if (originalOutput === undefined) delete process.env.GPT55_OUTPUT_PER_1M; else process.env.GPT55_OUTPUT_PER_1M = originalOutput;
-    if (originalWebSearch === undefined) delete process.env.WEB_SEARCH_PER_1K_CALLS; else process.env.WEB_SEARCH_PER_1K_CALLS = originalWebSearch;
+  t.afterEach(() => {
+    // ratesFor reads these at call time (not module load), so each test's
+    // overrides must be cleaned up before the next test runs, not just at suite end.
+    for (const k of envKeys) {
+      if (originalEnv[k] === undefined) delete process.env[k]; else process.env[k] = originalEnv[k];
+    }
   });
 
-  await t.test('prices cached and uncached input separately, at the module\'s loaded defaults', () => {
-    // $5.00/1M uncached, $0.50/1M cached, $30.00/1M output (module defaults).
-    const data = {
-      inputTokens: 1_000_000,
-      cachedInputTokens: 400_000,
-      outputTokens: 100_000,
-      reasoningTokens: 0,
-      totalTokens: 1_100_000,
-      steps: 1,
-      toolCalls: 0,
-      webSearchCalls: 0,
+  function dataWith(overrides = {}) {
+    return {
+      inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0,
+      totalTokens: 0, steps: 1, toolCalls: 0, webSearchCalls: 0,
+      ...overrides,
     };
-    const cost = usage.computeCost(data);
-    // uncached: 600,000/1e6 * 5.00 = 3.00; cached: 400,000/1e6 * 0.50 = 0.20; output: 100,000/1e6 * 30.00 = 3.00
-    assert.ok(Math.abs(cost - (3.0 + 0.2 + 3.0)) < 1e-9, `expected ~6.20, got ${cost}`);
+  }
+
+  await t.test('prices the default model (gpt-5.6-terra) at its table rate', () => {
+    // $2.00/1M uncached, $0.20/1M cached, $12.00/1M output.
+    const data = dataWith({ inputTokens: 1_000_000, cachedInputTokens: 400_000, outputTokens: 100_000 });
+    const cost = usage.computeCost('gpt-5.6-terra', data);
+    // uncached: 600,000/1e6 * 2.00 = 1.20; cached: 400,000/1e6 * 0.20 = 0.08; output: 100,000/1e6 * 12.00 = 1.20
+    assert.ok(Math.abs(cost - (1.2 + 0.08 + 1.2)) < 1e-9, `expected ~2.48, got ${cost}`);
+  });
+
+  await t.test('prices a non-default table model (gpt-5.4-mini) at its own rate', () => {
+    // $0.75/1M uncached, $0.075/1M cached, $4.50/1M output.
+    const data = dataWith({ inputTokens: 1_000_000, cachedInputTokens: 400_000, outputTokens: 100_000 });
+    const cost = usage.computeCost('gpt-5.4-mini', data);
+    // uncached: 600,000/1e6 * 0.75 = 0.45; cached: 400,000/1e6 * 0.075 = 0.03; output: 100,000/1e6 * 4.50 = 0.45
+    assert.ok(Math.abs(cost - (0.45 + 0.03 + 0.45)) < 1e-9, `expected ~0.93, got ${cost}`);
   });
 
   await t.test('pricing all input at the uncached rate would overstate cost -- cached must be cheaper', () => {
-    const allUncachedEquivalent = usage.computeCost({
-      inputTokens: 1_000_000, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0,
-      totalTokens: 1_000_000, steps: 1, toolCalls: 0, webSearchCalls: 0,
-    });
-    const halfCached = usage.computeCost({
-      inputTokens: 1_000_000, cachedInputTokens: 500_000, outputTokens: 0, reasoningTokens: 0,
-      totalTokens: 1_000_000, steps: 1, toolCalls: 0, webSearchCalls: 0,
-    });
+    const allUncachedEquivalent = usage.computeCost('gpt-5.6-terra', dataWith({ inputTokens: 1_000_000 }));
+    const halfCached = usage.computeCost('gpt-5.6-terra', dataWith({ inputTokens: 1_000_000, cachedInputTokens: 500_000 }));
     assert.ok(halfCached < allUncachedEquivalent);
   });
 
   await t.test('web search calls add cost proportional to WEB_SEARCH_PER_1K_CALLS', () => {
-    const withoutSearch = usage.computeCost({
-      inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0,
-      totalTokens: 0, steps: 1, toolCalls: 1, webSearchCalls: 0,
-    });
-    const withSearch = usage.computeCost({
-      inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0,
-      totalTokens: 0, steps: 1, toolCalls: 1, webSearchCalls: 1000,
-    });
+    const withoutSearch = usage.computeCost('gpt-5.6-terra', dataWith({ toolCalls: 1 }));
+    const withSearch = usage.computeCost('gpt-5.6-terra', dataWith({ toolCalls: 1, webSearchCalls: 1000 }));
     assert.ok(withSearch > withoutSearch);
+  });
+
+  await t.test('AGENT_*_PER_1M env vars override the table rate for whichever model is in use', () => {
+    process.env.AGENT_INPUT_PER_1M = '100';
+    process.env.AGENT_CACHED_INPUT_PER_1M = '10';
+    process.env.AGENT_OUTPUT_PER_1M = '1000';
+    const cost = usage.computeCost('gpt-5.6-terra', dataWith({ inputTokens: 1_000_000, cachedInputTokens: 400_000, outputTokens: 100_000 }));
+    // uncached: 600,000/1e6 * 100 = 60; cached: 400,000/1e6 * 10 = 4; output: 100,000/1e6 * 1000 = 100
+    assert.ok(Math.abs(cost - (60 + 4 + 100)) < 1e-9, `expected 164, got ${cost}`);
+  });
+
+  await t.test('an unknown model with no overrides falls back to the most expensive table entry rather than $0', () => {
+    const data = dataWith({ inputTokens: 1_000_000, outputTokens: 1_000_000 });
+    const unknownCost = usage.computeCost('some-future-model', data);
+    const mostExpensiveCost = usage.computeCost('gpt-5.5', data);
+    assert.ok(unknownCost > 0);
+    assert.ok(Math.abs(unknownCost - mostExpensiveCost) < 1e-9);
   });
 });
 
