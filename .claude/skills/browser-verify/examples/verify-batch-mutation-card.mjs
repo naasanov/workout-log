@@ -250,7 +250,7 @@ try {
   if (!liveText.includes(MOVEMENT_LABEL)) throw new Error(`FAIL: new exercise "${MOVEMENT_LABEL}" not visible on the Workouts tab without reload`);
 
   // The exercise's variation row isn't fetched until its section is
-  // expanded (Section.tsx starts collapsed for a freshly created section
+  // expanded (Section.jsx starts collapsed for a freshly created section
   // unless it auto-opens) -- expand it if needed, then confirm the
   // variation label is visible without ever reloading the page.
   if (!liveText.includes(VARIATION_LABEL)) {
