@@ -58,11 +58,7 @@ export default function AgentInstructionsModal({ onClose }: AgentInstructionsMod
           <h2 className={styles.title}>Agent Instructions</h2>
         </div>
 
-        <p className={styles.hint}>
-          Tell the agent how you'd like it to respond, such as tone, units, or level of
-          detail. These are preferences: they can't change how the agent works, and it
-          still only proposes changes for you to confirm.
-        </p>
+        <p className={styles.hint}>Added to the agent's system prompt.</p>
 
         {isLoading ? (
           <p className={styles.loadingState}>Loading...</p>

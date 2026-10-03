@@ -10,17 +10,62 @@ import type {
   BilledCostReport,
 } from '../../shared/nutritionUsage';
 
-// USD per 1M tokens (per 1K calls for web search). Token defaults match OpenAI's
-// line-item billing (#325), where cached input costs a tenth of uncached input.
+// USD per 1M tokens (per 1K calls for web search). Table rates mirror OpenAI's
+// published per-model prices, where cached input costs a tenth of uncached input.
 // The web search default is OpenAI's published tool price; override any via env.
-const INPUT_PER_1M = Number(process.env.GPT55_INPUT_PER_1M ?? 5.0);
-const CACHED_INPUT_PER_1M = Number(process.env.GPT55_CACHED_INPUT_PER_1M ?? 0.5);
-const OUTPUT_PER_1M = Number(process.env.GPT55_OUTPUT_PER_1M ?? 30.0);
 const WEB_SEARCH_PER_1K_CALLS = Number(process.env.WEB_SEARCH_PER_1K_CALLS ?? 10.0);
+
+interface ModelRates {
+  inputPer1M: number;
+  cachedInputPer1M: number;
+  outputPer1M: number;
+}
+
+// USD per 1M tokens for each model the agent can be configured to use (see
+// AGENT_MODEL in services/agent/index.ts). Keep in sync with OpenAI's pricing page.
+const MODEL_RATES: Record<string, ModelRates> = {
+  'gpt-5.5': { inputPer1M: 5.0, cachedInputPer1M: 0.5, outputPer1M: 30.0 },
+  'gpt-5.6-sol': { inputPer1M: 4.0, cachedInputPer1M: 0.4, outputPer1M: 20.0 },
+  'gpt-5.6-terra': { inputPer1M: 2.0, cachedInputPer1M: 0.2, outputPer1M: 12.0 },
+  'gpt-5.6-luna': { inputPer1M: 0.2, cachedInputPer1M: 0.02, outputPer1M: 1.2 },
+  'gpt-5.4': { inputPer1M: 2.5, cachedInputPer1M: 0.25, outputPer1M: 15.0 },
+  'gpt-5.4-mini': { inputPer1M: 0.75, cachedInputPer1M: 0.075, outputPer1M: 4.5 },
+  'gpt-5.4-nano': { inputPer1M: 0.2, cachedInputPer1M: 0.02, outputPer1M: 1.25 },
+};
+
+const modelsWarnedAsUnknown = new Set<string>();
+
+/**
+ * Rates for a given model: the table entry, overridden per-field by any of
+ * the optional AGENT_*_PER_1M env vars, read at call time (not module load)
+ * so tests can set them per-case. An unknown model with no overrides falls
+ * back to the table's most expensive entry (an overestimate, not a silent
+ * $0) and warns once per model name so the gap gets noticed.
+ */
+function ratesFor(model: string): ModelRates {
+  const known = MODEL_RATES[model];
+  if (!known && !modelsWarnedAsUnknown.has(model)) {
+    modelsWarnedAsUnknown.add(model);
+    console.warn(`[ai_usage] unknown model "${model}", falling back to the most expensive known rate`);
+  }
+  const base = known ?? Object.values(MODEL_RATES).reduce((max, rates) =>
+    rates.outputPer1M > max.outputPer1M ? rates : max,
+  );
+
+  const inputOverride = process.env.AGENT_INPUT_PER_1M;
+  const cachedOverride = process.env.AGENT_CACHED_INPUT_PER_1M;
+  const outputOverride = process.env.AGENT_OUTPUT_PER_1M;
+
+  return {
+    inputPer1M: inputOverride !== undefined && inputOverride !== '' ? Number(inputOverride) : base.inputPer1M,
+    cachedInputPer1M: cachedOverride !== undefined && cachedOverride !== '' ? Number(cachedOverride) : base.cachedInputPer1M,
+    outputPer1M: outputOverride !== undefined && outputOverride !== '' ? Number(outputOverride) : base.outputPer1M,
+  };
+}
 
 export interface UsageData {
   inputTokens: number;
-  /** Subset of inputTokens read from the prompt cache; billed at CACHED_INPUT_PER_1M. */
+  /** Subset of inputTokens read from the prompt cache; billed at the model's cached input rate. */
   cachedInputTokens: number;
   outputTokens: number;
   /** Reasoning tokens are billed as output tokens (already included in outputTokens). */
@@ -70,12 +115,13 @@ export function usageDataFromFinishResult({ usage, steps, toolCalls }: FinishRes
 }
 
 /** Exported for unit testing the pricing math directly (see tests/usageFromFinish.test.js). */
-export function computeCost(data: UsageData): number {
+export function computeCost(model: string, data: UsageData): number {
+  const rates = ratesFor(model);
   const cachedInputTokens = Math.max(0, Math.min(data.cachedInputTokens, data.inputTokens));
   const uncachedInputTokens = data.inputTokens - cachedInputTokens;
-  const inputCost = (uncachedInputTokens / 1_000_000) * INPUT_PER_1M;
-  const cachedCost = (cachedInputTokens / 1_000_000) * CACHED_INPUT_PER_1M;
-  const outputCost = (data.outputTokens / 1_000_000) * OUTPUT_PER_1M;
+  const inputCost = (uncachedInputTokens / 1_000_000) * rates.inputPer1M;
+  const cachedCost = (cachedInputTokens / 1_000_000) * rates.cachedInputPer1M;
+  const outputCost = (data.outputTokens / 1_000_000) * rates.outputPer1M;
   const webSearchCost = (data.webSearchCalls / 1000) * WEB_SEARCH_PER_1K_CALLS;
   return inputCost + cachedCost + outputCost + webSearchCost;
 }
@@ -87,7 +133,7 @@ export async function recordUsage(
   data: UsageData,
 ): Promise<void> {
   try {
-    const costUsd = computeCost(data);
+    const costUsd = computeCost(model, data);
     await pool.query(
       `INSERT INTO ai_usage
          (user_uuid, model, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens,
