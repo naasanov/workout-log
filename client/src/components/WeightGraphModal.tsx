@@ -4,29 +4,41 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { format } from 'date-fns';
 import clientApi from '../api/clientApi';
 import { useUser } from '../context/UserProvider';
-import Modal from './Modal.jsx';
+import Modal from './Modal';
 import styles from '../styles/WeightGraphModal.module.scss';
+import type { VariationData } from './variation/Variation';
 
 // Single global flag shared by every variation graph — not per-variation.
 // Switching one graph to "Weight" switches all of them.
 const METRIC_STORAGE_KEY = 'variationGraphMetric';
 const METRIC_EST_1RM = 'est1rm';
 const METRIC_WEIGHT = 'weight';
+type Metric = typeof METRIC_EST_1RM | typeof METRIC_WEIGHT;
 
-function readStoredMetric() {
+type HistoryPoint = {
+  weight: number | null;
+  reps: number | null;
+  date: string;
+  rawDate: number;
+  index: number;
+};
+
+type ChartPoint = HistoryPoint & { value: number | null };
+
+function readStoredMetric(): Metric {
   try {
     const stored = localStorage.getItem(METRIC_STORAGE_KEY);
     if (stored === METRIC_EST_1RM || stored === METRIC_WEIGHT) return stored;
-  } catch (_) {
+  } catch {
     // localStorage can throw (e.g. Safari private mode); fall back to default.
   }
   return METRIC_EST_1RM;
 }
 
-function writeStoredMetric(metric) {
+function writeStoredMetric(metric: Metric) {
   try {
     localStorage.setItem(METRIC_STORAGE_KEY, metric);
-  } catch (_) {
+  } catch {
     // Best-effort; nothing to do if storage is unavailable.
   }
 }
@@ -34,13 +46,19 @@ function writeStoredMetric(metric) {
 // Epley formula. When reps is null/undefined/0 we have no rep data for that
 // point (pre-existing history rows never recorded reps), so the est. 1RM is
 // just the weight itself rather than an extrapolation.
-function estimate1RM(weight, reps) {
+function estimate1RM(weight: number | null, reps: number | null): number | null {
   if (weight == null) return null;
   if (!reps) return Math.round(weight);
   return Math.round(weight * (1 + reps / 30));
 }
 
-function GraphTooltip({ active, payload, isEst1RM }) {
+type GraphTooltipProps = {
+  active?: boolean;
+  payload?: Array<{ payload: ChartPoint }>;
+  isEst1RM: boolean;
+};
+
+function GraphTooltip({ active, payload, isEst1RM }: GraphTooltipProps) {
   if (!active || !payload || payload.length === 0) return null;
   const point = payload[0].payload;
   const contentStyle = {
@@ -75,22 +93,23 @@ function GraphTooltip({ active, payload, isEst1RM }) {
   );
 }
 
+type WeightGraphModalProps = {
+  variation: Pick<VariationData, 'id' | 'label'>;
+  onClose: () => void;
+};
+
 /**
  * WeightGraphModal — weight / estimated-1RM-over-time chart for a variation.
- *
- * Props (unchanged):
- *   variation {object} — must have .id and .label
- *   onClose   {fn}     — called to close the modal
  */
-function WeightGraphModal({ variation, onClose }) {
+function WeightGraphModal({ variation, onClose }: WeightGraphModalProps) {
   const { user } = useUser();
-  const [metric, setMetric] = useState(readStoredMetric);
+  const [metric, setMetric] = useState<Metric>(readStoredMetric);
 
   const { data: history = [], isLoading: loading } = useQuery({
     queryKey: ['variationHistory', variation.id],
-    queryFn: async () => {
+    queryFn: async (): Promise<HistoryPoint[]> => {
       const res = await clientApi.get(`/variations/history/${variation.id}`);
-      return res.data.data.map((entry, index) => ({
+      return res.data.data.map((entry: { weight: number | null; reps: number | null; date: string }, index: number) => ({
         weight: entry.weight,
         reps: entry.reps,
         date: format(new Date(entry.date), 'MMM d'),
@@ -105,13 +124,13 @@ function WeightGraphModal({ variation, onClose }) {
     enabled: !!user,
   });
 
-  function handleMetricChange(next) {
+  function handleMetricChange(next: Metric) {
     setMetric(next);
     writeStoredMetric(next);
   }
 
   const isEst1RM = metric === METRIC_EST_1RM;
-  const chartData = isEst1RM
+  const chartData: ChartPoint[] = isEst1RM
     ? history.map(entry => ({
         ...entry,
         value: estimate1RM(entry.weight, entry.reps),
@@ -121,7 +140,7 @@ function WeightGraphModal({ variation, onClose }) {
   // Anchoring the axis at 0 compresses a typical progress curve (e.g.
   // 175 -> 247) into the top third of the chart. Pad around the actual
   // range instead so the trend is visible, without ever going negative.
-  const chartValues = chartData.map(d => d.value).filter(v => v != null);
+  const chartValues = chartData.map(d => d.value).filter((v): v is number => v != null);
   const dataMin = chartValues.length ? Math.min(...chartValues) : 0;
   const dataMax = chartValues.length ? Math.max(...chartValues) : 0;
   const range = dataMax - dataMin;
@@ -138,11 +157,11 @@ function WeightGraphModal({ variation, onClose }) {
   // above) instead of the formatted day string, and dedupe the *visible*
   // ticks down to one per day (first point of the day) via tickFormatter +
   // explicit `ticks` so the axis doesn't fill up with repeated day labels.
-  const dayTicks = chartData.reduce((ticks, point, i) => {
+  const dayTicks = chartData.reduce<number[]>((ticks, point, i) => {
     if (i === 0 || point.date !== chartData[i - 1].date) ticks.push(point.index);
     return ticks;
   }, []);
-  const formatDayTick = (index) => chartData[index]?.date ?? '';
+  const formatDayTick = (index: number) => chartData[index]?.date ?? '';
 
   return (
     <Modal
