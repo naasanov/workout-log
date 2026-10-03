@@ -1,19 +1,53 @@
 import { useState, useMemo, useRef } from 'react';
+import type { FormEvent } from 'react';
 import { ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
 import clientApi from '../api/clientApi';
 import useAuth from '../hooks/useAuth';
 import useHorizontalPan from '../hooks/useHorizontalPan';
-import ConfirmModal from './ConfirmModal.jsx';
+import ConfirmModal from './ConfirmModal';
 import styles from '../styles/BodyWeightTracker.module.scss';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+type BodyWeightEntry = {
+  id: number;
+  weight: number;
+  date: string;
+};
+
+type RangeKey = '1M' | '3M' | '6M' | '1Y' | 'ALL';
+
+type RangeDef = {
+  key: RangeKey;
+  label: string;
+  days: number | null;
+  smoothingDays: number;
+};
+
+type ChartPoint = {
+  weight: number;
+  date: string;
+  rawDate: number;
+};
+
+type SmoothedChartPoint = ChartPoint & { smoothedWeight: number };
+
+// The two boundary points added to chartData so the line runs off the chart
+// edge are plotted with a hidden (stroke: 'none') Line, and their dots
+// are suppressed below based on whether they fall in the visible window.
+type ChartDotProps = {
+  cx?: number;
+  cy?: number;
+  payload?: SmoothedChartPoint;
+  index?: number;
+};
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Visible range chips. Each also sets the moving-average window in days, wider
 // for longer ranges so the trend isn't lost in noise. "All" has no fixed span
 // and never pans.
-const RANGE_DEFS = [
+const RANGE_DEFS: RangeDef[] = [
   { key: '1M', label: '1M', days: 30, smoothingDays: 7 },
   { key: '3M', label: '3M', days: 90, smoothingDays: 7 },
   { key: '6M', label: '6M', days: 180, smoothingDays: 14 },
@@ -28,18 +62,18 @@ const CHART_RIGHT_MARGIN_PX = 16;
 const Y_AXIS_WIDTH_PX = 48;
 
 const RANGE_STORAGE_KEY = 'bodyWeightRangeKey';
-const DEFAULT_RANGE_KEY = '3M';
+const DEFAULT_RANGE_KEY: RangeKey = '3M';
 
-function clamp(value, min, max) {
+function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
 // Falls back to the default whenever storage is unavailable or holds a key
 // that no longer matches a range chip.
-function loadStoredRangeKey() {
+function loadStoredRangeKey(): RangeKey {
   try {
     const stored = localStorage.getItem(RANGE_STORAGE_KEY);
-    if (stored && RANGE_DEFS.some(r => r.key === stored)) return stored;
+    if (stored && RANGE_DEFS.some(r => r.key === stored)) return stored as RangeKey;
   } catch {
     // Storage may be unavailable (private mode, disabled cookies, etc).
   }
@@ -49,16 +83,16 @@ function loadStoredRangeKey() {
 function BodyWeightTracker() {
   const [weight, setWeight] = useState('');
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
-  const [deleteId, setDeleteId] = useState(null);
-  const [rangeKey, setRangeKey] = useState(loadStoredRangeKey);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [rangeKey, setRangeKey] = useState<RangeKey>(loadStoredRangeKey);
   const [panOffsetMs, setPanOffsetMs] = useState(0);
-  const chartWrapRef = useRef(null);
+  const chartWrapRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const entriesQuery = useQuery({
     queryKey: ['body-weight'],
-    queryFn: async () => {
+    queryFn: async (): Promise<BodyWeightEntry[]> => {
       const res = await clientApi.get('/body-weight');
       return res.data.data ?? [];
     },
@@ -69,20 +103,20 @@ function BodyWeightTracker() {
   const loading = entriesQuery.isLoading;
 
   const addMutation = useMutation({
-    mutationFn: async ({ weight, date }) => {
-      const body = { weight: Number(weight) };
+    mutationFn: async ({ weight, date }: { weight: string; date: string }): Promise<BodyWeightEntry> => {
+      const body: { weight: number; date?: string } = { weight: Number(weight) };
       if (date) body.date = new Date(date).toISOString();
       const res = await clientApi.post('/body-weight', body);
       return res.data.data;
     },
     onSuccess: (data, { weight, date }) => {
-      const newEntry = {
+      const newEntry: BodyWeightEntry = {
         id: data.id,
         weight: Number(weight),
         date: date ? new Date(date).toISOString() : new Date().toISOString(),
       };
-      queryClient.setQueryData(['body-weight'], (prev) =>
-        [...(prev ?? []), newEntry].sort((a, b) => new Date(a.date) - new Date(b.date))
+      queryClient.setQueryData<BodyWeightEntry[]>(['body-weight'], (prev) =>
+        [...(prev ?? []), newEntry].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       );
       setWeight('');
       setDate(format(new Date(), 'yyyy-MM-dd'));
@@ -90,18 +124,18 @@ function BodyWeightTracker() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id) => {
+    mutationFn: async (id: number): Promise<number> => {
       await clientApi.delete(`/body-weight/${id}`);
       return id;
     },
     onSuccess: (id) => {
-      queryClient.setQueryData(['body-weight'], (prev) =>
+      queryClient.setQueryData<BodyWeightEntry[]>(['body-weight'], (prev) =>
         (prev ?? []).filter(e => e.id !== id)
       );
     },
   });
 
-  async function handleSubmit(e) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!weight || isNaN(Number(weight)) || Number(weight) <= 0) return;
     addMutation.mutate({ weight, date });
@@ -109,13 +143,14 @@ function BodyWeightTracker() {
 
   async function handleDelete() {
     const id = deleteId;
+    if (id === null) return;
     setDeleteId(null);
     deleteMutation.mutate(id);
   }
 
   const submitting = addMutation.isPending;
 
-  const rawChartData = useMemo(() => entries.map(e => ({
+  const rawChartData: ChartPoint[] = useMemo(() => entries.map(e => ({
     weight: e.weight,
     date: format(new Date(e.date), 'MMM d'),
     rawDate: new Date(e.date).getTime(),
@@ -126,7 +161,7 @@ function BodyWeightTracker() {
   // Centered moving average over days, not a point count, since entries are
   // unevenly spaced. It runs over the full dataset so the leftmost visible
   // segment stays correct while panned.
-  const chartDataFull = useMemo(() => {
+  const chartDataFull: SmoothedChartPoint[] = useMemo(() => {
     const halfWindowMs = (rangeDef.smoothingDays / 2) * DAY_MS;
     return rawChartData.map(point => {
       const neighbors = rawChartData.filter(
@@ -162,9 +197,9 @@ function BodyWeightTracker() {
   // the line runs off the chart instead of stopping dead at the window edge.
   // allowDataOverflow on the X axis clips those edge points from view.
   const { chartData, inWindowData } = useMemo(() => {
-    const inWindow = [];
-    let before = null;
-    let after = null;
+    const inWindow: SmoothedChartPoint[] = [];
+    let before: SmoothedChartPoint | null = null;
+    let after: SmoothedChartPoint | null = null;
     for (const p of chartDataFull) {
       if (p.rawDate < windowStartMs) {
         if (!before || p.rawDate > before.rawDate) before = p;
@@ -192,7 +227,7 @@ function BodyWeightTracker() {
   const isPanned = effectivePanOffsetMs > 0;
   const panDisabled = rangeDef.days == null || maxPanOffsetMs <= 0;
 
-  function handlePanBy(dxPx) {
+  function handlePanBy(dxPx: number) {
     const containerWidth = chartWrapRef.current?.clientWidth ?? 300;
     const plotWidthPx = Math.max(1, containerWidth - Y_AXIS_WIDTH_PX - CHART_RIGHT_MARGIN_PX);
     const msPerPx = rangeMs / plotWidthPx;
@@ -206,19 +241,19 @@ function BodyWeightTracker() {
 
   // The two boundary points added to chartData exist only so the line runs
   // off the chart edge; they must not render as visible dots themselves.
-  function renderWeightDot(props) {
+  function renderWeightDot(props: ChartDotProps) {
     const { cx, cy, payload, index } = props;
-    if (payload.rawDate < windowStartMs || payload.rawDate > windowEndMs) return null;
+    if (!payload || payload.rawDate < windowStartMs || payload.rawDate > windowEndMs) return null;
     return <circle key={`dot-${index}`} cx={cx} cy={cy} r={4} fill="#70EB70" />;
   }
 
-  function renderActiveWeightDot(props) {
+  function renderActiveWeightDot(props: ChartDotProps) {
     const { cx, cy, payload, index } = props;
-    if (payload.rawDate < windowStartMs || payload.rawDate > windowEndMs) return null;
+    if (!payload || payload.rawDate < windowStartMs || payload.rawDate > windowEndMs) return null;
     return <circle key={`active-dot-${index}`} cx={cx} cy={cy} r={6} fill="#70EB70" />;
   }
 
-  function handleRangeChange(key) {
+  function handleRangeChange(key: RangeKey) {
     setRangeKey(key);
     setPanOffsetMs(0);
     try {

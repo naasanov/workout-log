@@ -2,12 +2,13 @@ import Editable from "../Editable";
 import styles from "../../styles/Variation.module.scss";
 import { Dumbbell, Number, Delete, Chart, Notes } from "../Icons";
 import DateInput from "../DateInput";
+import type { VariationDisplayProps } from './Variation';
 
 function WideVariation({
   variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove, setShowRemove, removeAllowed,
   onGraphOpen, onNotesOpen, hasNotes,
   pairEditing, pairFocus, weightInputRef, repsInputRef, onOpenPair, onPairInputChange, onPairSubmit
-}) {
+}: VariationDisplayProps) {
   const hoverProps = {
     onMouseEnter: () => setShowRemove(true),
     onMouseLeave: () => setShowRemove(false)

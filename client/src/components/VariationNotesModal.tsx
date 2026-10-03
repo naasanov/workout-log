@@ -1,6 +1,15 @@
 import { useRef, useState } from 'react';
-import Modal from './Modal.jsx';
+import type { ChangeEvent } from 'react';
+import Modal from './Modal';
 import styles from '../styles/VariationNotesModal.module.scss';
+import type { VariationData } from './variation/Variation';
+
+type VariationNotesModalProps = {
+  variation: Pick<VariationData, 'id' | 'label'>;
+  notes: string | null;
+  onSave: (notes: string) => void;
+  onClose: () => void;
+};
 
 /**
  * VariationNotesModal — free-text notes editor for a variation.
@@ -16,20 +25,14 @@ import styles from '../styles/VariationNotesModal.module.scss';
  * (avoiding stale closures) and no-ops if it already matches what was last
  * saved (avoiding duplicate PATCHes when e.g. blur fires immediately before
  * a close/save handler).
- *
- * Props:
- *   variation {object}   — must have .id and .label
- *   notes     {string}   — current notes value (may be empty/null)
- *   onSave    {fn}       — async (notes: string) => void, called when the value changed
- *   onClose   {fn}       — called to close the modal
  */
-function VariationNotesModal({ variation, notes, onSave, onClose }) {
+function VariationNotesModal({ variation, notes, onSave, onClose }: VariationNotesModalProps) {
   const initial = notes ?? '';
   const [value, setValue] = useState(initial);
   const valueRef = useRef(initial);
   const savedRef = useRef(initial);
 
-  function handleChange(e) {
+  function handleChange(e: ChangeEvent<HTMLTextAreaElement>) {
     const next = e.target.value;
     setValue(next);
     valueRef.current = next;

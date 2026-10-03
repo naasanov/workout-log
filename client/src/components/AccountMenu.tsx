@@ -1,19 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { logout } from '../api/authApi';
 import { useUser } from '../context/UserProvider';
-import { Profile } from './Icons.jsx';
-import ApiKeyModal from './ApiKeyModal.jsx';
+import { Profile } from './Icons';
+import ApiKeyModal from './ApiKeyModal';
 import styles from '../styles/Header.module.scss';
 
 function AccountMenu() {
   const { setUser } = useUser();
   const [open, setOpen] = useState(false);
   const [showApiKeys, setShowApiKeys] = useState(false);
-  const menuRef = useRef(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function handleClickOutside(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }

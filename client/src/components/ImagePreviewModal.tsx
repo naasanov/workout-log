@@ -3,7 +3,7 @@
 // callers unmount it rather than closing it, so focus is managed here.
 import { useCallback, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
-import Modal from './Modal.jsx';
+import Modal from './Modal';
 import styles from './ImagePreviewModal.module.scss';
 
 export interface ImagePreviewModalProps {

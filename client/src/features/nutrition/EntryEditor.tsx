@@ -13,7 +13,7 @@ import {
   useEffect,
   useMemo,
 } from 'react';
-import Modal from '../../components/Modal.jsx';
+import Modal from '../../components/Modal';
 import { useCreateEntry, useUpdateEntry } from './api';
 import type {
   EntryEditorProps,

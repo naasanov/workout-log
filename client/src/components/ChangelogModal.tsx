@@ -7,35 +7,42 @@
  * badges any item whose `issues` include one of them. This is deliberately
  * tolerant: signed out, a failed request, or no submissions all render the
  * plain list with no badge and no error (the modal is shown when signed out
- * too — see Header.jsx).
+ * too — see Header.tsx).
  */
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import Modal from './Modal.jsx';
+import Modal from './Modal';
 import { fetchMySubmittedIssueNumbers } from '../features/nutrition/api';
 import { CHANGELOG } from '../config/changelog';
 import styles from '../styles/ChangelogModal.module.scss';
 
+// A changelog item is either a plain string or { text, issues }.
+type ChangelogItem = string | { text: string; issues?: number[] };
+
 // Parses a 'YYYY-MM-DD' string into a local-time Date so date-fns formats
 // the same calendar day everywhere, regardless of the viewer's timezone.
-function parseEntryDate(dateStr) {
+function parseEntryDate(dateStr: string): Date {
   const [year, month, day] = dateStr.split('-').map(Number);
   return new Date(year, month - 1, day);
 }
 
-// A changelog item is either a plain string or { text, issues }. These
-// normalize either shape so rendering doesn't need to branch per-item.
-function itemText(item) {
+// These normalize either shape so rendering doesn't need to branch per-item.
+function itemText(item: ChangelogItem): string {
   return typeof item === 'string' ? item : item.text;
 }
-function itemIssues(item) {
+function itemIssues(item: ChangelogItem): number[] {
   return typeof item === 'string' ? [] : item.issues ?? [];
 }
 
-export default function ChangelogModal({ open, onClose }) {
+type ChangelogModalProps = {
+  open: boolean;
+  onClose: () => void;
+};
+
+export default function ChangelogModal({ open, onClose }: ChangelogModalProps) {
   // Issue numbers the signed-in user has submitted, for badging. Empty set
   // renders identically to "not fetched yet" — no badges, no error state.
-  const [submittedIssues, setSubmittedIssues] = useState(() => new Set());
+  const [submittedIssues, setSubmittedIssues] = useState<Set<number>>(() => new Set());
 
   useEffect(() => {
     if (!open) return undefined;
@@ -76,7 +83,7 @@ export default function ChangelogModal({ open, onClose }) {
                 </div>
                 <h3 className={styles.entryTitle}>{entry.title}</h3>
                 <ul className={styles.entryItems}>
-                  {entry.items.map((item) => {
+                  {entry.items.map((item: ChangelogItem) => {
                     const text = itemText(item);
                     const isMine = itemIssues(item).some((n) => submittedIssues.has(n));
                     return (

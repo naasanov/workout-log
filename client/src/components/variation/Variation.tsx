@@ -1,25 +1,78 @@
 import { useEffect, useRef, useState } from 'react';
+import type { Dispatch, RefObject, SetStateAction } from 'react';
 import clientApi from '../../api/clientApi';
 import useAuth from '../../hooks/useAuth';
 import useIsMobile from '../../hooks/useIsMobile';
 import { useError } from '../../context/ErrorProvider';
-import ThinVariation from './ThinVariation.jsx';
-import WideVariation from './WideVariation.jsx';
-import ConfirmModal from '../ConfirmModal.jsx';
-import WeightGraphModal from '../WeightGraphModal.jsx';
-import VariationNotesModal from '../VariationNotesModal.jsx';
+import ThinVariation from './ThinVariation';
+import WideVariation from './WideVariation';
+import ConfirmModal from '../ConfirmModal';
+import WeightGraphModal from '../WeightGraphModal';
+import VariationNotesModal from '../VariationNotesModal';
+
+// A single exercise variation, as returned by the server (and as optimistically
+// created client-side -- see Movement.tsx). `date` arrives as an ISO string over
+// JSON but can also be a freshly-created client-side Date before the next fetch.
+export type VariationData = {
+  id: number | string;
+  label: string;
+  date: Date | string;
+  weight?: number | null;
+  reps?: number | null;
+  notes?: string | null;
+};
+
+// #231 -- weight and reps display "no value yet" as the literal string "___"
+// until a real value is entered; see the `details` initializer below.
+type VariationDetails = {
+  weight: number | '___';
+  reps: number | '___';
+  date: Date | string;
+};
+
+type PairField = 'weight' | 'reps';
+
+// Props shared with ThinVariation/WideVariation, which each render a subset
+// of this (mobile vs. desktop layouts) -- see those files.
+export type VariationDisplayProps = {
+  variation: VariationData;
+  details: Partial<VariationDetails>;
+  handleLabelEdit: (value: string) => void;
+  handleDetailEdit: (field: 'date', change: Date) => void;
+  handleRemove: () => void;
+  showRemove: boolean;
+  setShowRemove: Dispatch<SetStateAction<boolean>>;
+  removeAllowed: boolean;
+  onGraphOpen: () => void;
+  onNotesOpen: () => void;
+  hasNotes: boolean;
+  // #231 -- joint weight/reps editing (see below)
+  pairEditing: boolean;
+  pairFocus: PairField | null;
+  weightInputRef: RefObject<HTMLInputElement>;
+  repsInputRef: RefObject<HTMLInputElement>;
+  onOpenPair: (field: PairField) => void;
+  onPairInputChange: (field: PairField, value: string) => void;
+  onPairSubmit: () => void;
+};
 
 // #231 — weight and reps display "no value yet" as the literal string
 // "___" (see the `details` initializer below). Editable's own type="number"
 // effect already treats that as blank input; this mirrors the same check so
 // the joint commit handler can tell "no real value" apart from a real 0.
-function numberDisplay(value) {
-  return isNaN(value) ? "" : `${value}`;
+function numberDisplay(value: number | '___' | undefined): string {
+  return isNaN(Number(value)) ? "" : `${value}`;
 }
 
-function Variation({ variation, setVariations, removeAllowed }) {
+type VariationProps = {
+  variation: VariationData;
+  setVariations: Dispatch<SetStateAction<VariationData[]>>;
+  removeAllowed: boolean;
+};
+
+function Variation({ variation, setVariations, removeAllowed }: VariationProps) {
   const { isMobile } = useIsMobile();
-  const [details, setDetails] = useState({});
+  const [details, setDetails] = useState<Partial<VariationDetails>>({});
   const [showRemove, setShowRemove] = useState(isMobile);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showGraph, setShowGraph] = useState(false);
@@ -32,10 +85,10 @@ function Variation({ variation, setVariations, removeAllowed }) {
   // together in one PATCH. This is what collapses what used to be two
   // separate PATCHes (and two `variation_history` rows) into one.
   const [pairEditing, setPairEditing] = useState(false);
-  const [pairFocus, setPairFocus] = useState(null); // 'weight' | 'reps' | null
+  const [pairFocus, setPairFocus] = useState<PairField | null>(null);
   const [pairInputs, setPairInputs] = useState({ weight: '', reps: '' });
-  const weightInputRef = useRef(null);
-  const repsInputRef = useRef(null);
+  const weightInputRef = useRef<HTMLInputElement>(null);
+  const repsInputRef = useRef<HTMLInputElement>(null);
   const commitPairRef = useRef(() => {});
 
   useEffect(() => {
@@ -52,7 +105,7 @@ function Variation({ variation, setVariations, removeAllowed }) {
 
   // #231 — opens BOTH weight and reps as inputs; `field` only decides which
   // one receives focus/select (the one the user actually tapped).
-  function openPair(field) {
+  function openPair(field: PairField) {
     setPairInputs({
       weight: numberDisplay(details.weight),
       reps: numberDisplay(details.reps)
@@ -61,7 +114,7 @@ function Variation({ variation, setVariations, removeAllowed }) {
     setPairEditing(true);
   }
 
-  function handlePairInputChange(field, value) {
+  function handlePairInputChange(field: PairField, value: string) {
     setPairInputs(prev => ({ ...prev, [field]: value }));
   }
 
@@ -79,8 +132,8 @@ function Variation({ variation, setVariations, removeAllowed }) {
     const priorWeight = typeof details.weight === 'number' ? details.weight : undefined;
     const priorReps = typeof details.reps === 'number' ? details.reps : undefined;
 
-    let weightVal = weightRaw ? parseFloat(weightRaw) : NaN;
-    let repsVal = repsRaw ? parseInt(repsRaw) : NaN;
+    let weightVal: number | undefined = weightRaw ? parseFloat(weightRaw) : NaN;
+    let repsVal: number | undefined = repsRaw ? parseInt(repsRaw) : NaN;
 
     // A field left blank (or otherwise unparseable) falls back to its prior
     // value and must never PATCH NaN. The error banner is only for a field
@@ -98,7 +151,7 @@ function Variation({ variation, setVariations, removeAllowed }) {
       repsVal = priorReps;
     }
 
-    if (clearedExisting) setShowError(true);
+    if (clearedExisting) setShowError?.(true);
 
     setPairEditing(false);
     setPairFocus(null);
@@ -111,7 +164,7 @@ function Variation({ variation, setVariations, removeAllowed }) {
       date: today
     }));
 
-    const payload = { date: today.toISOString() };
+    const payload: { date: string; weight?: number; reps?: number } = { date: today.toISOString() };
     if (weightVal !== undefined) payload.weight = weightVal;
     if (repsVal !== undefined) payload.reps = repsVal;
 
@@ -142,9 +195,9 @@ function Variation({ variation, setVariations, removeAllowed }) {
   useEffect(() => {
     if (!pairEditing) return;
 
-    function handleOutsideClick(e) {
+    function handleOutsideClick(e: MouseEvent) {
       const insideGroup = [weightInputRef.current, repsInputRef.current]
-        .some(el => el && el.contains(e.target));
+        .some(el => el && el.contains(e.target as Node));
       if (!insideGroup) {
         commitPairRef.current();
       }
@@ -178,7 +231,7 @@ function Variation({ variation, setVariations, removeAllowed }) {
     setShowConfirm(false);
   }
 
-  async function handleLabelEdit(change) {
+  async function handleLabelEdit(change: string) {
     const today = new Date();
     setVariations(prevVariations => (
       prevVariations.map(v => (
@@ -196,32 +249,22 @@ function Variation({ variation, setVariations, removeAllowed }) {
     ))
   }
 
-  async function handleDetailEdit(field, change) {
-    if (field === "weight") {
-      change = parseFloat(change);
-    }
-    else if (field === "reps") {
-      change = parseInt(change);
-    }
-
-    const today = new Date();
-    const dateUpdate = field === "date" ? {} : { date: today };
-
+  // Only ever called with field "date" today (ThinVariation/WideVariation's
+  // DateInput) -- weight/reps now go through the joint pair-edit flow above.
+  async function handleDetailEdit(field: 'date', change: Date) {
     setDetails(prevDetails => ({
       ...prevDetails,
-      [field]: change,
-      ...dateUpdate
+      [field]: change
     }));
 
     await withAuth(() => (
       clientApi.patch(`/variations/${variation.id}`, {
-        [field]: change,
-        ...(field === "date" ? {} : { date: today.toISOString() })
+        [field]: change.toISOString()
       })
     ))
   }
 
-  async function handleNotesEdit(change) {
+  async function handleNotesEdit(change: string) {
     // Note edits don't bump `date` — date reflects when the lift was last
     // updated, and a note edit isn't a PR update.
     setVariations(prevVariations => (
@@ -236,7 +279,7 @@ function Variation({ variation, setVariations, removeAllowed }) {
     ))
   }
 
-  const props = {
+  const props: VariationDisplayProps = {
     variation, details, handleLabelEdit, handleDetailEdit,
     handleRemove: handleRemoveClick, showRemove, setShowRemove, removeAllowed,
     onGraphOpen: () => setShowGraph(true), onNotesOpen: () => setShowNotes(true),
@@ -263,7 +306,7 @@ function Variation({ variation, setVariations, removeAllowed }) {
       {showNotes && (
         <VariationNotesModal
           variation={variation}
-          notes={variation.notes}
+          notes={variation.notes ?? null}
           onSave={handleNotesEdit}
           onClose={() => setShowNotes(false)}
         />

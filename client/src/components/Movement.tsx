@@ -2,23 +2,35 @@ import Editable from "./Editable";
 import Variation from "./variation/Variation";
 import ConfirmModal from "./ConfirmModal";
 import { useEffect, useState, useRef } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import useAuth from '../hooks/useAuth';
 import clientApi from "../api/clientApi";
 import styles from "../styles/Movement.module.scss";
 import { v4 as uuid } from "uuid";
 import { MoreVertical } from 'lucide-react';
+import type { VariationData } from "./variation/Variation";
+
+export type MovementData = {
+  id: number | string;
+  label: string;
+};
+
+type MovementMenuProps = {
+  onAddVariation: () => void;
+  onDeleteExercise: () => void;
+};
 
 // ---- Three-dots exercise menu (#95) ----
-function MovementMenu({ onAddVariation, onDeleteExercise }) {
+function MovementMenu({ onAddVariation, onDeleteExercise }: MovementMenuProps) {
   const [open, setOpen] = useState(false);
-  const wrapperRef = useRef(null);
-  const btnRef = useRef(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
 
   // Close on outside tap/click
   useEffect(() => {
     if (!open) return;
-    function handleOutside(e) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+    function handleOutside(e: MouseEvent | TouchEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
@@ -33,7 +45,7 @@ function MovementMenu({ onAddVariation, onDeleteExercise }) {
   // Close on Escape
   useEffect(() => {
     if (!open) return;
-    function handleKey(e) {
+    function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         setOpen(false);
         btnRef.current?.focus();
@@ -81,8 +93,20 @@ function MovementMenu({ onAddVariation, onDeleteExercise }) {
   );
 }
 
-function Movement({ movement, setMovements, variationsStatus, serverVariations }) {
-  const [variations, setVariations] = useState([])
+type VariationsStatus = 'loading' | 'error' | 'ready';
+
+type MovementProps = {
+  movement: MovementData;
+  setMovements: Dispatch<SetStateAction<MovementData[]>>;
+  // Passed by Section alongside `movement` but not currently read here;
+  // kept so the call site stays a straightforward prop list.
+  sectionId?: number | string;
+  variationsStatus: VariationsStatus;
+  serverVariations?: VariationData[];
+};
+
+function Movement({ movement, setMovements, variationsStatus, serverVariations }: MovementProps) {
+  const [variations, setVariations] = useState<VariationData[]>([])
   const [showConfirm, setShowConfirm] = useState(false);
   const { withAuth } = useAuth();
 
@@ -125,13 +149,13 @@ function Movement({ movement, setMovements, variationsStatus, serverVariations }
       })
     ))
 
-    const key = res?.data.data.variationId ?? uuid();
+    const key: number | string = res?.data.data.variationId ?? uuid();
     setVariations(prevVariatons => (
       [...prevVariatons, { id: key, label: 'Variation', date: new Date() }]
     ))
   }
 
-  async function handleNameEdit(change) {
+  async function handleNameEdit(change: string) {
     setMovements(prevMovements => (
       prevMovements.map(m => (
         m.id === movement.id

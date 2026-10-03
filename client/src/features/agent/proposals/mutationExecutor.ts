@@ -236,7 +236,7 @@ async function runMutationItem(input: MutationInput, refMap: Map<string, number>
     case 'variation.update': {
       // A variation's date marks when its record last changed, so a new
       // weight or reps stamps now unless the proposal names a date, the same
-      // as editing the lift by hand in Variation.jsx.
+      // as editing the lift by hand in Variation.tsx.
       const recordChanged = input.weight !== undefined || input.reps !== undefined;
       await clientApi.patch(`/variations/${input.id}`, {
         label: input.label,

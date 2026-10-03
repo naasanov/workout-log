@@ -6,7 +6,7 @@
  * On submit: calls submitFeedback() from api.ts.
  * Shows a brief thank-you state, then auto-closes after 2s.
  *
- * #218: the modal is mounted globally (Header.jsx) and stays mounted across
+ * #218: the modal is mounted globally (Header.tsx) and stays mounted across
  * open/close, so a Cancel/backdrop/Esc close must NOT clear the in-progress
  * draft — react-hook-form's `reset()` is only called after a *successful*
  * submit. The draft is plain React state (via react-hook-form's internal
@@ -20,7 +20,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
-import Modal from '../../components/Modal.jsx';
+import Modal from '../../components/Modal';
 import { submitFeedback } from './api';
 import { downscaleImage } from './imageDownscale';
 import { TABS, TAB_LABELS, DEFAULT_ORDER, VALID_TABS } from '../../config/tabs';
@@ -62,14 +62,13 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // #215: default the "tool" field to the tab the user is currently on —
-  // read the same way NavDrawer.jsx does (URL `tab` search param, falling
+  // read the same way NavDrawer.tsx does (URL `tab` search param, falling
   // back to Workouts). Imported from the shared config, not duplicated.
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
-  // Pre-existing tsc gap: URLSearchParams#get is `string | null`, but
-  // VALID_TABS (from the untyped tabs.js config) infers `Set<string>` — guard
-  // the null case explicitly rather than widening the shared config's types.
-  const currentTab = tabParam != null && VALID_TABS.has(tabParam) ? tabParam : TABS.WORKOUTS;
+  // VALID_TABS.has takes URLSearchParams#get's `string | null` result directly
+  // and narrows it to Tab, so no separate null check is needed here.
+  const currentTab = VALID_TABS.has(tabParam) ? tabParam : TABS.WORKOUTS;
 
   const {
     register,

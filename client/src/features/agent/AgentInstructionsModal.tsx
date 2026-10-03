@@ -2,7 +2,7 @@
 // conditionally by its caller (see AgentChat.tsx's gear button), so it is
 // always "open" while rendered rather than taking an `open` prop.
 import { useEffect, useState } from 'react';
-import Modal from '../../components/Modal.jsx';
+import Modal from '../../components/Modal';
 import { useAgentInstructions, usePutAgentInstructions } from './instructionsApi';
 import styles from './AgentInstructionsModal.module.scss';
 

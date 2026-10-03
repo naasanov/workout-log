@@ -6,20 +6,22 @@ import { TABS, TAB_LABELS, DEFAULT_ORDER, VALID_TABS, ADMIN_USAGE_TAB } from '..
 import { useTabPreferences, usePutTabPreferences } from '../api/tabPreferences';
 import { useIsOwner } from '../features/adminUsage/api';
 import { computeRange, DEFAULT_RANGE_DAYS } from '../features/adminUsage/range';
+import type { User } from '../api/authApi';
+
+type NavDrawerProps = {
+  open: boolean;
+  onClose: () => void;
+  user: User | null | undefined;
+  editMode?: boolean;
+  onEditModeChange?: (editMode: boolean) => void;
+};
 
 /**
  * NavDrawer — left slide-out navigation panel.
- *
- * Props:
- *   open         {boolean}  whether the drawer is visible
- *   onClose      {function} called when user requests close
- *   user         {object|null|undefined}  auth state
- *   editMode     {boolean}  whether the tab-manager edit UI is showing (#110)
- *   onEditModeChange {function(boolean)} toggle edit mode
  */
-function NavDrawer({ open, onClose, user, editMode = false, onEditModeChange }) {
+function NavDrawer({ open, onClose, user, editMode = false, onEditModeChange }: NavDrawerProps) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const drawerRef = useRef(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
 
   const loggedIn = !!user;
   const { data: prefs } = useTabPreferences(loggedIn);
@@ -40,7 +42,7 @@ function NavDrawer({ open, onClose, user, editMode = false, onEditModeChange }) 
   // Escape key to close
   useEffect(() => {
     if (!open) return;
-    function handleKeyDown(e) {
+    function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose();
     }
     document.addEventListener('keydown', handleKeyDown);
@@ -59,21 +61,21 @@ function NavDrawer({ open, onClose, user, editMode = false, onEditModeChange }) 
     };
   }, [open]);
 
-  const handleTabSelect = (tab) => {
+  const handleTabSelect = (tab: string) => {
     setSearchParams({ tab }, { replace: false });
     onClose();
   };
 
   // ── Edit actions (#110) — each persists optimistically via putPrefs ──────────
-  const moveTab = (index, dir) => {
+  const moveTab = (index: number, dir: number) => {
     const next = [...enabled];
     const j = index + dir;
     if (j < 0 || j >= next.length) return;
     [next[index], next[j]] = [next[j], next[index]];
     putPrefs.mutate(next);
   };
-  const removeTab = (tab) => putPrefs.mutate(enabled.filter((t) => t !== tab));
-  const addTab = (tab) => putPrefs.mutate([...enabled, tab]);
+  const removeTab = (tab: string) => putPrefs.mutate(enabled.filter((t) => t !== tab));
+  const addTab = (tab: string) => putPrefs.mutate([...enabled, tab]);
 
   return (
     <>

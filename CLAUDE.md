@@ -106,7 +106,7 @@ user-visible change merges to master, add it there** in the same batch; nothing 
   badges the bullet for whoever filed that issue.
 - Ship new bullets under a **new, later date**, never appended to an existing entry. The header's
   unread dot fires only when `LATEST_CHANGELOG_DATE` is later than the date a user last saw
-  (`client/src/components/Header.jsx`), so bullets added under an old date notify nobody.
+  (`client/src/components/Header.tsx`), so bullets added under an old date notify nobody.
 
 ## The agent
 

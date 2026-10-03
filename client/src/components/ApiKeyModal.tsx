@@ -4,26 +4,38 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import clientApi from '../api/clientApi';
 import { useUser } from '../context/UserProvider';
-import Modal from './Modal.jsx';
+import Modal from './Modal';
 import styles from '../styles/ApiKeyModal.module.scss';
+
+type ApiKey = {
+  id: number;
+  label: string;
+  created_at: string;
+  last_used_at: string | null;
+};
+
+type ApiKeyModalProps = {
+  onClose: () => void;
+};
+
+type GenerateKeyForm = {
+  label: string;
+};
 
 /**
  * ApiKeyModal — manage public API keys.
  *
- * Props (unchanged):
- *   onClose {fn} — called to close the modal
- *
  * Data logic: unchanged (React Query useQuery/useMutation).
  * Form: migrated to react-hook-form.
  */
-function ApiKeyModal({ onClose }) {
+function ApiKeyModal({ onClose }: ApiKeyModalProps) {
   const { user } = useUser();
   const queryClient = useQueryClient();
-  const [newKey, setNewKey] = useState(null);
+  const [newKey, setNewKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   // react-hook-form for the create-key form
-  const { register, handleSubmit, reset, watch, formState: { isSubmitting } } = useForm({
+  const { register, handleSubmit, reset, watch, formState: { isSubmitting } } = useForm<GenerateKeyForm>({
     defaultValues: { label: '' },
   });
   const labelValue = watch('label');
@@ -32,7 +44,7 @@ function ApiKeyModal({ onClose }) {
 
   const { data: keys = [], isLoading: loading } = useQuery({
     queryKey: ['apiKeys'],
-    queryFn: async () => {
+    queryFn: async (): Promise<ApiKey[]> => {
       const res = await clientApi.get('/v1/keys');
       return res.data.data;
     },
@@ -40,7 +52,7 @@ function ApiKeyModal({ onClose }) {
   });
 
   const generateMutation = useMutation({
-    mutationFn: async (labelValue) => {
+    mutationFn: async (labelValue: string): Promise<{ id: number; label: string | null; key: string }> => {
       const res = await clientApi.post('/v1/keys', { label: labelValue });
       return res.data.data;
     },
@@ -48,7 +60,7 @@ function ApiKeyModal({ onClose }) {
       setNewKey(data.key);
       reset();
       // Optimistically add new key to cache
-      queryClient.setQueryData(['apiKeys'], (prev = []) => [
+      queryClient.setQueryData<ApiKey[]>(['apiKeys'], (prev = []) => [
         { id: data.id, label: data.label ?? labelValue.trim(), created_at: new Date().toISOString(), last_used_at: null },
         ...prev,
       ]);
@@ -56,26 +68,27 @@ function ApiKeyModal({ onClose }) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id) => {
+    mutationFn: async (id: number): Promise<number> => {
       await clientApi.delete(`/v1/keys/${id}`);
       return id;
     },
     onSuccess: (id) => {
-      queryClient.setQueryData(['apiKeys'], (prev = []) => prev.filter(k => k.id !== id));
+      queryClient.setQueryData<ApiKey[]>(['apiKeys'], (prev = []) => prev.filter(k => k.id !== id));
     },
   });
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
-  function onSubmit(data) {
+  function onSubmit(data: GenerateKeyForm) {
     generateMutation.mutate(data.label.trim());
   }
 
-  function handleDelete(id) {
+  function handleDelete(id: number) {
     deleteMutation.mutate(id);
   }
 
   async function handleCopy() {
+    if (!newKey) return;
     await navigator.clipboard.writeText(newKey);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

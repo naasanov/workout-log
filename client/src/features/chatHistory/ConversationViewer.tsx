@@ -7,7 +7,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { UIMessage } from 'ai';
 import { Clock, RotateCcw, Trash2, X } from 'lucide-react';
-import Modal from '../../components/Modal.jsx';
+import Modal from '../../components/Modal';
 import ChatMessage from '../agent/ChatMessage';
 import { fetchResolutions } from '../agent/api';
 import type { Conversation, ProposalResolution, StoredChatMessage } from '../agent/api';

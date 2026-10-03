@@ -1,26 +1,45 @@
-import Movement from "./Movement.jsx";
-import Editable from "./Editable.jsx";
-import ConfirmModal from "./ConfirmModal.jsx";
+import Movement from "./Movement";
+import Editable from "./Editable";
+import ConfirmModal from "./ConfirmModal";
 import { useState, useEffect, useMemo, useRef } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useQuery } from '@tanstack/react-query';
 import styles from "../styles/Workouts.module.scss";
-import CollapseButton from "./CollapseButton.jsx";
+import CollapseButton from "./CollapseButton";
 import useAuth from '../hooks/useAuth';
 import clientApi from "../api/clientApi";
 import { v4 as uuid } from "uuid";
 import { MoreVertical } from 'lucide-react';
+import type { MovementData } from "./Movement";
+import type { VariationData } from "./variation/Variation";
+
+// A workouts-tree section. `id`/`label` always exist; `showItems` is absent
+// until the section has been expanded/collapsed at least once (a freshly
+// added section has no persisted open state yet).
+export type SectionData = {
+  id: number | string;
+  label: string;
+  showItems?: boolean;
+};
+
+type VariationsByMovement = Record<string, VariationData[]>;
+
+type SectionMenuProps = {
+  onAddExercise: () => void;
+  onDeleteSection: () => void;
+};
 
 // ---- Three-dots section menu (#95) ----
-function SectionMenu({ onAddExercise, onDeleteSection }) {
+function SectionMenu({ onAddExercise, onDeleteSection }: SectionMenuProps) {
   const [open, setOpen] = useState(false);
-  const wrapperRef = useRef(null);
-  const btnRef = useRef(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
 
   // Close on outside tap/click
   useEffect(() => {
     if (!open) return;
-    function handleOutside(e) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+    function handleOutside(e: MouseEvent | TouchEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
@@ -35,7 +54,7 @@ function SectionMenu({ onAddExercise, onDeleteSection }) {
   // Close on Escape
   useEffect(() => {
     if (!open) return;
-    function handleKey(e) {
+    function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         setOpen(false);
         btnRef.current?.focus();
@@ -83,10 +102,15 @@ function SectionMenu({ onAddExercise, onDeleteSection }) {
   );
 }
 
-function Section({ setSections, section }) {
-  const [movements, setMovements] = useState([]);
+type SectionProps = {
+  setSections: Dispatch<SetStateAction<SectionData[]>>;
+  section: SectionData;
+};
+
+function Section({ setSections, section }: SectionProps) {
+  const [movements, setMovements] = useState<MovementData[]>([]);
   // null while loading, 'error' if the request failed, otherwise a movement id -> variations map
-  const [variationsByMovement, setVariationsByMovement] = useState(null);
+  const [variationsByMovement, setVariationsByMovement] = useState<VariationsByMovement | 'error' | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const { withAuth } = useAuth();
 
@@ -100,7 +124,7 @@ function Section({ setSections, section }) {
   // uses for its own `sections` local state).
   const movementsQuery = useQuery({
     queryKey: ['movements', 'section', section.id],
-    queryFn: async () => {
+    queryFn: async (): Promise<MovementData[]> => {
       const res = await clientApi.get(`/movements/section/${section.id}`);
       return res.data.data ?? [];
     },
@@ -123,7 +147,7 @@ function Section({ setSections, section }) {
 
   const variationsQuery = useQuery({
     queryKey: ['variations', 'byMovementIds', movementIdsKey],
-    queryFn: async () => {
+    queryFn: async (): Promise<VariationsByMovement> => {
       const res = await clientApi.get(`/variations/movements`, { params: { ids: movementIds.join(',') } });
       return res.data.data ?? {};
     },
@@ -168,7 +192,7 @@ function Section({ setSections, section }) {
     const res = await withAuth(() => (
       clientApi.post(`/movements/${section.id}`, { label: "Exercise" })
     ));
-    const key = res?.data.data.movementId ?? uuid();
+    const key: number | string = res?.data.data.movementId ?? uuid();
     setMovements(prevMovements => (
       [...prevMovements, { id: key, label: 'Exercise' }]
     ))
@@ -180,7 +204,7 @@ function Section({ setSections, section }) {
     }
   }
 
-  async function handleEditSubmit(value) {
+  async function handleEditSubmit(value: string) {
     setSections(prevSections => (
       prevSections.map(s => (
         s.id === section.id

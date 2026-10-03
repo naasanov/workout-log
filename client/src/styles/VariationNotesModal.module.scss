@@ -1,6 +1,6 @@
 @use "variables" as vars;
 // Sizing override applied to Radix Dialog.Content for this panel.
-// Passed as contentClassName={styles.modalContent} from VariationNotesModal.jsx.
+// Passed as contentClassName={styles.modalContent} from VariationNotesModal.tsx.
 .modalContent {
   max-width: 480px;
 }

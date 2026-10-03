@@ -35,7 +35,7 @@ export function parseMutationType(type: string): { resource: string; op: Mutatio
 }
 
 // The API resource is `movement`, but every user-facing surface in the app
-// calls one an exercise (see Section.jsx's Add Exercise), so proposals say
+// calls one an exercise (see Section.tsx's Add Exercise), so proposals say
 // exercise too rather than exposing the internal name.
 export const RESOURCE_LABELS: Record<string, string> = {
   body_weight_entry: 'body weight entry',

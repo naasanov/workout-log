@@ -4,18 +4,24 @@ import { Plus } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
 import clientApi from '../api/clientApi';
 import { v4 as uuid } from 'uuid';
+import type { Dispatch, MouseEvent, SetStateAction } from 'react';
+import type { SectionData } from './Section';
 
-function AddSection({ setSections }) {
+type AddSectionProps = {
+  setSections: Dispatch<SetStateAction<SectionData[]>>;
+};
+
+function AddSection({ setSections }: AddSectionProps) {
   const setShowError = useError();
   const { withAuth } = useAuth();
 
-  async function handleSubmit(e) {
+  async function handleSubmit(e: MouseEvent<HTMLButtonElement>) {
     e.preventDefault();
     const label = 'Muscle Group';
     const res = await withAuth(() => clientApi.post(`/sections`, { label }))
-    const id = res?.data.data.sectionId ?? uuid();
+    const id: number | string = res?.data.data.sectionId ?? uuid();
     setSections(prevSections => [...prevSections, { id, label }]);
-    setShowError(false);
+    setShowError?.(false);
   }
 
   return (

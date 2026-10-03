@@ -16,7 +16,7 @@ const LAST_SEEN_CHANGELOG_KEY = 'peak.lastSeenChangelogDate';
 // #314: true when a changelog entry is newer than the last one the user
 // opened. A first visit seeds the stored date instead of badging, and any
 // storage failure reads as "nothing unread" rather than breaking the header.
-function hasUnseenChangelog() {
+function hasUnseenChangelog(): boolean {
   if (LATEST_CHANGELOG_DATE == null) return false;
   try {
     const stored = localStorage.getItem(LAST_SEEN_CHANGELOG_KEY);
@@ -25,7 +25,7 @@ function hasUnseenChangelog() {
       return false;
     }
     return stored < LATEST_CHANGELOG_DATE;
-  } catch (_) {
+  } catch {
     return false;
   }
 }
@@ -34,10 +34,17 @@ function markChangelogSeen() {
   if (LATEST_CHANGELOG_DATE == null) return;
   try {
     localStorage.setItem(LAST_SEEN_CHANGELOG_KEY, LATEST_CHANGELOG_DATE);
-  } catch (_) {
+  } catch {
     // Best-effort; nothing to do if storage is unavailable.
   }
 }
+
+type HeaderProps = {
+  drawerOpen?: boolean;
+  onDrawerOpenChange?: (open: boolean) => void;
+  editMode?: boolean;
+  onEditModeChange?: (editMode: boolean) => void;
+};
 
 /**
  * Header.
@@ -53,7 +60,7 @@ function Header({
   onDrawerOpenChange,
   editMode: controlledEditMode,
   onEditModeChange,
-}) {
+}: HeaderProps) {
   const { user } = useUser();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
@@ -74,7 +81,7 @@ function Header({
 
   const isControlled = controlledOpen !== undefined;
   const drawerOpen = isControlled ? controlledOpen : internalOpen;
-  const setDrawerOpen = isControlled ? onDrawerOpenChange : setInternalOpen;
+  const setDrawerOpen = isControlled ? onDrawerOpenChange ?? setInternalOpen : setInternalOpen;
 
   const editMode = controlledEditMode !== undefined ? controlledEditMode : internalEditMode;
   const setEditMode = onEditModeChange ?? setInternalEditMode;
