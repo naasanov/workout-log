@@ -34,7 +34,7 @@ async function main() {
     result.replied = true;
 
     // openChat() taps the FAB, which jumps straight to fully expanded (see
-    // AgentChat.tsx's pointerup tap-threshold logic) — the header and its
+    // AgentChat.tsx's pointerup tap-threshold logic): the header and its
     // gear button are already visible, no separate expand step needed.
     await sel.openAgentInstructions(page);
     result.hint = await page.evaluate(

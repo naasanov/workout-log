@@ -1,6 +1,6 @@
 ---
 name: browser-verify
-description: Runtime-verify a change in this repo (workout-log) by driving the real app in a browser — one call boots the dev stack (MySQL, server, vite), auth and DOM selectors are pre-solved, so you don't rediscover ports, CORS, or stale selectors by trial and error. Use before merging/reporting a fix done, for issue-orchestrator's validate step, or any time you'd otherwise reach for the Playwright MCP browser tools on this repo.
+description: Runtime-verify a change in this repo (workout-log) by driving the real app in a browser. One call boots the dev stack (MySQL, server, vite), auth and DOM selectors are pre-solved, so you don't rediscover ports, CORS, or stale selectors by trial and error. Use before merging/reporting a fix done, for issue-orchestrator's validate step, or any time you'd otherwise reach for the Playwright MCP browser tools on this repo.
 ---
 
 # Browser Verify (workout-log)
@@ -16,7 +16,7 @@ commands plus a round of selector rediscovery.
 cd .claude/skills/browser-verify && npm install && npx playwright install chromium
 ```
 
-Isolated `package.json` here — it does **not** touch the project's own
+Isolated `package.json` here: it does **not** touch the project's own
 `package.json`/`package-lock.json`.
 
 ## The happy path
@@ -41,7 +41,7 @@ try {
 `teardown` stops them. If a stack is already running and you know its ports,
 `launchAuthed({ apiBase, appBase })` skips booting one, same as before.
 
-## Two ways to verify — pick deliberately
+## Two ways to verify: pick deliberately
 
 **Standalone script (default).** For a known, repeatable check: seed fixture
 data, drive the UI, assert on computed DOM/values, clean up. One Bash call
@@ -51,7 +51,7 @@ result (stdout) enters your context. Use this for almost everything.
 **Interactive Playwright MCP tools.** For genuine exploratory debugging where
 you don't yet know what's wrong and need to see the DOM/screenshot after each
 action to decide the next one. Expensive in context (full accessibility
-snapshot per call) — only reach for it when you need that step-by-step
+snapshot per call): only reach for it when you need that step-by-step
 visibility. A standalone script can't attach to the MCP's own browser tab
 (it launches with `--remote-debugging-pipe`, not a websocket port), which is
 fine: `lib/browser.mjs` launches its own throwaway browser per script anyway.
@@ -90,7 +90,7 @@ runs from either the main checkout or any worktree:
 - Reuses MySQL on `127.0.0.1:3307` if something's already listening there
   (and tells you which `docker ps` container it is); otherwise runs
   `docker compose up -d` itself. Either way, runs `npm run db:setup`
-  (idempotent — migrations + the `dev@dev.com`/`dev` seed).
+  (idempotent: migrations + the `dev@dev.com`/`dev` seed).
 - Builds the server env from the MAIN checkout's `.env` if present (a
   worktree has none of its own, but its secrets like `OPENAI_API_KEY` are
   still useful), then forces `DB_*`, `PORT`, `FRONTEND_URL` (CORS needs an
@@ -101,7 +101,7 @@ runs from either the main checkout or any worktree:
   (refuses to clobber one pointing elsewhere unless `opts.force`), and spawns
   `node dist/index.js` + `npx vite --strictPort`.
 - Waits for both, reading the server's own log line ("Server running on
-  port") rather than trusting a status code — on macOS, port 5000 answers
+  port") rather than trusting a status code: on macOS, port 5000 answers
   HTTP as AirPlay Receiver even when your server died of `EADDRINUSE`.
 - Returns `{ apiBase, appBase, stop, logs }`. `stop()` kills exactly what it
   spawned and is idempotent (also runs on process exit/SIGINT); `logs()`
@@ -130,24 +130,24 @@ echo "VITE_API_URL=http://localhost:5055/api" > client/.env.local
 (`scripts/seedDev.js` / `seeds/dev_user.sql`). No signup/cleanup needed;
 `lib/browser.mjs` defaults to it.
 
-## Behavior gotchas (not selectors — those live in `lib/selectors.mjs`)
+## Behavior gotchas (not selectors: those live in `lib/selectors.mjs`)
 
 - **Tabs are a query param, not a route.** `/?tab=nutrition`; `/nutrition`
   renders the shell with no tracker in it.
 - **Every tab panel is in the DOM at once**; inactive ones are merely
-  invisible. A selector resolving proves nothing about interactability — a
+  invisible. A selector resolving proves nothing about interactability: a
   `.click()` on an element in a non-active tab hangs the full 30s with
   "element is not visible". Navigate to the right `?tab=` first, and read
   that message as "wrong tab", not "wrong selector".
 - **A relative `fetch('/api/...')` inside `page.evaluate` hits vite, not the
-  API server** — it resolves against the page's own origin, and vite answers
+  API server**: it resolves against the page's own origin, and vite answers
   unknown paths with `index.html`. This comes back `status: 200` with an
   empty body and looks like a pass against a server it never contacted.
   Always assert API shape through the `api` request context (absolute +
   bearer token); keep `page.evaluate` for DOM only.
 - **`page.waitForFunction()` was unreliable** in this setup on predicates
   `page.evaluate()` confirmed were already true. Use `lib/browser.mjs`'s
-  `waitFor(page, predicate, opts)` instead — a manual evaluate-in-a-loop,
+  `waitFor(page, predicate, opts)` instead: a manual evaluate-in-a-loop,
   proven reliable end-to-end. It forwards no extra args into the predicate;
   close over the value or inline it in the predicate body.
 - **`npm test`/`npm run verify` want `root`/`root`, not `dev`/`dev`.**
@@ -155,7 +155,7 @@ echo "VITE_API_URL=http://localhost:5055/api" > client/.env.local
   schemas. Copying the server boot line's `DB_USERNAME=dev` onto a test run
   fails every DB-backed test with `ER_DBACCESS_DENIED_ERROR`.
 - **`resetDb()` uses `DELETE`, not `TRUNCATE`**; ids keep climbing across
-  tests. Never assert a literal id value — seed and read back instead.
+  tests. Never assert a literal id value: seed and read back instead.
 - **`chat_messages` has a legacy non-null `date` column** alongside
   `conversation_id`; a direct INSERT that omits it fails.
 - **At most one active conversation per user** (`uniq_user_active_slot`), and
@@ -176,7 +176,7 @@ echo "VITE_API_URL=http://localhost:5055/api" > client/.env.local
   several seconds beyond normal fetch+render; give first waits 15-20s+
   headroom. Fast on every later load against the same long-lived process.
 - **Camera/`getUserMedia` needs the full Chromium build.** The default
-  headless `chromium-headless-shell` has no media stack —`getUserMedia`
+  headless `chromium-headless-shell` has no media stack: `getUserMedia`
   rejects `NotSupportedError` and `BarcodeScanner` unmounts itself via its
   catch-block `onClose()`. Launch with `channel: 'chromium'` plus
   `args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-capture']`
@@ -194,7 +194,7 @@ echo "VITE_API_URL=http://localhost:5055/api" > client/.env.local
 - **To simulate a *silently* dead stream** (not a loud disconnect), intercept
   the request and never settle it: `page.route('**/nutrition/chat', async
   () => {})`. The fetch stays open, nothing rejects. DevTools
-  offline/throttling does NOT reproduce this — that's a fetch rejection,
+  offline/throttling does NOT reproduce this: that's a fetch rejection,
   an already-handled path.
 - **Render arbitrary chat messages without an AI turn** by intercepting the
   hydrate call: `page.route('**/api/chat/active', ...)`, `route.fetch()`,
@@ -203,7 +203,7 @@ echo "VITE_API_URL=http://localhost:5055/api" > client/.env.local
 - CSS attribute selectors (`input[value=...]`) only see an input's *initial*
   attribute, never React's live controlled value. Read `.value` inside
   `evaluate`/`waitFor` instead.
-- Route paths are not guessable — grep `index.ts` for the mount. A wrong path
+- Route paths are not guessable: grep `index.ts` for the mount. A wrong path
   returns vite's HTML, which fails as `SyntaxError: Unexpected token '<'`
   rather than a clean 404.
 - `users.user_uuid`, not `users.uuid`. `SELECT BIN_TO_UUID(user_uuid) AS uuid
@@ -217,12 +217,12 @@ echo "VITE_API_URL=http://localhost:5055/api" > client/.env.local
   hand, kill your `node dist/index.js`/`vite` processes and remove
   `client/.env.local` if you created it.
 - `docker compose down` only if you started the container AND nothing else
-  (another session, another worktree) is using host port 3307 — `docker ps`
+  (another session, another worktree) is using host port 3307: `docker ps`
   first. Never pass `-v`; the volume is what makes the next boot fast.
 
 ## Keeping this current
 
 When a selector breaks, fix it in `lib/selectors.mjs` and rerun
-`node examples/smoke-selectors.mjs` — don't append prose here. This file is
+`node examples/smoke-selectors.mjs`: don't append prose here. This file is
 for behavior that costs a wrong assumption, not DOM trivia that costs a
 `grep`.

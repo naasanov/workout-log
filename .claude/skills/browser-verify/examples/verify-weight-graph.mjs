@@ -1,6 +1,6 @@
 // Template: seed a fixture through the API, drive the real UI, assert on
 // computed DOM state, clean up. Copy this file's shape for a new check
-// rather than editing it in place — see ../SKILL.md.
+// rather than editing it in place: see ../SKILL.md.
 //
 // Run: node .claude/skills/browser-verify/examples/verify-weight-graph.mjs
 
@@ -15,7 +15,7 @@ async function main() {
 
   try {
     // --- seed via API (fast, no UI clicks) ---
-    // No leading slash on any path — see the comment on DEFAULTS.apiBase in lib/browser.mjs.
+    // No leading slash on any path: see the comment on DEFAULTS.apiBase in lib/browser.mjs.
     const section = await (await api.post('sections', { data: { label: FIXTURE_LABEL } })).json();
     sectionId = section.data.sectionId;
     const movement = await (
@@ -45,7 +45,7 @@ async function main() {
     // Generous timeout: the FIRST page load against a cold `vite` dev server
     // compiles SCSS on demand and can take several seconds by itself, on top
     // of normal fetch+render. It's fast on every subsequent run against the
-    // same long-lived process — this isn't a real app issue.
+    // same long-lived process: this isn't a real app issue.
     await page.goto(appBase);
     await waitFor(
       page,
@@ -69,7 +69,7 @@ async function main() {
 
     // --- assert on computed state, not eyeballed screenshots ---
     // Note: `.recharts-yAxis` (the axis <g>) does NOT contain the tick
-    // *labels* in the DOM tree recharts renders — they're a sibling group
+    // *labels* in the DOM tree recharts renders: they're a sibling group
     // with class `recharts-yAxis-tick-labels`. Scope to that instead.
     const result = await page.evaluate(() => {
       const ticks = [...document.querySelectorAll('.recharts-yAxis-tick-labels tspan')]

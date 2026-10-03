@@ -1,7 +1,7 @@
 // Named, checked selectors for the DOM elements this skill's scripts target
 // most often. Every string here was grepped against the live client source
 // (not copied from SKILL.md prose) as of the date in the function/selector's
-// comment — when the client changes a label, id, or class prefix, fix the
+// comment: when the client changes a label, id, or class prefix, fix the
 // selector here and rerun examples/smoke-selectors.mjs, rather than leaving
 // stale prose somewhere else.
 //
@@ -25,7 +25,7 @@ export const chatCollapseHeaderBtn = 'button[aria-label="Collapse"]';
 export const agentInstructionsGear = 'button[aria-label="Agent instructions"]';
 export const agentInstructionsTextarea = '#agent-instructions-textarea';
 
-// The drag handle has no onClick — it's a role=button div wired only to
+// The drag handle has no onClick: it's a role=button div wired only to
 // pointer events (the drag gesture) plus an Enter/Space onKeyDown. A
 // synthetic or Playwright .click() is a silent no-op; focus it and press
 // Enter instead. This one selector covers both states (its label flips).
@@ -33,7 +33,7 @@ export const chatSheetHandle = '[aria-label="Expand AI chat"], [aria-label="Coll
 
 /**
  * Opens the chat FAB the way a real tap does: a hit-tested mouse click at
- * its center (el.click() leaves the sheet collapsed — see SKILL.md), then
+ * its center (el.click() leaves the sheet collapsed: see SKILL.md), then
  * waits out the height animation. Throws if the FAB isn't there to click.
  */
 export async function openChat(page) {
@@ -105,7 +105,7 @@ export function ingredientSheetDialog(page) {
 export const ingredientSheetDone = 'button[class*="doneBtn"]';
 
 // Dropdown options in the ingredient search list fire on pointerdown, not
-// click (IngredientSheet.tsx) — a plain Playwright/DOM .click() does nothing.
+// click (IngredientSheet.tsx): a plain Playwright/DOM .click() does nothing.
 // Dispatch a real pointerdown, or use page.mouse down/up at the option's box.
 
 // ---- Workouts (client/src/components/variation/{Thin,Wide}Variation.jsx) --

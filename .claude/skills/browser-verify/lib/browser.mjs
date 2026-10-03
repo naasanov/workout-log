@@ -16,7 +16,7 @@ const DEFAULTS = {
   apiBase: 'http://localhost:3000/api/',
   appBase: 'http://localhost:3001',
   email: 'dev@dev.com',
-  password: 'dev', // seeds/dev_user.sql — standing local dev account, no signup/cleanup needed
+  password: 'dev', // seeds/dev_user.sql: standing local dev account, no signup/cleanup needed
 };
 
 /**
@@ -25,10 +25,10 @@ const DEFAULTS = {
  * Two auth mechanisms are in play and both are wired up here:
  *   - The browser gets the refresh-token cookie via storageState, so the
  *     React app's own bootstrap (GET /auth/logged-in on load) mints its
- *     access token normally — the real app works exactly as a user would see it.
+ *     access token normally: the real app works exactly as a user would see it.
  *   - `api` is a REST client for direct fixture seeding/cleanup, bypassing
  *     the UI. Routes require an `Authorization: Bearer <accessToken>` header
- *     (the cookie alone is NOT enough for these — see routes/auth.ts
+ *     (the cookie alone is NOT enough for these: see routes/auth.ts
  *     authenticateToken), so the login accessToken is attached to every
  *     call made through `api`.
  *
@@ -39,7 +39,7 @@ const DEFAULTS = {
  * overrides, custom ports, etc). Existing callers that pass an explicit
  * `apiBase`/`appBase` for an already-running stack are unaffected.
  *
- * Returns { browser, context, page, api, appBase, stack } — call
+ * Returns { browser, context, page, api, appBase, stack }: call
  * teardown(handles) when done.
  */
 export async function launchAuthed(opts = {}) {
@@ -71,7 +71,7 @@ export async function launchAuthed(opts = {}) {
 
   // launchOptions/contextOptions passthrough: needed for flows that require a
   // device permission the headless default denies. The barcode scanner
-  // (#251) is the motivating case — `getUserMedia` must resolve or the
+  // (#251) is the motivating case: `getUserMedia` must resolve or the
   // scanner unmounts itself via its catch-block `onClose()`, so a camera
   // check needs Chromium's fake video device plus a granted permission.
   const browser = await chromium.launch(cfg.launchOptions ?? {});
@@ -94,7 +94,7 @@ export async function teardown({ browser, api, stack }) {
  * Prefer this over `page.waitForFunction()` in this repo: waitForFunction
  * timed out repeatedly in testing on a condition that plain `evaluate()`
  * confirmed was already true on the page (tried both default rAF-based
- * polling and an explicit interval — same result), for reasons not tracked
+ * polling and an explicit interval: same result), for reasons not tracked
  * down. This manual loop is what was actually proven reliable end-to-end.
  *
  * `predicate` must be a plain function with no closure over outer variables
@@ -118,6 +118,6 @@ export async function waitFor(page, predicate, { timeout = 20000, interval = 500
 //     other attribute unique to your target.
 //   - Editable text fields (label of a section/movement/variation, etc.) are
 //     a plain `<span>{value}</span>` until clicked into edit mode, where
-//     they become an `<input>`. Match the span's textContent by default —
+//     they become an `<input>`. Match the span's textContent by default: 
 //     don't assume "editable" implies "always an input" without checking
 //     the component (client/src/components/Editable.jsx).
