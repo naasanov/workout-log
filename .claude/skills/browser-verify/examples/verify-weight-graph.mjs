@@ -5,11 +5,12 @@
 // Run: node .claude/skills/browser-verify/examples/verify-weight-graph.mjs
 
 import { launchAuthed, teardown, waitFor } from '../lib/browser.mjs';
+import * as sel from '../lib/selectors.mjs';
 
 const FIXTURE_LABEL = 'ZZTEST Section'; // ZZTEST prefix = safe to bulk-delete
 
 async function main() {
-  const { page, api, appBase, browser } = await launchAuthed();
+  const { page, api, appBase, browser, stack } = await launchAuthed({ stack: true });
   let sectionId;
 
   try {
@@ -36,24 +37,15 @@ async function main() {
     }
 
     // --- drive the real UI ---
-    // Three DOM facts that cost real trial-and-error to learn (see SKILL.md):
-    //   1. Variation/movement/section labels render via the `Editable`
-    //      component as a plain `<span>{value}</span>` by default, and only
-    //      swap to an `<input>` once clicked into edit mode. (Don't assume
-    //      "editable field" means "always an input" — check the component.)
-    //   2. There is NO per-variation row wrapper element. Every variation
-    //      under one movement renders its name cell, weight, reps, and
-    //      buttons as FLAT SIBLINGS — `.closest()` from a label can't find
-    //      "this row" because there is no containing element to find.
-    //   3. The graph button has no aria-label, so it can't be matched by name.
-    // Given (2) and (3), scope by DOM ORDER instead: the Nth name-cell
-    // corresponds to the Nth graph button, since both come from the same
-    // `.map()` over the same variations array.
+    // Variation rows have no containing wrapper element (flat siblings from
+    // one .map()) and the graph button has no aria-label, so selectors.mjs
+    // scopes by DOM order: the Nth name cell pairs with the Nth graph
+    // button. See lib/selectors.mjs for the rest of the reasoning.
     //
     // Generous timeout: the FIRST page load against a cold `vite` dev server
     // compiles SCSS on demand and can take several seconds by itself, on top
     // of normal fetch+render. It's fast on every subsequent run against the
-    // same long-lived `npm run dev` process — this isn't a real app issue.
+    // same long-lived process — this isn't a real app issue.
     await page.goto(appBase);
     await waitFor(
       page,
@@ -65,11 +57,14 @@ async function main() {
     // actionability hit-test, hanging `.click()` in a retry loop
     // indefinitely even though the button is genuinely clickable to a real
     // user. A native DOM click (no hit-testing) routes around it.
-    await page.evaluate(() => {
-      const nameCells = [...document.querySelectorAll('div[class*="_nameCell_"]')];
-      const idx = nameCells.findIndex((nc) => nc.querySelector('span')?.textContent === 'ZZTEST Variation');
-      [...document.querySelectorAll('button[class*="graphBtn"]')][idx].click();
-    });
+    await page.evaluate(
+      ({ nameCellSel, graphBtnSel }) => {
+        const nameCells = [...document.querySelectorAll(nameCellSel)];
+        const idx = nameCells.findIndex((nc) => nc.querySelector('span')?.textContent === 'ZZTEST Variation');
+        document.querySelectorAll(graphBtnSel)[idx].click();
+      },
+      { nameCellSel: sel.variationNameCell, graphBtnSel: sel.variationGraphBtn },
+    );
     await waitFor(page, () => !!document.querySelector('.recharts-surface'));
 
     // --- assert on computed state, not eyeballed screenshots ---
@@ -85,7 +80,7 @@ async function main() {
   } finally {
     // --- cleanup: DELETE cascades sections -> movements -> variations -> history ---
     if (sectionId) await api.delete(`sections/${sectionId}`);
-    await teardown({ browser, api });
+    await teardown({ browser, api, stack });
   }
 }
 

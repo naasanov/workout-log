@@ -6,6 +6,7 @@
 // login form, no field-typing, no route-guessing.
 
 import { chromium, request } from 'playwright';
+import { startStack } from './stack.mjs';
 
 const DEFAULTS = {
   // Trailing slash matters: Playwright's request baseURL joining treats a
@@ -31,10 +32,26 @@ const DEFAULTS = {
  *     authenticateToken), so the login accessToken is attached to every
  *     call made through `api`.
  *
- * Returns { browser, context, page, api, appBase } — call teardown(handles) when done.
+ * Pass `{ stack: true }` to also boot the dev stack (MySQL, server, vite)
+ * via lib/stack.mjs instead of assuming one is already running; the
+ * resulting handle comes back as `stack` and `teardown()` stops it too. Pass
+ * `{ stack: true, stackOptions }` to forward options to `startStack` (env
+ * overrides, custom ports, etc). Existing callers that pass an explicit
+ * `apiBase`/`appBase` for an already-running stack are unaffected.
+ *
+ * Returns { browser, context, page, api, appBase, stack } — call
+ * teardown(handles) when done.
  */
 export async function launchAuthed(opts = {}) {
-  const cfg = { ...DEFAULTS, ...opts };
+  let stack;
+  if (opts.stack) {
+    stack = await startStack(opts.stackOptions ?? {});
+  }
+  const cfg = {
+    ...DEFAULTS,
+    ...(stack ? { apiBase: stack.apiBase, appBase: stack.appBase } : {}),
+    ...opts,
+  };
 
   const anon = await request.newContext({ baseURL: cfg.apiBase });
   const loginRes = await anon.post('auth/login', {
@@ -62,12 +79,13 @@ export async function launchAuthed(opts = {}) {
   const page = await context.newPage();
   await page.goto(cfg.appBase);
 
-  return { browser, context, page, api, appBase: cfg.appBase };
+  return { browser, context, page, api, appBase: cfg.appBase, stack };
 }
 
-export async function teardown({ browser, api }) {
+export async function teardown({ browser, api, stack }) {
   await browser?.close();
   await api?.dispose();
+  await stack?.stop();
 }
 
 /**
