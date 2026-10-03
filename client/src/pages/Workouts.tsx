@@ -1,4 +1,5 @@
 import Section from '../components/Section.jsx';
+import type { SectionData } from '../components/Section';
 import AddSection from '../components/AddSection.jsx';
 import BodyWeightTracker from '../components/BodyWeightTracker.jsx';
 import HabitTracker from '../components/HabitTracker.jsx';
@@ -29,7 +30,7 @@ import '../features/nutrition/NutritionBarcodeChip';
 
 // A workouts-tree section, as returned by GET /sections/user. Only `id` is read
 // here; the rest is passed through opaquely to Section/AddSection.
-type WorkoutSection = { id: number };
+type WorkoutSection = SectionData;
 
 function Workouts() {
   const [sections, setSections] = useState<WorkoutSection[]>([]);

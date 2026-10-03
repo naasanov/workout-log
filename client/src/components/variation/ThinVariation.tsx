@@ -3,12 +3,13 @@ import styles from "../../styles/Variation.module.scss";
 import mobileStyles from "../../styles/ThinVariation.module.scss";
 import { Dumbbell, Number, Delete, Chart, Notes } from "../Icons";
 import DateInput from "../DateInput";
+import type { VariationDisplayProps } from './Variation';
 
 function ThinVariation({
-  variation, details, handleLabelEdit, handleDetailEdit, handleRemove, showRemove, removeAllowed,
+  variation, details, handleLabelEdit, handleDetailEdit, handleRemove, removeAllowed,
   onGraphOpen, onNotesOpen, hasNotes,
   pairEditing, pairFocus, weightInputRef, repsInputRef, onOpenPair, onPairInputChange, onPairSubmit
-}) {
+}: VariationDisplayProps) {
   return (
     <div className={mobileStyles.variation}>
       <section>

@@ -1,12 +1,16 @@
 // Brand mark for the header wordmark. Sourced from a single-path mountain
 // glyph (mountain-svgrepo-com.svg at the repo root); inlined here as a React
 // component — rather than an <img> — so `fill="currentColor"` lets CSS drive
-// the color, matching this repo's icon convention (see Icons.jsx).
+// the color, matching this repo's icon convention (see Icons.tsx).
 //
 // NOTE: the standalone favicon at client/public/mountain.svg has the same
 // path data with the fill hardcoded to $primary's hex, since a favicon file
 // can't read a CSS variable. Keep the two colors in sync if $primary changes.
-function MountainLogo({ className }) {
+type MountainLogoProps = {
+  className?: string;
+};
+
+function MountainLogo({ className }: MountainLogoProps) {
   return (
     <svg
       className={className}

@@ -2,13 +2,17 @@ import { LayoutGrid, Plus } from 'lucide-react';
 import styles from '../styles/TabsEmptyState.module.scss';
 import { DEFAULT_ORDER, TAB_LABELS } from '../config/tabs';
 
+type TabsEmptyStateProps = {
+  onAddTools: () => void;
+};
+
 /**
  * TabsEmptyState (#110) — shown in <main> when a logged-in user has no tabs
  * enabled (a fresh account, or after disabling all tools). Explains the
  * available tools and prompts the user to add one, opening the nav drawer's
  * tab-manager in edit mode via `onAddTools`.
  */
-function TabsEmptyState({ onAddTools }) {
+function TabsEmptyState({ onAddTools }: TabsEmptyStateProps) {
   return (
     <div className={styles.wrapper}>
       <div className={styles.iconCircle} aria-hidden="true">

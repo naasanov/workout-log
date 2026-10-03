@@ -16,9 +16,19 @@
  * The portal renders into document.body, escaping header CSS bleed-through.
  */
 import * as Dialog from '@radix-ui/react-dialog';
+import type { ReactNode } from 'react';
 import styles from '../styles/Modal.module.scss';
 
-function Modal({ open, onOpenChange, title, showTitle = false, contentClassName, children }) {
+type ModalProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title?: string;
+  showTitle?: boolean;
+  contentClassName?: string;
+  children?: ReactNode;
+};
+
+function Modal({ open, onOpenChange, title, showTitle = false, contentClassName, children }: ModalProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>

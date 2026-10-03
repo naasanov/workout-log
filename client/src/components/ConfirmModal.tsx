@@ -1,19 +1,20 @@
-import Modal from './Modal.jsx';
+import Modal from './Modal';
 import styles from '../styles/ConfirmModal.module.scss';
+
+type ConfirmModalProps = {
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+};
 
 /**
  * ConfirmModal — destructive-action confirmation dialog.
- *
- * Props (unchanged from the hand-rolled version):
- *   message   {string}  — text to display
- *   onConfirm {fn}      — called when user clicks "Delete"
- *   onCancel  {fn}      — called when user clicks "Cancel", presses ESC, or clicks backdrop
  *
  * Call-site pattern (unchanged): {showConfirm && <ConfirmModal ... />}
  * The component is always "open" when mounted; closing is handled by calling onCancel/onConfirm
  * from the parent, which unmounts the component.
  */
-function ConfirmModal({ message, onConfirm, onCancel }) {
+function ConfirmModal({ message, onConfirm, onCancel }: ConfirmModalProps) {
   return (
     <Modal
       open={true}

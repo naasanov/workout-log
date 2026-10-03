@@ -1,13 +1,16 @@
 import { ChevronDown } from 'lucide-react';
 import styles from '../styles/CollapseButton.module.scss';
 
-/**
- * Reusable collapse/expand toggle button with animated chevron.
- * @param {boolean} isOpen - Whether the section is expanded
- * @param {function} onClick - Click handler
- * @param {string} [label] - Accessible label (default: "Toggle")
- */
-function CollapseButton({ isOpen, onClick, label }) {
+type CollapseButtonProps = {
+  // A freshly-added section has no `showItems` yet, so callers can pass
+  // that straight through; undefined renders the same as false (closed).
+  isOpen: boolean | undefined;
+  onClick: () => void;
+  label?: string;
+};
+
+/** Reusable collapse/expand toggle button with animated chevron. */
+function CollapseButton({ isOpen, onClick, label }: CollapseButtonProps) {
   return (
     <button
       type="button"

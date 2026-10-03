@@ -1,12 +1,30 @@
 import { useState, useEffect, useRef } from 'react';
+import type { ChangeEvent, FormEvent, RefObject } from 'react';
 import { useError } from '../context/ErrorProvider';
+
+// Either a plain string (labels) or a number/the "___" no-value-yet sentinel
+// (weight, reps -- see variation/Variation.tsx), possibly still unset while
+// the owning data hasn't loaded yet.
+type EditableValue = string | number | undefined;
+
+type EditableProps = {
+  value: EditableValue;
+  onSubmit?: (value: string) => void;
+  className?: string;
+  type?: string;
+  editing?: boolean;
+  onEditingChange?: (next: boolean) => void;
+  autoFocus?: boolean;
+  onInputChange?: (value: string) => void;
+  inputRef?: RefObject<HTMLInputElement>;
+};
 
 // #231 — `editing`/`onEditingChange`/`autoFocus`/`onInputChange`/`inputRef` are
 // all OPTIONAL. When they're omitted (label editing, DateInput, etc.) this
 // component behaves exactly as before: it owns its own editing state and its
 // own outside-click-to-commit listener. They exist so a parent can join two
 // Editable instances (weight + reps) into one logical form — see
-// Variation.jsx's pair-editing state and ThinVariation/WideVariation, which
+// Variation.tsx's pair-editing state and ThinVariation/WideVariation, which
 // pass them for the weight/reps fields only.
 function Editable({
   value,
@@ -18,16 +36,16 @@ function Editable({
   autoFocus = true,
   onInputChange,
   inputRef: externalInputRef
-}) {
-  const [input, setInput] = useState(value);
+}: EditableProps) {
+  const [input, setInput] = useState<EditableValue>(value);
   const [internalEditing, setInternalEditing] = useState(false);
   const isControlled = editingProp !== undefined;
   const editing = isControlled ? editingProp : internalEditing;
-  const localInputRef = useRef(null);
+  const localInputRef = useRef<HTMLInputElement>(null);
   const inputRef = externalInputRef ?? localInputRef;
   const setShowError = useError();
 
-  function setEditing(next) {
+  function setEditing(next: boolean) {
     if (isControlled) {
       // #231 — controlled instances never close themselves; the parent
       // (which owns both fields of the pair) decides when editing ends, via
@@ -62,7 +80,7 @@ function Editable({
 
   useEffect(() => {
     if (type === "number") {
-      setInput(isNaN(value) ? "" : value);
+      setInput(isNaN(Number(value)) ? "" : value);
     }
     else {
       setInput(value)
@@ -78,20 +96,20 @@ function Editable({
   // original bug.
   useEffect(() => {
     if (isControlled) return;
-    const handleOutsideClick = (e) => {
-      if (inputRef.current && onSubmit && !inputRef.current.contains(e.target)) {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (inputRef.current && onSubmit && !inputRef.current.contains(e.target as Node)) {
         const isWhitespace = !inputRef.current.value.trim();
         if (!isWhitespace) {
           handleSubmit(input);
         }
         else if (type === "number") {
-          handleSubmit(isNaN(value) ? "" : value);
+          handleSubmit(isNaN(Number(value)) ? "" : value);
           setEditing(false);
         }
         else {
           handleSubmit(value);
         }
-        if (isWhitespace) setShowError(true);
+        if (isWhitespace) setShowError?.(true);
       }
     };
 
@@ -103,33 +121,33 @@ function Editable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, input, isControlled]);
 
-  function handleSubmit(newValue) {
-    const trimmed = newValue.toString().trim();
+  function handleSubmit(newValue: EditableValue) {
+    const trimmed = (newValue ?? '').toString().trim();
     if (!trimmed) {
-      setShowError(true); // show error if new value is only whitespace
+      setShowError?.(true); // show error if new value is only whitespace
     }
     else {
       setInput(trimmed);
-      onSubmit(trimmed);
+      onSubmit?.(trimmed);
       setEditing(false);
-      setShowError(false);
+      setShowError?.(false);
     }
   }
 
-  function handleChange(e) {
+  function handleChange(e: ChangeEvent<HTMLInputElement>) {
     setInput(e.target.value);
-    setShowError(false);
+    setShowError?.(false);
     onInputChange?.(e.target.value);
   }
 
-  function handleFormSubmit(e) {
+  function handleFormSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (isControlled) {
       // #231 — Enter in either field of a joint pair commits BOTH. The
       // parent already has this instance's latest value (via onInputChange
       // on every keystroke) plus the other field's, so it owns the actual
       // commit/PATCH; we just signal "submit requested".
-      onSubmit?.(input);
+      onSubmit?.((input ?? '').toString());
     } else {
       handleSubmit(input);
     }
@@ -143,7 +161,7 @@ function Editable({
             <form onSubmit={handleFormSubmit}>
               <input
                 ref={inputRef}
-                value={input}
+                value={input ?? ''}
                 onChange={handleChange}
                 onFocus={e => e.target.select()}
                 type={type ?? "text"}
