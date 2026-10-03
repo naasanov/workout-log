@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import type { KeyboardEvent } from 'react';
 import { format } from 'date-fns';
 import clientApi from '../api/clientApi';
 import useAuth from '../hooks/useAuth';
@@ -6,8 +7,21 @@ import styles from '../styles/HabitTracker.module.scss';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Minus, Plus, X, MoreVertical, ChevronDown } from 'lucide-react';
 
+type Habit = {
+  id: number;
+  name: string;
+  ignore_empty_days?: boolean;
+};
+
+type TallyRow = {
+  date: string;
+  count: number;
+  range_start: string | null;
+  range_end: string | null;
+};
+
 // Returns today's local date as YYYY-MM-DD
-function getTodayLocalDate() {
+function getTodayLocalDate(): string {
   const now = new Date();
   const y = now.getFullYear();
   const m = String(now.getMonth() + 1).padStart(2, '0');
@@ -16,21 +30,25 @@ function getTodayLocalDate() {
 }
 
 // Returns the current local time as HH:mm
-function getNowLocalTime() {
+function getNowLocalTime(): string {
   const now = new Date();
   const h = String(now.getHours()).padStart(2, '0');
   const min = String(now.getMinutes()).padStart(2, '0');
   return `${h}:${min}`;
 }
 
+type TallyGroup =
+  | { type: 'full'; key: string }
+  | { type: 'partial'; count: number; key: string };
+
 // Render tally marks as SVG groups of 5 (4 vertical + 1 diagonal slash).
 // #309: always renders (even at count 0) so the row keeps a reserved height;
 // aria-hidden suppresses the empty state from screen readers.
-function TallyMarks({ count }) {
+function TallyMarks({ count }: { count: number }) {
   const fullGroups = Math.floor(count / 5);
   const remainder = count % 5;
 
-  const groups = [];
+  const groups: TallyGroup[] = [];
 
   for (let g = 0; g < fullGroups; g++) {
     groups.push({ type: 'full', key: `full-${g}` });
@@ -70,7 +88,7 @@ function TallyMarks({ count }) {
   );
 }
 
-function formatDateLabel(dateStr) {
+function formatDateLabel(dateStr: string): string {
   const today = getTodayLocalDate();
   if (dateStr === today) return 'Today';
   // dateStr is YYYY-MM-DD — parse as local date
@@ -80,7 +98,7 @@ function formatDateLabel(dateStr) {
 }
 
 // Converts "HH:mm" or "HH:mm:ss" (24h) to "h:mm AM/PM" for display
-function to12h(timeStr) {
+function to12h(timeStr: string | null): string {
   if (!timeStr) return '';
   const parts = timeStr.split(':');
   let h = parseInt(parts[0], 10);
@@ -92,7 +110,7 @@ function to12h(timeStr) {
 
 // Converts "h:mm AM/PM" or "h:mm am/pm" user input back to "HH:mm" for storage.
 // Returns null if the input is empty, or undefined if it's invalid.
-function to24h(input) {
+function to24h(input: string): string | null | undefined {
   if (!input) return null;
   const m = input.trim().match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
   if (!m) return undefined; // invalid
@@ -108,13 +126,21 @@ function to24h(input) {
   return `${String(h).padStart(2, '0')}:${min}`;
 }
 
-function formatTime(timeStr) {
+function formatTime(timeStr: string | null): string {
   if (!timeStr) return '';
   return to12h(timeStr);
 }
 
+type HabitRowProps = {
+  row: TallyRow;
+  isToday: boolean;
+  onIncrement: (date: string) => void;
+  onDecrement: (date: string) => void;
+  onRangeChange: (date: string, fields: Partial<Pick<TallyRow, 'range_start' | 'range_end'>>) => void;
+};
+
 // ─── Tally row ──────────────────────────────────────────────────────────────────
-function HabitRow({ row, isToday, onIncrement, onDecrement, onRangeChange }) {
+function HabitRow({ row, isToday, onIncrement, onDecrement, onRangeChange }: HabitRowProps) {
   const [rangeStart, setRangeStart] = useState(formatTime(row.range_start) || '');
   const [rangeEnd, setRangeEnd] = useState(formatTime(row.range_end) || '');
 
@@ -210,17 +236,23 @@ function HabitRow({ row, isToday, onIncrement, onDecrement, onRangeChange }) {
   );
 }
 
+type RenameInputProps = {
+  initialValue: string;
+  onSave: (value: string) => void;
+  onCancel: () => void;
+};
+
 // ─── Inline rename input ────────────────────────────────────────────────────────
-function RenameInput({ initialValue, onSave, onCancel }) {
+function RenameInput({ initialValue, onSave, onCancel }: RenameInputProps) {
   const [value, setValue] = useState(initialValue);
-  const inputRef = useRef(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
     inputRef.current?.select();
   }, []);
 
-  function handleKeyDown(e) {
+  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter') handleSave();
     if (e.key === 'Escape') onCancel();
   }
@@ -250,16 +282,21 @@ function RenameInput({ initialValue, onSave, onCancel }) {
   );
 }
 
+type NewHabitInputProps = {
+  onSave: (name: string) => void;
+  onCancel: () => void;
+};
+
 // ─── New habit input ────────────────────────────────────────────────────────────
-function NewHabitInput({ onSave, onCancel }) {
+function NewHabitInput({ onSave, onCancel }: NewHabitInputProps) {
   const [value, setValue] = useState('');
-  const inputRef = useRef(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  function handleKeyDown(e) {
+  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter') handleSave();
     if (e.key === 'Escape') onCancel();
   }
@@ -295,17 +332,26 @@ function NewHabitInput({ onSave, onCancel }) {
   );
 }
 
+type HabitListItemProps = {
+  habit: Habit;
+  isActive: boolean;
+  onSelect: (habit: Habit) => void;
+  onRename: (id: number, newName: string) => void;
+  onDelete: (habit: Habit) => void;
+  onToggleIgnoreEmpty: (id: number, value: boolean) => void;
+};
+
 // ─── Habit list item (inside dropdown) ─────────────────────────────────────────
-function HabitListItem({ habit, isActive, onSelect, onRename, onDelete, onToggleIgnoreEmpty }) {
+function HabitListItem({ habit, isActive, onSelect, onRename, onDelete, onToggleIgnoreEmpty }: HabitListItemProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
-  const menuRef = useRef(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu on outside tap/click
   useEffect(() => {
     if (!menuOpen) return;
-    function handleOutside(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
+    function handleOutside(e: PointerEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
       }
     }
@@ -386,8 +432,14 @@ function HabitListItem({ habit, isActive, onSelect, onRename, onDelete, onToggle
   );
 }
 
+type ConfirmDeleteDialogProps = {
+  habit: Habit;
+  onConfirm: () => void;
+  onCancel: () => void;
+};
+
 // ─── Confirm delete dialog ──────────────────────────────────────────────────────
-function ConfirmDeleteDialog({ habit, onConfirm, onCancel }) {
+function ConfirmDeleteDialog({ habit, onConfirm, onCancel }: ConfirmDeleteDialogProps) {
   return (
     <div className={styles.confirmOverlay} role="dialog" aria-modal="true" aria-label="Confirm delete">
       <div className={styles.confirmBox}>
@@ -412,15 +464,15 @@ function HabitTracker() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const [activeHabit, setActiveHabit] = useState(null);
+  const [activeHabit, setActiveHabit] = useState<Habit | null>(null);
   const [showNewHabit, setShowNewHabit] = useState(false);
-  const [habitToDelete, setHabitToDelete] = useState(null);
+  const [habitToDelete, setHabitToDelete] = useState<Habit | null>(null);
   const [habitsOpen, setHabitsOpen] = useState(false);
 
   // ── Habits registry query ──────────────────────────────────────────────────
   const habitsQuery = useQuery({
     queryKey: ['habits-registry'],
-    queryFn: async () => {
+    queryFn: async (): Promise<Habit[]> => {
       const res = await clientApi.get('/habits');
       return res.data.data;
     },
@@ -445,11 +497,11 @@ function HabitTracker() {
   // ── Tallies query (depends on selected habit) ──────────────────────────────
   const talliesQuery = useQuery({
     queryKey: ['habits', activeHabit?.name],
-    queryFn: async () => {
-      const res = await clientApi.get(`/habits/${activeHabit.name}`);
+    queryFn: async (): Promise<TallyRow[]> => {
+      const res = await clientApi.get(`/habits/${activeHabit?.name}`);
       // mysql2 DATE columns serialize to ISO strings through JSON
       // slice(0,10) normalizes both bare "YYYY-MM-DD" and ISO datetime strings
-      return res.data.data.map(row => ({
+      return res.data.data.map((row: TallyRow) => ({
         ...row,
         date: String(row.date).slice(0, 10),
       }));
@@ -462,12 +514,12 @@ function HabitTracker() {
 
   // ── Habit CRUD mutations ───────────────────────────────────────────────────
   const createHabitMutation = useMutation({
-    mutationFn: async (name) => {
+    mutationFn: async (name: string): Promise<Habit> => {
       const res = await clientApi.post('/habits', { name });
       return res.data.data;
     },
     onSuccess: (newHabit) => {
-      queryClient.setQueryData(['habits-registry'], (prev) => [...(prev ?? []), newHabit]);
+      queryClient.setQueryData<Habit[]>(['habits-registry'], (prev = []) => [...prev, newHabit]);
       setActiveHabit(newHabit);
       setShowNewHabit(false);
       setHabitsOpen(false);
@@ -475,36 +527,36 @@ function HabitTracker() {
   });
 
   const renameHabitMutation = useMutation({
-    mutationFn: async ({ id, name }) => {
+    mutationFn: async ({ id, name }: { id: number; name: string }): Promise<Habit> => {
       const res = await clientApi.patch(`/habits/${id}`, { name });
       return res.data.data;
     },
     onSuccess: (updated) => {
-      queryClient.setQueryData(['habits-registry'], (prev) =>
-        (prev ?? []).map(h => h.id === updated.id ? { ...h, name: updated.name } : h)
+      queryClient.setQueryData<Habit[]>(['habits-registry'], (prev = []) =>
+        prev.map(h => h.id === updated.id ? { ...h, name: updated.name } : h)
       );
       if (activeHabit?.id === updated.id) {
         // Remove old tallies cache key; will refetch under new name
         queryClient.removeQueries({ queryKey: ['habits', activeHabit.name] });
-        setActiveHabit(prev => ({ ...prev, name: updated.name }));
+        setActiveHabit(prev => prev ? { ...prev, name: updated.name } : prev);
       }
     },
   });
 
   const patchHabitSettingsMutation = useMutation({
-    mutationFn: async ({ id, ignore_empty_days }) => {
+    mutationFn: async ({ id, ignore_empty_days }: { id: number; ignore_empty_days: boolean }): Promise<{ id: number; ignore_empty_days: boolean }> => {
       await clientApi.patch(`/habits/${id}`, { ignore_empty_days });
       return { id, ignore_empty_days };
     },
     onMutate: async ({ id, ignore_empty_days }) => {
       // Optimistic update: update registry cache
-      const prevRegistry = queryClient.getQueryData(['habits-registry']);
-      queryClient.setQueryData(['habits-registry'], (prev) =>
-        (prev ?? []).map(h => h.id === id ? { ...h, ignore_empty_days } : h)
+      const prevRegistry = queryClient.getQueryData<Habit[]>(['habits-registry']);
+      queryClient.setQueryData<Habit[]>(['habits-registry'], (prev = []) =>
+        prev.map(h => h.id === id ? { ...h, ignore_empty_days } : h)
       );
       // Also update activeHabit local state optimistically
       if (activeHabit?.id === id) {
-        setActiveHabit(prev => ({ ...prev, ignore_empty_days }));
+        setActiveHabit(prev => prev ? { ...prev, ignore_empty_days } : prev);
       }
       return { prevRegistry };
     },
@@ -515,19 +567,19 @@ function HabitTracker() {
       }
       if (activeHabit?.id === id) {
         const rolled = (context?.prevRegistry ?? []).find(h => h.id === id);
-        if (rolled) setActiveHabit(prev => ({ ...prev, ignore_empty_days: rolled.ignore_empty_days }));
+        if (rolled) setActiveHabit(prev => prev ? { ...prev, ignore_empty_days: rolled.ignore_empty_days } : prev);
       }
     },
   });
 
   const deleteHabitMutation = useMutation({
-    mutationFn: async (id) => {
+    mutationFn: async (id: number): Promise<number> => {
       await clientApi.delete(`/habits/${id}`);
       return id;
     },
     onSuccess: (id) => {
-      queryClient.setQueryData(['habits-registry'], (prev) => {
-        const next = (prev ?? []).filter(h => h.id !== id);
+      queryClient.setQueryData<Habit[]>(['habits-registry'], (prev = []) => {
+        const next = prev.filter(h => h.id !== id);
         if (activeHabit?.id === id) {
           setActiveHabit(next.length > 0 ? next[0] : null);
         }
@@ -539,31 +591,30 @@ function HabitTracker() {
 
   // ── Tally mutations ────────────────────────────────────────────────────────
   const addTallyMutation = useMutation({
-    mutationFn: async ({ localDate, localTime }) => {
-      const res = await clientApi.post(`/habits/${activeHabit.name}/tally`, { localDate, localTime });
+    mutationFn: async ({ localDate, localTime }: { localDate: string; localTime: string }): Promise<TallyRow> => {
+      const res = await clientApi.post(`/habits/${activeHabit?.name}/tally`, { localDate, localTime });
       return res.data.data;
     },
     onSuccess: (updated) => {
-      queryClient.setQueryData(['habits', activeHabit.name], (prev) => {
-        const list = prev ?? [];
-        const existing = list.find(r => r.date === updated.date);
+      queryClient.setQueryData<TallyRow[]>(['habits', activeHabit?.name], (prev = []) => {
+        const existing = prev.find(r => r.date === updated.date);
         if (existing) {
-          return list.map(r => r.date === updated.date ? { ...r, ...updated } : r);
+          return prev.map(r => r.date === updated.date ? { ...r, ...updated } : r);
         } else {
-          return [updated, ...list];
+          return [updated, ...prev];
         }
       });
     },
   });
 
   const patchTallyMutation = useMutation({
-    mutationFn: async ({ date, fields }) => {
-      await clientApi.patch(`/habits/${activeHabit.name}/${date}`, fields);
+    mutationFn: async ({ date, fields }: { date: string; fields: Partial<TallyRow> }): Promise<{ date: string; fields: Partial<TallyRow> }> => {
+      await clientApi.patch(`/habits/${activeHabit?.name}/${date}`, fields);
       return { date, fields };
     },
     onSuccess: ({ date, fields }) => {
-      queryClient.setQueryData(['habits', activeHabit.name], (prev) =>
-        (prev ?? []).map(r => r.date === date ? { ...r, ...fields } : r)
+      queryClient.setQueryData<TallyRow[]>(['habits', activeHabit?.name], (prev = []) =>
+        prev.map(r => r.date === date ? { ...r, ...fields } : r)
       );
     },
   });
@@ -571,7 +622,7 @@ function HabitTracker() {
   // ── Ensure today row is always present ────────────────────────────────────
   const today = getTodayLocalDate();
   const todayExists = rows.some(r => r.date === today);
-  const rowsWithToday = todayExists
+  const rowsWithToday: TallyRow[] = todayExists
     ? rows
     : [{ date: today, count: 0, range_start: null, range_end: null }, ...rows];
 
@@ -579,17 +630,17 @@ function HabitTracker() {
   // When showing all days: iterate every calendar day from the earliest tally
   // date to today, inserting count=0 rows for missing days.
   const ignoreEmptyDays = activeHabit ? !!activeHabit.ignore_empty_days : true;
-  let displayRows;
+  let displayRows: TallyRow[];
   if (ignoreEmptyDays || rowsWithToday.length === 0) {
     displayRows = rowsWithToday;
   } else {
     // Find the oldest date in the data
     const dates = rowsWithToday.map(r => r.date).sort();
     const minDate = dates[0];
-    const dateMap = {};
+    const dateMap: Record<string, TallyRow> = {};
     for (const r of rowsWithToday) dateMap[r.date] = r;
 
-    const filled = [];
+    const filled: TallyRow[] = [];
     // Walk from today back to minDate
     const [minY, minM, minD] = minDate.split('-').map(Number);
     const cursor = new Date(new Date(today + 'T00:00:00').getTime());
@@ -611,7 +662,7 @@ function HabitTracker() {
     addTallyMutation.mutate({ localDate: getTodayLocalDate(), localTime: getNowLocalTime() });
   }
 
-  async function handleIncrement(date) {
+  async function handleIncrement(date: string) {
     if (!activeHabit) return;
     const row = displayRows.find(r => r.date === date);
     if (!row) return;
@@ -625,42 +676,41 @@ function HabitTracker() {
     }
     const newCount = row.count + 1;
     // Optimistic update
-    queryClient.setQueryData(['habits', activeHabit.name], (prev) => {
-      const list = prev ?? [];
-      const existing = list.find(r => r.date === date);
-      if (existing) return list.map(r => r.date === date ? { ...r, count: newCount } : r);
-      return [{ date, count: newCount, range_start: null, range_end: null }, ...list];
+    queryClient.setQueryData<TallyRow[]>(['habits', activeHabit.name], (prev = []) => {
+      const existing = prev.find(r => r.date === date);
+      if (existing) return prev.map(r => r.date === date ? { ...r, count: newCount } : r);
+      return [{ date, count: newCount, range_start: null, range_end: null }, ...prev];
     });
     try {
       await clientApi.patch(`/habits/${activeHabit.name}/${date}`, { count: newCount });
     } catch {
       // Roll back on failure
-      queryClient.setQueryData(['habits', activeHabit.name], (prev) =>
-        (prev ?? []).map(r => r.date === date ? { ...r, count: row.count } : r)
+      queryClient.setQueryData<TallyRow[]>(['habits', activeHabit.name], (prev = []) =>
+        prev.map(r => r.date === date ? { ...r, count: row.count } : r)
       );
     }
   }
 
-  async function handleDecrement(date) {
+  async function handleDecrement(date: string) {
     if (!activeHabit) return;
     const row = displayRows.find(r => r.date === date);
     if (!row || row.count === 0) return;
     const newCount = row.count - 1;
     // Optimistic update
-    queryClient.setQueryData(['habits', activeHabit.name], (prev) =>
-      (prev ?? []).map(r => r.date === date ? { ...r, count: newCount } : r)
+    queryClient.setQueryData<TallyRow[]>(['habits', activeHabit.name], (prev = []) =>
+      prev.map(r => r.date === date ? { ...r, count: newCount } : r)
     );
     try {
       await clientApi.patch(`/habits/${activeHabit.name}/${date}`, { count: newCount });
     } catch {
       // Roll back on failure
-      queryClient.setQueryData(['habits', activeHabit.name], (prev) =>
-        (prev ?? []).map(r => r.date === date ? { ...r, count: row.count } : r)
+      queryClient.setQueryData<TallyRow[]>(['habits', activeHabit.name], (prev = []) =>
+        prev.map(r => r.date === date ? { ...r, count: row.count } : r)
       );
     }
   }
 
-  const handleRangeChange = useCallback(async (date, fields) => {
+  const handleRangeChange = useCallback(async (date: string, fields: Partial<TallyRow>) => {
     patchTallyMutation.mutate({ date, fields });
   }, [patchTallyMutation]);
 
