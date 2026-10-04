@@ -12,7 +12,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
 } from 'react';
 import Modal from '../../components/Modal';
 import { useCreateEntry, useUpdateEntry } from './api';
@@ -331,9 +330,9 @@ function Totals({ rows }: TotalsProps) {
 }
 
 // ---------------------------------------------------------------------------
-// #404: the proposal date chip renders "M/D" (no leading zeros) and an
-// aria-label with the full month name, from a direct string parse so the
-// value never shifts across a timezone the way `new Date(str)` would.
+// The proposal date chip renders "M/D" (no leading zeros) and an aria-label
+// with the full month name, from a direct string parse so the value never
+// shifts across a timezone the way `new Date(str)` would.
 // ---------------------------------------------------------------------------
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -346,16 +345,14 @@ function parseDateParts(dateStr: string): { month: number; day: number } | null 
   return { month: Number(match[2]), day: Number(match[3]) };
 }
 
-// Opens the native date picker from a click on the chip. showPicker() isn't
-// available on every browser, and can throw even when present (e.g. a
-// cross-origin iframe), so focus()+click() is the fallback either way.
-function openDatePicker(input: HTMLInputElement | null) {
-  if (!input) return;
+// The date input itself receives the tap, so mobile browsers open their native
+// picker without help. Desktop browsers only open it from the calendar icon,
+// so a click asks for it explicitly; a throw just leaves the native behavior.
+function openDatePicker(input: HTMLInputElement) {
   try {
     input.showPicker();
   } catch {
-    input.focus();
-    input.click();
+    // showPicker is missing or refused; the native tap behavior still applies.
   }
 }
 
@@ -385,7 +382,6 @@ export default function EntryEditor({
   // page's viewed day and never show this control, so it always tracks
   // mode.date for them) -----
   const [entryDate, setEntryDate] = useState<string>(() => mode.date);
-  const dateInputRef = useRef<HTMLInputElement>(null);
 
   // ----- Meal selector -----
   const [meal, setMeal] = useState<Meal>(() => {
@@ -631,7 +627,7 @@ export default function EntryEditor({
 
   const isProposal = mode.kind === 'proposal';
 
-  // #404: the date chip sits next to the name input in proposal mode only.
+  // The date chip sits next to the name input in proposal mode only.
   const dateParts = isProposal ? parseDateParts(entryDate) : null;
   const dateChipLabel = dateParts ? `${dateParts.month}/${dateParts.day}` : '';
   const dateAriaMonthDay = dateParts ? `${MONTH_NAMES[dateParts.month - 1]} ${dateParts.day}` : '';
@@ -679,8 +675,7 @@ export default function EntryEditor({
         ))}
       </div>
 
-      {/* Entry name — proposal mode adds a compact date chip to the right
-          (#404) instead of a full-row Date field above it. */}
+      {/* Entry name, plus a compact date chip to its right in proposal mode */}
       <div className={styles.field}>
         <label className={styles.fieldLabel} htmlFor={`entry-name-${inline ? 'inline' : 'modal'}`}>
           Entry name
@@ -695,25 +690,18 @@ export default function EntryEditor({
             onChange={e => setEntryName(e.target.value)}
           />
           {isProposal && (
-            <>
-              <button
-                type="button"
-                className={styles.dateChip}
-                onClick={() => openDatePicker(dateInputRef.current)}
-                aria-label={`Entry date, ${dateAriaMonthDay}, change`}
-              >
-                {dateChipLabel}
-              </button>
-              <input
-                ref={dateInputRef}
-                id={`entry-date-${inline ? 'inline' : 'modal'}`}
-                className={styles.hiddenDateInput}
-                type="date"
-                aria-label="Entry date"
-                value={entryDate}
-                onChange={e => setEntryDate(e.target.value)}
-              />
-            </>
+              <span className={styles.dateChip}>
+                <span aria-hidden="true">{dateChipLabel}</span>
+                <input
+                  id={`entry-date-${inline ? 'inline' : 'modal'}`}
+                  className={styles.dateChipInput}
+                  type="date"
+                  aria-label={`Entry date, ${dateAriaMonthDay}`}
+                  value={entryDate}
+                  onChange={e => setEntryDate(e.target.value)}
+                  onClick={e => openDatePicker(e.currentTarget)}
+                />
+              </span>
           )}
         </div>
       </div>
