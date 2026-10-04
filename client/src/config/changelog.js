@@ -11,6 +11,16 @@
 
 export const CHANGELOG = [
   {
+    date: '2026-10-04',
+    title: 'Meet Peak, and a tidier food review',
+    items: [
+      { text: 'The chat is now called Ask Peak', issues: [405] },
+      { text: 'When the assistant suggests a food entry, the date shows as a small tap-to-change chip beside the name instead of taking up its own row', issues: [404] },
+      { text: 'The blinking “working” light in the chat only shows on the reply that is actually in progress, not on an earlier finished one', issues: [403] },
+      'Typing an impossible date like 2/31 on a workout no longer freezes the page',
+    ],
+  },
+  {
     date: '2026-10-03',
     title: 'Clearer feedback errors and a simpler instructions screen',
     items: [
