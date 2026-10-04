@@ -298,16 +298,21 @@ function AnimatedBody({ expanded, children }: AnimatedBodyProps) {
 // ---- Main component ----
 interface ToolCallCardProps {
   part: AnyToolUIPart;
+  /** Whether this card's own message is the one actually streaming live
+   *  right now. A card reloaded from history (or left behind by an
+   *  interrupted turn) can carry a running part state forever; gating on
+   *  `live` renders it settled instead of spinning on a finished turn. */
+  live: boolean;
 }
 
-export default function ToolCallCard({ part }: ToolCallCardProps) {
+export default function ToolCallCard({ part, live }: ToolCallCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   const rawToolName = getToolName(part as ToolUIPart | DynamicToolUIPart);
   const input = (part as { input?: unknown }).input as unknown;
   const displayName = friendlyToolName(rawToolName, input);
 
-  const isRunning = part.state === 'input-streaming' || part.state === 'input-available';
+  const isRunning = live && (part.state === 'input-streaming' || part.state === 'input-available');
   const isDone = part.state === 'output-available';
   const isError = part.state === 'output-error';
 

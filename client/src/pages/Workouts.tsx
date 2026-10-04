@@ -218,7 +218,7 @@ function Workouts() {
           emptyHint={isNutritionTab
             ? 'Describe what you ate, scan a barcode, or attach a photo of your food.'
             : 'Log, look up, or analyze anything you track.'}
-          srLabel={isNutritionTab ? 'Nutrition AI' : undefined}
+          srLabel={isNutritionTab ? 'Peak nutrition chat' : undefined}
           composerPlaceholder={isNutritionTab
             ? 'Describe what you ate…'
             : 'Message the assistant'}

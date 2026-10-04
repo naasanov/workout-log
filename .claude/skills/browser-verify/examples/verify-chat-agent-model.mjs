@@ -1,4 +1,4 @@
-// Template: drive the AI chat end to end (open, send, wait for a real reply)
+// Template: drive the Peak chat end to end (open, send, wait for a real reply)
 // and read the agent instructions modal's hint copy. Boots its own stack so
 // it's runnable standalone; pass AGENT_MODEL via stackOptions.env to check a
 // specific model (this makes one real model call when OPENAI_API_KEY is
