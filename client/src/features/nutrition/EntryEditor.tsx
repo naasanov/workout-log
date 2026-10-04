@@ -12,6 +12,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
 } from 'react';
 import Modal from '../../components/Modal';
 import { useCreateEntry, useUpdateEntry } from './api';
@@ -330,6 +331,35 @@ function Totals({ rows }: TotalsProps) {
 }
 
 // ---------------------------------------------------------------------------
+// #404: the proposal date chip renders "M/D" (no leading zeros) and an
+// aria-label with the full month name, from a direct string parse so the
+// value never shifts across a timezone the way `new Date(str)` would.
+// ---------------------------------------------------------------------------
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+function parseDateParts(dateStr: string): { month: number; day: number } | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+  if (!match) return null;
+  return { month: Number(match[2]), day: Number(match[3]) };
+}
+
+// Opens the native date picker from a click on the chip. showPicker() isn't
+// available on every browser, and can throw even when present (e.g. a
+// cross-origin iframe), so focus()+click() is the fallback either way.
+function openDatePicker(input: HTMLInputElement | null) {
+  if (!input) return;
+  try {
+    input.showPicker();
+  } catch {
+    input.focus();
+    input.click();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 export default function EntryEditor({
@@ -355,6 +385,7 @@ export default function EntryEditor({
   // page's viewed day and never show this control, so it always tracks
   // mode.date for them) -----
   const [entryDate, setEntryDate] = useState<string>(() => mode.date);
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   // ----- Meal selector -----
   const [meal, setMeal] = useState<Meal>(() => {
@@ -600,6 +631,11 @@ export default function EntryEditor({
 
   const isProposal = mode.kind === 'proposal';
 
+  // #404: the date chip sits next to the name input in proposal mode only.
+  const dateParts = isProposal ? parseDateParts(entryDate) : null;
+  const dateChipLabel = dateParts ? `${dateParts.month}/${dateParts.day}` : '';
+  const dateAriaMonthDay = dateParts ? `${MONTH_NAMES[dateParts.month - 1]} ${dateParts.day}` : '';
+
   const titleMap: Record<typeof modeKind, string> = {
     'manual-add': 'Add Food Entry',
     'manual-edit': 'Edit Food Entry',
@@ -643,35 +679,43 @@ export default function EntryEditor({
         ))}
       </div>
 
-      {/* Date — proposal mode only; manual modes are locked to the viewed day */}
-      {isProposal && (
-        <div className={styles.field}>
-          <label className={styles.fieldLabel} htmlFor={`entry-date-${inline ? 'inline' : 'modal'}`}>
-            Date
-          </label>
-          <input
-            id={`entry-date-${inline ? 'inline' : 'modal'}`}
-            className={styles.input}
-            type="date"
-            value={entryDate}
-            onChange={e => setEntryDate(e.target.value)}
-          />
-        </div>
-      )}
-
-      {/* Entry name */}
+      {/* Entry name — proposal mode adds a compact date chip to the right
+          (#404) instead of a full-row Date field above it. */}
       <div className={styles.field}>
         <label className={styles.fieldLabel} htmlFor={`entry-name-${inline ? 'inline' : 'modal'}`}>
           Entry name
         </label>
-        <input
-          id={`entry-name-${inline ? 'inline' : 'modal'}`}
-          className={styles.input}
-          type="text"
-          placeholder="e.g. Chicken salad"
-          value={entryName}
-          onChange={e => setEntryName(e.target.value)}
-        />
+        <div className={styles.nameRow}>
+          <input
+            id={`entry-name-${inline ? 'inline' : 'modal'}`}
+            className={styles.input}
+            type="text"
+            placeholder="e.g. Chicken salad"
+            value={entryName}
+            onChange={e => setEntryName(e.target.value)}
+          />
+          {isProposal && (
+            <>
+              <button
+                type="button"
+                className={styles.dateChip}
+                onClick={() => openDatePicker(dateInputRef.current)}
+                aria-label={`Entry date, ${dateAriaMonthDay}, change`}
+              >
+                {dateChipLabel}
+              </button>
+              <input
+                ref={dateInputRef}
+                id={`entry-date-${inline ? 'inline' : 'modal'}`}
+                className={styles.hiddenDateInput}
+                type="date"
+                aria-label="Entry date"
+                value={entryDate}
+                onChange={e => setEntryDate(e.target.value)}
+              />
+            </>
+          )}
+        </div>
       </div>
 
       {/* Ingredient cards + Add button */}
