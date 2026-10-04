@@ -69,6 +69,15 @@ export async function launchAuthed(opts = {}) {
     extraHTTPHeaders: { Authorization: `Bearer ${accessToken}` },
   });
 
+  // A freshly seeded dev user has no tools enabled, which renders every tab's
+  // content inside a display:none container. Enable them all in that case.
+  const prefs = await (await api.get('users/tab-preferences')).json();
+  if (!prefs.data?.enabledTabs?.length) {
+    const all = ['workouts', 'body-weight', 'habits', 'nutrition', 'chat-history']; // schemas/tabPreferences.ts TAB_KEYS
+    const put = await api.put('users/tab-preferences', { data: { enabledTabs: all } });
+    if (!put.ok()) throw new Error(`enabling tabs failed: ${put.status()} ${await put.text()}`);
+  }
+
   // launchOptions/contextOptions passthrough: needed for flows that require a
   // device permission the headless default denies. The barcode scanner
   // (#251) is the motivating case: `getUserMedia` must resolve or the
