@@ -40,11 +40,13 @@ function resolveCheckouts(cwd) {
   return { checkoutRoot, mainCheckout };
 }
 
+// Probes the unspecified address, the same bind the server and vite make. On
+// macOS a 127.0.0.1 bind succeeds even while another process holds *:port.
 function isPortFree(port) {
   return new Promise((resolve) => {
     const srv = net.createServer();
     srv.once('error', () => resolve(false));
-    srv.listen(port, '127.0.0.1', () => srv.close(() => resolve(true)));
+    srv.listen(port, () => srv.close(() => resolve(true)));
   });
 }
 
@@ -52,7 +54,7 @@ function findFreePort() {
   return new Promise((resolve, reject) => {
     const srv = net.createServer();
     srv.once('error', reject);
-    srv.listen(0, '127.0.0.1', () => {
+    srv.listen(0, () => {
       const { port } = srv.address();
       srv.close(() => resolve(port));
     });
