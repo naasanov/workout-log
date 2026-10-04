@@ -877,11 +877,9 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
 
   const isExpanded = expanded;
 
-  // A live indicator (spinner, conveyor "Thinking…" label) is only correct on
-  // the assistant message that is actually streaming right now — the LAST
-  // message overall, not merely the last one with role assistant. Right after
-  // a send, the last message is the new user turn and the reply doesn't exist
-  // yet, so no message qualifies until the assistant message itself appears.
+  // Only the last message overall can be live, and only if it's the assistant's.
+  // Right after a send the last message is the user's, so the previous reply
+  // must not light up while the new one is still connecting.
   const lastMessageIdx = messages.length - 1;
 
   return (
