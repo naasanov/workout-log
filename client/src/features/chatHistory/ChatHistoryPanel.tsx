@@ -81,7 +81,7 @@ export default function ChatHistoryPanel({ onConversationContinued }: ChatHistor
         <MessagesSquare size={32} className={styles.emptyIcon} aria-hidden="true" style={{ display: 'block' }} />
         <h2 className={styles.emptyHeading}>No conversations yet</h2>
         <p className={styles.emptyBody}>
-          Chats you start from the AI assistant will show up here once you send a message.
+          Chats you start from Peak will show up here once you send a message.
         </p>
       </div>
     );

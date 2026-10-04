@@ -310,8 +310,8 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
   context,
   composerPlugin,
   emptyHint = 'Ask me anything, or tell me what to log.',
-  title = 'Ask AI',
-  srLabel = 'AI chat',
+  title = 'Ask Peak',
+  srLabel = 'Peak chat',
   composerPlaceholder = 'Message the assistant…',
 }: AgentChatProps, ref) {
   // Fast cache: seed from whichever conversation id we last knew about, so a
@@ -877,7 +877,12 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
 
   const isExpanded = expanded;
 
-  const lastAssistantIdx = messages.reduce((last, m, i) => m.role === 'assistant' ? i : last, -1);
+  // A live indicator (spinner, conveyor "Thinking…" label) is only correct on
+  // the assistant message that is actually streaming right now — the LAST
+  // message overall, not merely the last one with role assistant. Right after
+  // a send, the last message is the new user turn and the reply doesn't exist
+  // yet, so no message qualifies until the assistant message itself appears.
+  const lastMessageIdx = messages.length - 1;
 
   return (
     <>
@@ -893,7 +898,7 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
         ref={sheetRef}
         className={`${styles.sheet} ${isExpanded ? styles.sheetExpanded : styles.sheetPeek} ${draggingHeight !== null ? styles.sheetDragging : ''}`}
         style={sheetStyle}
-        aria-label={`${srLabel} chat`}
+        aria-label={srLabel}
         role="dialog"
       >
         <span className={styles.srOnly}>{srLabel}</span>
@@ -909,7 +914,7 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
           onPointerCancel={handleDragPointerUp}
           role="button"
           tabIndex={0}
-          aria-label={isExpanded ? 'Collapse AI chat' : 'Expand AI chat'}
+          aria-label={isExpanded ? 'Collapse Peak chat' : 'Expand Peak chat'}
           aria-expanded={isExpanded}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -1005,7 +1010,7 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
             <ChatMessage
               key={message.id}
               message={message}
-              isLastAssistant={idx === lastAssistantIdx}
+              isLastAssistant={idx === lastMessageIdx && message.role === 'assistant'}
               isStreaming={isStreaming}
               context={context}
               resolutions={resolutions}
@@ -1113,7 +1118,7 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
           type="button"
           ref={attachFabTouchStartGuard}
           className={styles.floatingChatBtn}
-          aria-label={`Open ${srLabel} chat`}
+          aria-label={`Open ${srLabel}`}
           onPointerDown={(e: React.PointerEvent<HTMLButtonElement>) => {
             (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
             dragStartYRef.current = e.clientY;

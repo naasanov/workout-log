@@ -10,12 +10,11 @@
 // specific click method, a wait after clicking); those are exported as small
 // helpers instead of comments so the rule can't be skipped by accident.
 
-// ---- AI chat (client/src/features/agent/AgentChat.tsx) --------------------
+// ---- Peak chat (client/src/features/agent/AgentChat.tsx) ------------------
 
-// srLabel defaults to 'AI chat' and the FAB's aria-label template appends
-// ' chat', so the rendered label is "Open AI chat chat", not "Open <Tab> AI
-// chat" as you'd guess from the visible tab title.
-export const chatFab = 'button[aria-label="Open AI chat chat"]';
+// srLabel defaults to 'Peak chat'; the nutrition tab overrides it to 'Peak
+// nutrition chat'. The FAB's aria-label is `Open ${srLabel}`.
+export const chatFab = 'button[aria-label="Open Peak chat"]';
 export const chatComposer = 'textarea[aria-label="Chat message"]';
 export const chatSend = 'button[aria-label="Send"]';
 export const chatStop = 'button[aria-label="Stop generation"]';
@@ -29,7 +28,7 @@ export const agentInstructionsTextarea = '#agent-instructions-textarea';
 // pointer events (the drag gesture) plus an Enter/Space onKeyDown. A
 // synthetic or Playwright .click() is a silent no-op; focus it and press
 // Enter instead. This one selector covers both states (its label flips).
-export const chatSheetHandle = '[aria-label="Expand AI chat"], [aria-label="Collapse AI chat"]';
+export const chatSheetHandle = '[aria-label="Expand Peak chat"], [aria-label="Collapse Peak chat"]';
 
 /**
  * Opens the chat FAB the way a real tap does: a hit-tested mouse click at
@@ -49,7 +48,7 @@ export async function openChat(page) {
  * onClick. Use after openChat() when you need the expanded header controls.
  */
 export async function expandChatSheet(page) {
-  await page.locator('[aria-label="Expand AI chat"]').focus();
+  await page.locator('[aria-label="Expand Peak chat"]').focus();
   await page.keyboard.press('Enter');
   await page.waitForTimeout(500);
 }

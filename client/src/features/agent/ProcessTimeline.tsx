@@ -227,6 +227,7 @@ function renderClusterItem(merged: MergedPart, isStreamingThis: boolean): React.
     <ToolCallCard
       key={clusterItemKey(merged)}
       part={merged.part as AnyToolUIPart}
+      live={isStreamingThis}
     />
   );
 }

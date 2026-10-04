@@ -82,7 +82,7 @@ async function main() {
     const graphBtnCount = await page.locator(sel.variationGraphBtn).count();
     record('variationGraphBtn', nameCellIdx >= 0 && graphBtnCount > nameCellIdx);
 
-    // ---- AI chat ----
+    // ---- Peak chat ----
     await sel.openChat(page);
     await expectVisible('chatComposer', page.locator(sel.chatComposer));
     await expectVisible('chatSend', page.locator(sel.chatSend));
