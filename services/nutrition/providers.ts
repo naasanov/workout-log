@@ -3,7 +3,7 @@
 //
 // CONTRACT (signatures fixed in design; S1 fills in the bodies):
 //   - searchFoods: query USDA FDC foods/search (api key from process.env.USDA_FDC_API_KEY,
-//     dataType=Foundation,SR Legacy,Survey (FNDDS),Branded, pageSize=25), map the best matches to
+//     POST with dataType Foundation, SR Legacy, Survey (FNDDS), Branded, pageSize=25), map the best matches to
 //     FoodSearchResult via a lightweight token-overlap scorer (normalize, Dice/Jaccard,
 //     bonus for Foundation/SR Legacy, penalty for very long descriptions); fall back to an
 //     OFF text search if FDC returns nothing. Extract per-100g macros by nutrient number
@@ -241,44 +241,40 @@ async function searchOFF(query: string): Promise<FoodSearchResult[]> {
  *  can skip straight to the OFF fallback instead of burning quota on a retry (#282). */
 type UsdaSearchOutcome = { results: FoodSearchResult[]; rateLimited: boolean };
 
-// USDA rejects a `dataType` list containing `Survey (FNDDS)` with an nginx-level
-// HTTP 400 roughly 60-90% of the time, so it is queried on its own connection and
-// its failures cost only FNDDS coverage instead of the whole search. Measured:
-// `Foundation,SR Legacy,Branded` succeeded 10/10, the four-value list 4/10.
-const USDA_STABLE_DATATYPES = 'Foundation,SR%20Legacy,Branded';
-const USDA_SURVEY_DATATYPE = 'Survey%20(FNDDS)';
+// FDC rejects Survey (FNDDS) inside a GET query string with HTTP 400, so searches POST a
+// JSON criteria body, which accepts all four data types in one request.
+const USDA_DATATYPES = ['Foundation', 'SR Legacy', 'Branded', 'Survey (FNDDS)'];
+
+/** Build the FDC foods/search POST request (url + init) for a query. */
+export function buildUsdaSearchRequest(query: string, apiKey: string): { url: string; init: RequestInit } {
+  return {
+    url: `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(apiKey)}`,
+    init: {
+      method: 'POST',
+      headers: { 'User-Agent': USER_AGENT, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, dataType: USDA_DATATYPES, pageSize: 25 }),
+    },
+  };
+}
 
 /** Result of one USDA FDC fetch. `rateLimited` is set on a 429; `foods` is empty on
- *  any failure, so a caller merging several fetches degrades rather than throwing. */
+ *  any failure, so a failed request degrades to the OFF fallback rather than throwing. */
 type UsdaFetchOutcome = { foods: any[]; rateLimited: boolean };
 
-/** One USDA FDC request for a single `dataType` list → its raw `foods` array. */
-async function fetchUsdaFoods(
-  query: string,
-  apiKey: string,
-  dataType: string,
-): Promise<UsdaFetchOutcome> {
+/** One USDA FDC search request → its raw `foods` array. */
+async function fetchUsdaFoods(query: string, apiKey: string): Promise<UsdaFetchOutcome> {
   try {
-    const url =
-      `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(apiKey)}` +
-      `&query=${encodeURIComponent(query)}` +
-      `&dataType=${dataType}&pageSize=25`;
-    const resp = await fetch(url, {
-      headers: { 'User-Agent': USER_AGENT },
-      signal: AbortSignal.timeout(8000),
-    });
+    const { url, init } = buildUsdaSearchRequest(query, apiKey);
+    const resp = await fetch(url, { ...init, signal: AbortSignal.timeout(8000) });
     if (!resp.ok) {
       if (resp.status === 429) {
         console.warn(
-          `[nutrition/providers] USDA FDC search rate-limited (429) for query "${query}" ` +
-            `(dataType=${dataType}); falling back instead of retrying.`,
+          `[nutrition/providers] USDA FDC search rate-limited (429) for query "${query}"; ` +
+            `falling back instead of retrying.`,
         );
         return { foods: [], rateLimited: true };
       }
-      console.warn(
-        `[nutrition/providers] USDA FDC search returned ${resp.status} for query "${query}" ` +
-          `(dataType=${dataType})`,
-      );
+      console.warn(`[nutrition/providers] USDA FDC search returned ${resp.status} for query "${query}"`);
       return { foods: [], rateLimited: false };
     }
     const data: any = await resp.json();
@@ -298,13 +294,9 @@ async function searchUsdaOnce(
   queryTokens: Set<string>,
 ): Promise<UsdaSearchOutcome> {
   try {
-    const [stable, survey] = await Promise.all([
-      fetchUsdaFoods(query, apiKey, USDA_STABLE_DATATYPES),
-      fetchUsdaFoods(query, apiKey, USDA_SURVEY_DATATYPE),
-    ]);
-    const foods: any[] = [...stable.foods, ...survey.foods];
+    const { foods, rateLimited } = await fetchUsdaFoods(query, apiKey);
     if (foods.length === 0) {
-      return { results: [], rateLimited: stable.rateLimited || survey.rateLimited };
+      return { results: [], rateLimited };
     }
     const mapped: Array<{ result: FoodSearchResult; score: number }> = [];
     for (const food of foods) {
