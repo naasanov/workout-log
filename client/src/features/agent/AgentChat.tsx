@@ -60,9 +60,9 @@ import {
   fetchResolutions,
   saveResolution,
   getTodayLocalDate,
-  getLocalTimeHHmm,
   CONVERSATION_LIST_KEY,
 } from './api';
+import { getLocalTimeHHmm } from '../../utils/localDate';
 import type { StoredChatMessage, ProposalResolution } from './api';
 import type { AgentChatContext, ProposalResolutionState } from './registry';
 // Built-in generic tool renderers self-register on import.
