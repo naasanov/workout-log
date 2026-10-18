@@ -75,6 +75,15 @@ test('nutrition prompt asks (#411) and web-search fallback (#414)', () => {
   assert.match(p, /ALWAYS estimate quantities from the photo/);
 });
 
+test('nutrition prompt covers every mentioned item and never drops silently (#420)', () => {
+  const { NUTRITION_DOMAIN_PROMPT: p } = db.requireTs('services/agent/prompt/nutrition.ts');
+  assert.match(p, /Every food or drink the user mentions .* MUST be covered by a `propose_entry` in that same turn/);
+  assert.match(p, /compose a best estimate from standard components/);
+  assert.match(p, /a drink alongside a meal/);
+  assert.match(p, /Dropped item:.*MUST name that item and why/);
+  assert.match(p, /Never leave an item out silently/);
+});
+
 test('POST /api/chat today validation (#369)', async (t) => {
   const available = await db.isDbReachable();
   if (!available) {

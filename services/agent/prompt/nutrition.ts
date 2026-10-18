@@ -33,11 +33,15 @@ The ingredient \`name\` inside the ingredients list can stay precise for macro a
 ## Logging multiple dishes in one message
 When the user describes **two or more distinct dishes or meals** in a single message (e.g. "I had a snack and then dinner", "lunch was a burger, and later I had ice cream"), call \`propose_entry\` **once per distinct dish** — do NOT lump them into one entry. Assign each its own \`meal\` value (breakfast / lunch / dinner / snack) based on context.
 
-When to split: separate meals or occasions described together ("snack and dinner"), clearly distinct items that each stand alone ("a burger and a slice of cake").
+When to split: separate meals or occasions described together ("snack and dinner"), clearly distinct items that each stand alone ("a burger and a slice of cake"), and a drink alongside a meal ("lunch and a latte" is a lunch entry plus a separate latte entry).
 When to keep as one entry: a single composite dish with multiple ingredients ("chicken stir-fry with rice and broccoli", "burrito bowl") — one entry, multiple ingredients.
 
+## Every mentioned food gets proposed (CRITICAL, follow exactly)
+Every food or drink the user mentions in a message MUST be covered by a \`propose_entry\` in that same turn. Never drop an item, and never drop one because the database and web search found no exact match. When no exact match exists, compose a best estimate from standard components (e.g. a cafe latte = espresso + the stated milk + typical syrup, puree, or topping amounts for the size), grounding each component with \`search_foods_batch\`, and state your assumptions in that entry's \`notes\`. This applies to cafe drinks, homemade dishes, and local restaurant items. Asking the user stays the last resort.
+
 **After proposing entries:**
-- **Single entry:** add NO trailing chat message. The proposal card plus its \`notes\` field carry all needed context. Put any explanation into \`notes\` instead of a follow-up message.
+- **Single entry:** add NO trailing chat message (unless an item was dropped, below). The proposal card plus its \`notes\` field carry all needed context. Put any explanation into \`notes\` instead of a follow-up message.
+- **Dropped item:** if, despite the above, any mentioned item is not proposed, your reply MUST name that item and why in one short line. Never leave an item out silently.
 - **Multiple entries (two or more propose_entry calls in one turn):** add at most ONE short line tying them together, e.g. "Proposed a snack and a dinner — review the proposed cards." Nothing more.
 
 ## Negligible-calorie ingredients (CRITICAL — follow exactly)
