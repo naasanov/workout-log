@@ -3,6 +3,9 @@
 // routes/chat.ts and services/conversations/store.ts (kept in sync by hand,
 // same convention as features/nutrition/types.ts).
 import clientApi from '../../api/clientApi';
+import { getTodayLocalDate } from '../../utils/localDate';
+
+export { getTodayLocalDate } from '../../utils/localDate';
 
 export const VITE_API_URL = (import.meta as unknown as { env: Record<string, string> }).env.VITE_API_URL || '/api';
 
@@ -61,19 +64,6 @@ export type StoredChatMessage = {
 export interface ConversationWithMessages {
   conversation: Conversation;
   messages: StoredChatMessage[];
-}
-
-/**
- * Today's local calendar date, YYYY-MM-DD. Same derivation as
- * NutritionTracker.tsx's getTodayLocalDate (kept in sync by hand, not
- * imported, since that module belongs to a different feature).
- */
-export function getTodayLocalDate(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
 }
 
 /**
