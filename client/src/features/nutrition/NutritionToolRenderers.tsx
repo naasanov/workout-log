@@ -13,6 +13,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCreateEntry, useCreateCustomFood, nutritionKeys } from './api';
 import EntryEditor from './EntryEditor';
 import MealBuilder from './MealBuilder';
+import { getTodayLocalDate } from '../../utils/localDate';
 import { registerToolRenderer } from '../agent/registry';
 import type { ToolRendererProps } from '../agent/registry';
 import type {
@@ -34,7 +35,7 @@ function rawArgsOf<T>(part: ToolRendererProps['part']): T {
 // is input-available/output-available (see ProcessTimeline's classifier),
 // so `rawArgs` always has real proposal data to show.
 function ProposeEntryRenderer({ part, context, resolve }: ToolRendererProps) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTodayLocalDate();
   // rawArgs is safe to read before output-available (rawArgsOf falls back to
   // the tool's input), so the proposal's own date can drive the create/invalidate
   // hook below without breaking the rules of hooks.

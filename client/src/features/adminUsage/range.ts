@@ -7,6 +7,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function computeRange(days: number): { from: string; to: string } {
   const now = Date.now();
+  // The admin usage endpoint buckets days by UTC (DATE_FORMAT on created_at), so UTC is deliberate.
   const utcDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
   return { from: utcDay(now - (days - 1) * DAY_MS), to: utcDay(now) };
 }

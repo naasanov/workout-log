@@ -3,6 +3,7 @@ import type { KeyboardEvent } from 'react';
 import { format } from 'date-fns';
 import clientApi from '../api/clientApi';
 import useAuth from '../hooks/useAuth';
+import { getTodayLocalDate, parseLocalDate } from '../utils/localDate';
 import styles from '../styles/HabitTracker.module.scss';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Minus, Plus, X, MoreVertical, ChevronDown } from 'lucide-react';
@@ -19,15 +20,6 @@ type TallyRow = {
   range_start: string | null;
   range_end: string | null;
 };
-
-// Returns today's local date as YYYY-MM-DD
-function getTodayLocalDate(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
 
 // Returns the current local time as HH:mm
 function getNowLocalTime(): string {
@@ -91,10 +83,7 @@ function TallyMarks({ count }: { count: number }) {
 function formatDateLabel(dateStr: string): string {
   const today = getTodayLocalDate();
   if (dateStr === today) return 'Today';
-  // dateStr is YYYY-MM-DD — parse as local date
-  const [year, month, day] = dateStr.split('-').map(Number);
-  const d = new Date(year, month - 1, day);
-  return format(d, 'MMM d, yyyy');
+  return format(parseLocalDate(dateStr), 'MMM d, yyyy');
 }
 
 // Converts "HH:mm" or "HH:mm:ss" (24h) to "h:mm AM/PM" for display
@@ -642,9 +631,8 @@ function HabitTracker() {
 
     const filled: TallyRow[] = [];
     // Walk from today back to minDate
-    const [minY, minM, minD] = minDate.split('-').map(Number);
-    const cursor = new Date(new Date(today + 'T00:00:00').getTime());
-    const stopDate = new Date(minY, minM - 1, minD);
+    const cursor = parseLocalDate(today);
+    const stopDate = parseLocalDate(minDate);
     while (cursor >= stopDate) {
       const cy = cursor.getFullYear();
       const cm = String(cursor.getMonth() + 1).padStart(2, '0');

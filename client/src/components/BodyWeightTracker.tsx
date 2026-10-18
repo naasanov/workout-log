@@ -6,6 +6,7 @@ import clientApi from '../api/clientApi';
 import useAuth from '../hooks/useAuth';
 import useHorizontalPan from '../hooks/useHorizontalPan';
 import ConfirmModal from './ConfirmModal';
+import { getTodayLocalDate, localDateToISO } from '../utils/localDate';
 import styles from '../styles/BodyWeightTracker.module.scss';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -82,7 +83,7 @@ function loadStoredRangeKey(): RangeKey {
 
 function BodyWeightTracker() {
   const [weight, setWeight] = useState('');
-  const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  const [date, setDate] = useState(getTodayLocalDate);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [rangeKey, setRangeKey] = useState<RangeKey>(loadStoredRangeKey);
   const [panOffsetMs, setPanOffsetMs] = useState(0);
@@ -105,7 +106,7 @@ function BodyWeightTracker() {
   const addMutation = useMutation({
     mutationFn: async ({ weight, date }: { weight: string; date: string }): Promise<BodyWeightEntry> => {
       const body: { weight: number; date?: string } = { weight: Number(weight) };
-      if (date) body.date = new Date(date).toISOString();
+      if (date) body.date = localDateToISO(date);
       const res = await clientApi.post('/body-weight', body);
       return res.data.data;
     },
@@ -113,13 +114,13 @@ function BodyWeightTracker() {
       const newEntry: BodyWeightEntry = {
         id: data.id,
         weight: Number(weight),
-        date: date ? new Date(date).toISOString() : new Date().toISOString(),
+        date: date ? localDateToISO(date) : new Date().toISOString(),
       };
       queryClient.setQueryData<BodyWeightEntry[]>(['body-weight'], (prev) =>
         [...(prev ?? []), newEntry].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       );
       setWeight('');
-      setDate(format(new Date(), 'yyyy-MM-dd'));
+      setDate(getTodayLocalDate());
     },
   });
 

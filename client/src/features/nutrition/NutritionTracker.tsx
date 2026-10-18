@@ -8,26 +8,10 @@ import ConfirmModal from '../../components/ConfirmModal';
 import type { EntryEditorMode, EntryRow, Meal } from './types';
 import { MEALS, MEAL_LABELS } from './types';
 import styles from './NutritionTracker.module.scss';
+import { getTodayLocalDate, shiftLocalDate as shiftDate } from '../../utils/localDate';
 import { MoreVertical, ChevronLeft, ChevronRight, Target, BookMarked, Undo2 } from 'lucide-react';
 
 // ---- Helpers ----
-
-function getTodayLocalDate(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-function shiftDate(dateStr: string, days: number): string {
-  const [y, mo, d] = dateStr.split('-').map(Number);
-  const dt = new Date(y, mo - 1, d + days);
-  const ny = dt.getFullYear();
-  const nm = String(dt.getMonth() + 1).padStart(2, '0');
-  const nd = String(dt.getDate()).padStart(2, '0');
-  return `${ny}-${nm}-${nd}`;
-}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
