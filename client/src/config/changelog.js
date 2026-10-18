@@ -11,6 +11,17 @@
 
 export const CHANGELOG = [
   {
+    date: '2026-10-18',
+    title: 'Fewer questions from Peak, and body weight on the right day',
+    items: [
+      { text: 'Body weight entries save on the day you picked, instead of the day before', issues: [413] },
+      { text: 'When Peak can’t find the exact product, like a specific protein shake flavor, it looks up the official nutrition label online instead of giving up', issues: [414] },
+      { text: 'Peak asks fewer questions. It estimates portions itself, especially from photos, and works out the meal from the time of day', issues: [411] },
+      { text: 'Keep typing while Peak is replying. Your next message waits above the box and sends as soon as the reply finishes', issues: [412] },
+      'Peak is better at recognizing branded foods you’ve logged before',
+    ],
+  },
+  {
     date: '2026-10-04',
     title: 'Meet Peak, and a tidier food review',
     items: [
