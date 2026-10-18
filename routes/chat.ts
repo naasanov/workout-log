@@ -55,6 +55,7 @@ function isValidChatContext(context: unknown): context is ChatContext {
 // Matches the client's local date param on GET /active (#354). Same bare-date
 // shape isValidChatContext and routes/admin.ts already validate against.
 const BARE_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const LOCAL_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 // Generous sanity bound around real-world UTC offsets (Kiribati at UTC+14 is
 // -840, Baker Island at UTC-12 is +720) -- anything outside this is treated
@@ -297,13 +298,14 @@ router.post('/conversations/:id/resolutions', async (req, res): Promise<any> => 
 // the agent what tab/date/resource the user is currently looking at.
 router.post('/', async (req, res): Promise<any> => {
   const { uuid }: User = res.locals.user;
-  const { messages, context, effort, deniedProposalCount, today } = req.body as {
+  const { messages, context, effort, deniedProposalCount, today, localTime } = req.body as {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     messages: any[];
     context?: ChatContext;
     effort?: 'none' | 'minimal' | 'low' | 'medium' | 'high';
     deniedProposalCount?: number;
     today?: unknown;
+    localTime?: unknown;
   };
 
   if (!Array.isArray(messages)) {
@@ -314,6 +316,10 @@ router.post('/', async (req, res): Promise<any> => {
   }
   if (today !== undefined && (typeof today !== 'string' || !BARE_DATE.test(today))) {
     return res.status(400).json({ message: 'today must be a YYYY-MM-DD date string' });
+  }
+
+  if (localTime !== undefined && (typeof localTime !== 'string' || !LOCAL_TIME.test(localTime))) {
+    return res.status(400).json({ message: 'localTime must be an HH:mm 24-hour time string' });
   }
 
   // The client's local date, with the server's UTC date as a fallback (wrong in
@@ -346,6 +352,7 @@ router.post('/', async (req, res): Promise<any> => {
     const result = await streamChat({
       userUuid: uuid,
       today: resolvedToday,
+      localTime: typeof localTime === 'string' ? localTime : undefined,
       selectedDate,
       tab: context?.tab,
       focusedResource: context?.focusedResource,

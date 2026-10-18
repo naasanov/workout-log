@@ -45,6 +45,36 @@ test('buildVolatileContext (#369)', async (t) => {
   });
 });
 
+test('buildVolatileContext localTime (#411)', async (t) => {
+  const { buildVolatileContext } = db.requireTs('services/agent/prompt/context.ts');
+
+  await t.test('renders a USER LOCAL TIME line under the date when given', () => {
+    const block = buildVolatileContext(volatileInput({ localTime: '13:05' }));
+    assert.match(block, /^TODAY'S DATE: 2026-09-17\nUSER LOCAL TIME: 13:05\n/);
+  });
+
+  await t.test('omits the line when absent', () => {
+    assert.ok(!buildVolatileContext(volatileInput()).includes('USER LOCAL TIME'));
+  });
+
+  await t.test('local time lives only in the volatile tail of the system prompt', () => {
+    const { buildSystemPrompt } = db.requireTs('services/agent/prompt/index.ts');
+    const withTime = buildSystemPrompt({ uncEnabled: false, userInstructions: null, ...volatileInput({ localTime: '13:05' }) });
+    const without = buildSystemPrompt({ uncEnabled: false, userInstructions: null, ...volatileInput() });
+    const cut = without.indexOf("TODAY'S DATE");
+    assert.equal(withTime.slice(0, cut), without.slice(0, cut), 'stable prefix is unchanged by localTime');
+  });
+});
+
+test('nutrition prompt asks (#411) and web-search fallback (#414)', () => {
+  const { NUTRITION_DOMAIN_PROMPT: p } = db.requireTs('services/agent/prompt/nutrition.ts');
+  assert.ok(!p.includes('say so and ask the user'));
+  assert.ok(!/based on context or ask/.test(p));
+  assert.match(p, /near-miss counts as no match/);
+  assert.match(p, /LAST resort/);
+  assert.match(p, /ALWAYS estimate quantities from the photo/);
+});
+
 test('POST /api/chat today validation (#369)', async (t) => {
   const available = await db.isDbReachable();
   if (!available) {
@@ -109,6 +139,26 @@ test('POST /api/chat today validation (#369)', async (t) => {
     const { status, body } = await post('/', user, {
       messages: [],
       today: '2026-09-17',
+      context: { selectedDate: 'not-a-date' },
+    });
+    assert.equal(status, 400);
+    assert.equal(body.message, 'context must describe { tab?, selectedDate?, focusedResource? }');
+  });
+
+  await t.test('rejects a malformed or non-string localTime', async () => {
+    const user = await createUser();
+    for (const localTime of ['25:00', '1:05', '13:5', 'noon', 1305]) {
+      const { status, body } = await post('/', user, { messages: [], localTime });
+      assert.equal(status, 400, String(localTime));
+      assert.equal(body.message, 'localTime must be an HH:mm 24-hour time string');
+    }
+  });
+
+  await t.test('a well-formed localTime passes validation and reaches the context check', async () => {
+    const user = await createUser();
+    const { status, body } = await post('/', user, {
+      messages: [],
+      localTime: '13:05',
       context: { selectedDate: 'not-a-date' },
     });
     assert.equal(status, 400);

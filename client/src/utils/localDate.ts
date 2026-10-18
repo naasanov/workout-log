@@ -9,6 +9,11 @@ export function getTodayLocalDate(): string {
   return format(new Date(), DATE_FORMAT);
 }
 
+/** The current local wall-clock time as 24-hour HH:mm. */
+export function getLocalTimeHHmm(): string {
+  return format(new Date(), 'HH:mm');
+}
+
 /** Formats a Date's local calendar day as YYYY-MM-DD. */
 export function toLocalDateString(date: Date): string {
   return format(date, DATE_FORMAT);

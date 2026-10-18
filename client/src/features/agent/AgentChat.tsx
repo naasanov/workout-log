@@ -60,6 +60,7 @@ import {
   fetchResolutions,
   saveResolution,
   getTodayLocalDate,
+  getLocalTimeHHmm,
   CONVERSATION_LIST_KEY,
 } from './api';
 import type { StoredChatMessage, ProposalResolution } from './api';
@@ -759,7 +760,7 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
     // `context.selectedDate` is only the day being viewed, when a tab has one.
     await sendMessage(
       { parts } as Parameters<typeof sendMessage>[0],
-      { body: { context, deniedProposalCount, today: getTodayLocalDate() } },
+      { body: { context, deniedProposalCount, today: getTodayLocalDate(), localTime: getLocalTimeHHmm() } },
     );
   }, [pendingDenialCount, context, sendMessage]);
 
