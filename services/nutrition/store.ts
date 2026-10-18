@@ -424,18 +424,35 @@ export async function recentEntries(userUuid: string, days: number): Promise<Ent
   return entries;
 }
 
-/** FULLTEXT/LIKE search over past entry names; returns up to 10 matching entries with ingredients. */
+/**
+ * Past entries where every query token (2+ chars, case-insensitive) appears in the
+ * entry name or in any of its ingredient names, newest first, up to 10 with ingredients.
+ * Ingredient names carry the branded identity that colloquial entry names drop.
+ * Tokens match as substrings, so "corepower" does not match "core power".
+ */
 export async function searchFoodHistory(userUuid: string, query: string): Promise<EntryRow[]> {
-  const likePattern = `%${query.replace(/[%_\\]/g, '\\$&')}%`;
+  const trimmed = query.trim();
+  const split = trimmed.split(/\s+/).filter((tok) => tok.length >= 2);
+  const tokens = split.length > 0 ? split : trimmed ? [trimmed] : [];
+  if (tokens.length === 0) return [];
+
+  const tokenClause = `(name LIKE ? OR EXISTS (
+           SELECT 1 FROM food_entry_ingredients i
+           WHERE i.entry_id = food_entries.id AND i.name LIKE ?))`;
+  const params: string[] = [userUuid];
+  for (const tok of tokens) {
+    const pattern = `%${tok.replace(/[%_\\]/g, '\\$&')}%`;
+    params.push(pattern, pattern);
+  }
   const [entryRows] = await pool.query<RowDataPacket[]>(
     `SELECT id, BIN_TO_UUID(user_uuid) as user_uuid, date, logged_at, meal, name, source,
             calories, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg, barcode
      FROM food_entries
      WHERE user_uuid = UUID_TO_BIN(?)
-       AND name LIKE ?
+       AND ${tokens.map(() => tokenClause).join(' AND ')}
      ORDER BY date DESC, logged_at DESC
      LIMIT 10`,
-    [userUuid, likePattern],
+    params,
   );
 
   const entries: EntryRow[] = [];

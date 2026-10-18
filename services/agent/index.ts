@@ -51,6 +51,8 @@ export interface ChatOptions {
    * Callers without a client date (apiV1, nutrition routes) omit it and get `selectedDate`.
    */
   today?: string;
+  /** HH:mm (24h) client-local time, used to infer the meal. Omitted by callers without a client clock. */
+  localTime?: string;
   /** ISO-8601 date string: YYYY-MM-DD — the day the user is currently viewing */
   selectedDate: string;
   /** Name of the client tab the user is currently on (e.g. "workouts", "nutrition"). */
@@ -181,6 +183,7 @@ function buildBarcodeToolResultMessages(
 export async function streamChat({
   userUuid,
   today,
+  localTime,
   selectedDate,
   tab,
   focusedResource,
@@ -219,6 +222,7 @@ export async function streamChat({
     uncEnabled,
     userInstructions,
     today: resolvedToday,
+    localTime,
     selectedDate,
     tab,
     focusedResource,

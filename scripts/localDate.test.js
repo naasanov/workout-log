@@ -6,6 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   getTodayLocalDate,
+  getLocalTimeHHmm,
   toLocalDateString,
   parseLocalDate,
   shiftLocalDate,
@@ -34,4 +35,8 @@ test('shiftLocalDate crosses month, year, and DST boundaries by calendar day', (
 
 test('getTodayLocalDate matches the local calendar day', () => {
   assert.equal(getTodayLocalDate(), toLocalDateString(new Date()));
+});
+
+test('getLocalTimeHHmm is zero-padded 24-hour HH:mm', () => {
+  assert.match(getLocalTimeHHmm(), /^([01]\d|2[0-3]):[0-5]\d$/);
 });

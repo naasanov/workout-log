@@ -220,7 +220,7 @@ export const nutritionTools: ToolModule = ({ userUuid, selectedDate, flags }: To
     /** Search the user's own food log history. */
     search_food_history: tool({
       description:
-        "Search the user's past food log entries by name. Useful to reuse a previous entry's ingredient breakdown (including the serving size) instead of re-searching the food database.",
+        "Search the user's past food log entries by name or ingredient name. Every word of the query must appear in the entry or one of its ingredients (case-insensitive), so use distinctive words such as brand and flavor. Useful to reuse a previous entry's ingredient breakdown (including the serving size) instead of re-searching the food database.",
       inputSchema: z.object({
         query: z.string().describe('Food name or keyword to search for in past entries'),
       }),

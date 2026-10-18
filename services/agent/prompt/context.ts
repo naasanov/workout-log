@@ -19,6 +19,8 @@ export interface ConfirmedResult {
 export interface VolatileContextInput {
   /** YYYY-MM-DD, the user's real local date. Relative days resolve against it, never `selectedDate`. */
   today: string;
+  /** HH:mm (24h), the user's real local time; used to infer the meal. Omitted by callers without a client clock. */
+  localTime?: string;
   /** ISO-8601 date string: YYYY-MM-DD — the day the user is currently viewing */
   selectedDate: string;
   /** Name of the client tab the user is currently on (e.g. "workouts", "nutrition"). */
@@ -60,6 +62,7 @@ function summariseEntries(entries: VolatileContextInput['recentEntries']): strin
 /** Assemble the volatile tail of the system prompt from this request's context. */
 export function buildVolatileContext({
   today,
+  localTime,
   selectedDate,
   tab,
   focusedResource,
@@ -76,7 +79,7 @@ export function buildVolatileContext({
   const totalsLabel = viewingOtherDay ? `${selectedDate} so far` : `Today (${today}) so far`;
 
   let block = `\
-TODAY'S DATE: ${today}${viewingOtherDay ? `\nVIEWING DAY: ${selectedDate}` : ''}
+TODAY'S DATE: ${today}${localTime ? `\nUSER LOCAL TIME: ${localTime}` : ''}${viewingOtherDay ? `\nVIEWING DAY: ${selectedDate}` : ''}
 
 ## User context
 **Goals:** ${goalsLine || 'not set'}

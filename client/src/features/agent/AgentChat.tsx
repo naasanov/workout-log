@@ -62,6 +62,7 @@ import {
   getTodayLocalDate,
   CONVERSATION_LIST_KEY,
 } from './api';
+import { getLocalTimeHHmm } from '../../utils/localDate';
 import type { StoredChatMessage, ProposalResolution } from './api';
 import type { AgentChatContext, ProposalResolutionState } from './registry';
 // Built-in generic tool renderers self-register on import.
@@ -759,7 +760,7 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
     // `context.selectedDate` is only the day being viewed, when a tab has one.
     await sendMessage(
       { parts } as Parameters<typeof sendMessage>[0],
-      { body: { context, deniedProposalCount, today: getTodayLocalDate() } },
+      { body: { context, deniedProposalCount, today: getTodayLocalDate(), localTime: getLocalTimeHHmm() } },
     );
   }, [pendingDenialCount, context, sendMessage]);
 

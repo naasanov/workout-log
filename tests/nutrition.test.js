@@ -785,4 +785,42 @@ test('nutrition routes + store', async (t) => {
     });
     assert.equal(status, 400);
   });
+
+  await t.test('searchFoodHistory matches every token against entry name OR ingredient names, scoped to the user', async () => {
+    const user = await createUser();
+    const other = await createUser();
+    const shake = await store.createEntry(user.uuid, entryBody({
+      localDate: '2024-01-01',
+      name: 'Strawberry protein shake',
+      ingredients: [ing({ name: 'Fairlife Core Power Elite Strawberry protein shake 42G' })],
+    }));
+    await store.createEntry(user.uuid, entryBody({
+      localDate: '2024-01-02',
+      name: 'Chocolate protein shake',
+      ingredients: [ing({ name: 'Fairlife Core Power Elite Chocolate protein shake 42G' })],
+    }));
+    await store.createEntry(other.uuid, entryBody({
+      name: 'Strawberry protein shake',
+      ingredients: [ing({ name: 'Fairlife Core Power Elite Strawberry protein shake 42G' })],
+    }));
+
+    const hits = await store.searchFoodHistory(user.uuid, 'Fairlife Core Power 42g strawberry');
+    assert.deepEqual(hits.map((h) => h.id), [shake.id]);
+    assert.equal(hits[0].ingredients.length, 1);
+
+    // Tokens may be split across the entry name and ingredient names.
+    assert.equal((await store.searchFoodHistory(user.uuid, 'strawberry fairlife')).length, 1);
+    // A token present nowhere rules the entry out.
+    assert.equal((await store.searchFoodHistory(user.uuid, 'fairlife vanilla')).length, 0);
+    // Whole-phrase name search and LIKE wildcard escaping still hold.
+    assert.equal((await store.searchFoodHistory(user.uuid, 'protein shake')).length, 2);
+    assert.equal((await store.searchFoodHistory(user.uuid, '%')).length, 0);
+    assert.equal((await store.searchFoodHistory(user.uuid, '   ')).length, 0);
+    // Newest first.
+    const both = await store.searchFoodHistory(user.uuid, 'core power');
+    assert.deepEqual(both.map((h) => h.date), ['2024-01-02', '2024-01-01']);
+    // Batch wrapper groups per query.
+    const batch = await store.searchFoodHistoryBatch(user.uuid, ['strawberry', 'chocolate']);
+    assert.deepEqual(batch.map((b) => [b.query, b.results.length]), [['strawberry', 1], ['chocolate', 1]]);
+  });
 });
