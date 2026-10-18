@@ -58,6 +58,8 @@ function titleCaseToken(token: string, atStart: boolean): string {
     if ((prev === "'" || prev === '’') && CONTRACTIONS.has(run.toUpperCase())) {
       return run.toLowerCase();
     }
+    // Scottish/Irish "Mc" prefixes keep their inner capital (MCDONALD'S -> McDonald's).
+    if (/^mc[a-z]{2,}$/i.test(run)) return 'Mc' + run[2].toUpperCase() + run.slice(3).toLowerCase();
     return run[0].toUpperCase() + run.slice(1).toLowerCase();
   });
   return lead + cased + trail;

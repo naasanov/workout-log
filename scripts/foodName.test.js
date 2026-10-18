@@ -31,6 +31,7 @@ test('hyphens and apostrophes', () => {
   assert.equal(n('SUGAR-FREE GUM'), 'Sugar-Free Gum');
   assert.equal(n("REESE'S PEANUT BUTTER CUPS"), "Reese's Peanut Butter Cups");
   assert.equal(n("MOTT'S APPLE SAUCE"), "Mott's Apple Sauce");
+  assert.equal(n("MCDONALD'S BIG MAC"), "McDonald's Big Mac");
 });
 
 test('small words are lowercase except at the start or after comma or parenthesis', () => {
