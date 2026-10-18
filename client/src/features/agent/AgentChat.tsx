@@ -51,6 +51,7 @@ import type { UIMessage } from 'ai';
 import ChatMessage from './ChatMessage';
 import ErrorBubble, { isDisconnectError } from './ErrorBubble';
 import { useAutoGrow } from './useAutoGrow';
+import { useMessageQueue, mergeQueued } from './useMessageQueue';
 import {
   VITE_API_URL,
   getAccessToken,
@@ -66,7 +67,7 @@ import type { AgentChatContext, ProposalResolutionState } from './registry';
 // Built-in generic tool renderers self-register on import.
 import './proposals/MutationProposalCard';
 import styles from './AgentChat.module.scss';
-import { ChevronDown, Plus, Square, Send, MessageSquare, RefreshCw, Settings } from 'lucide-react';
+import { ChevronDown, Plus, Square, Send, MessageSquare, RefreshCw, Settings, X, Paperclip } from 'lucide-react';
 import useIsMobile from '../../hooks/useIsMobile';
 import AgentInstructionsModal from './AgentInstructionsModal';
 
@@ -328,6 +329,9 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
   const loadedConversationIdRef = useRef<number | null>(lastKnownId);
   const resolutionsConversationIdRef = useRef<number | null>(lastKnownId);
 
+  const messageQueue = useMessageQueue();
+  const clearQueue = messageQueue.clear;
+
   // ---- useChat setup ----
   const { messages, setMessages, sendMessage, status, stop, error: chatError, clearError } = useChat({
     transport: new DefaultChatTransport({
@@ -444,6 +448,7 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
         loadedConversationIdRef.current = conversation.id;
         resolutionsConversationIdRef.current = conversation.id;
         setConversationId(conversation.id);
+        clearQueue();
         localStorage.setItem(LS_LAST_CONVERSATION_ID, String(conversation.id));
         setMessages(uiMessages);
         saveMessagesForConversation(conversation.id, uiMessages);
@@ -465,7 +470,7 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
       // Silently fall back to the localStorage cache
       return null;
     }
-  }, [setMessages, refreshResolutionsFromServer]);
+  }, [setMessages, refreshResolutionsFromServer, clearQueue]);
 
   // ---- Poll for an in-progress server run ----
   const [pollingActive, setPollingActive] = useState(false);
@@ -724,11 +729,15 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
   }, [expanded]);
 
   // ---- Send ----
-  const canSend = (text.trim().length > 0 || !!composerPlugin?.hasPendingContent) && !isStreaming;
+  // While a reply streams, send queues instead of blocking. A non-empty queue
+  // alone also enables send, so an errored turn's queue can be sent manually.
+  const queuedCount = messageQueue.items.length;
+  const hasComposerContent = text.trim().length > 0 || !!composerPlugin?.hasPendingContent;
+  const canSend = hasComposerContent || (queuedCount > 0 && !isStreaming);
 
-  const handleSend = useCallback(async () => {
-    if (!canSend) return;
-
+  // Sends one user message. Context, today and the denial count are read at
+  // call time, so queued messages pick up the state at actual send time.
+  const deliver = useCallback(async (msgText: string, extraParts: AgentMessagePart[]) => {
     setExpanded(true);
     isNearBottomRef.current = true; // force scroll to bottom on send
     setPollingActive(false); // this client will stream live — no poll/indicator
@@ -741,19 +750,6 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
     const deniedProposalCount = pendingDenialCount;
     if (deniedProposalCount > 0) setPendingDenialCount(0);
 
-    let extraParts: AgentMessagePart[] = [];
-    try {
-      extraParts = (await composerPlugin?.takeAttachments?.()) ?? [];
-    } catch {
-      extraParts = [];
-    }
-
-    let msgText = text.trim();
-    if (!msgText && extraParts.length > 0) {
-      msgText = composerPlugin?.fallbackText?.(extraParts) ?? '';
-    }
-    setText('');
-
     const parts = [
       ...extraParts,
       ...(msgText ? [{ type: 'text' as const, text: msgText }] : []),
@@ -765,7 +761,51 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
       { parts } as Parameters<typeof sendMessage>[0],
       { body: { context, deniedProposalCount, today: getTodayLocalDate() } },
     );
-  }, [canSend, text, pendingDenialCount, context, sendMessage, composerPlugin]);
+  }, [pendingDenialCount, context, sendMessage]);
+
+  const handleSend = useCallback(async () => {
+    if (!canSend) return;
+
+    let extraParts: AgentMessagePart[] = [];
+    let msgText = text.trim();
+    if (hasComposerContent) {
+      try {
+        extraParts = (await composerPlugin?.takeAttachments?.()) ?? [];
+      } catch {
+        extraParts = [];
+      }
+      if (!msgText && extraParts.length > 0) {
+        msgText = composerPlugin?.fallbackText?.(extraParts) ?? '';
+      }
+      setText('');
+    }
+
+    if (isStreaming) {
+      // Attachments are captured now so the composer is free for the next message.
+      if (msgText || extraParts.length > 0) messageQueue.enqueue(msgText, extraParts);
+      return;
+    }
+
+    // Any leftover queue (errored turn) goes first, merged with this message.
+    const merged = mergeQueued([
+      ...messageQueue.take(),
+      { id: 0, text: msgText, attachments: extraParts },
+    ]);
+    await deliver(merged.text, merged.attachments);
+  }, [canSend, hasComposerContent, text, isStreaming, composerPlugin, messageQueue, deliver]);
+
+  // Sends the whole queue as one message once the turn has settled cleanly.
+  // Skipped while a recovery is in flight (watchdog stop, reconnect, poll) or
+  // after a real error; those keep the queue visible for manual send/removal.
+  const hardError = !!chatError && !isDisconnectError(chatError);
+  const flushBlocked = hardError || watchdogFired || pollingActive || isReconnecting;
+  useEffect(() => {
+    if (status !== 'ready' || flushBlocked || queuedCount === 0) return;
+    const merged = mergeQueued(messageQueue.take());
+    if (merged.text || merged.attachments.length > 0) {
+      deliver(merged.text, merged.attachments);
+    }
+  }, [status, flushBlocked, queuedCount, messageQueue, deliver]);
 
   const handleStop = useCallback(() => {
     stop();
@@ -789,6 +829,7 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
       setConversationId(conversation.id);
       localStorage.setItem(LS_LAST_CONVERSATION_ID, String(conversation.id));
       setMessages([]);
+      clearQueue();
       setResolutions(new Map());
       setPollingActive(false);
       clearError();
@@ -796,7 +837,7 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
     } catch {
       // best-effort — the user is still looking at their previous chat
     }
-  }, [setMessages, clearError]);
+  }, [setMessages, clearError, clearQueue]);
 
   // ---- Bottom sheet follows finger (continuous pointermove, snap on release) ----
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -1063,6 +1104,29 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
             zoom on focus). A composer plugin may add its own buttons above
             the textarea (see composerAttachRow). */}
         <div className={styles.composerWrap}>
+          {queuedCount > 0 && (
+            <ul className={styles.queueList}>
+              {messageQueue.items.map(item => (
+                <li key={item.id} className={styles.queueRow}>
+                  <span className={styles.queueText}>{item.text}</span>
+                  {item.attachments.length > 0 && (
+                    <span className={styles.queueAttach}>
+                      <Paperclip size={12} aria-hidden="true" />
+                      {item.attachments.length}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    className={styles.queueRemove}
+                    onClick={() => messageQueue.remove(item.id)}
+                    aria-label="Remove message"
+                  >
+                    <X size={14} aria-hidden="true" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           {composerPlugin?.renderAttachRow && (
             <div className={styles.composerAttachRow}>
               {composerPlugin.renderAttachRow}
@@ -1085,7 +1149,7 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
               aria-label="Chat message"
             />
 
-            {isStreaming ? (
+            {isStreaming && (
               <button
                 type="button"
                 className={`${styles.sendBtn} ${styles.stopBtn}`}
@@ -1094,17 +1158,16 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
               >
                 <Square className={styles.sendIcon} size={16} aria-hidden="true" />
               </button>
-            ) : (
-              <button
-                type="button"
-                className={styles.sendBtn}
-                onClick={handleSend}
-                disabled={!canSend}
-                aria-label="Send"
-              >
-                <Send className={styles.sendIcon} size={16} aria-hidden="true" />
-              </button>
             )}
+            <button
+              type="button"
+              className={styles.sendBtn}
+              onClick={handleSend}
+              disabled={!canSend}
+              aria-label={isStreaming ? 'Queue message' : 'Send'}
+            >
+              <Send className={styles.sendIcon} size={16} aria-hidden="true" />
+            </button>
           </div>
         </div>
       </div>

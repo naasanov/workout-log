@@ -829,6 +829,63 @@
   padding: 8px 12px 4px;
 }
 
+// Queued messages, faded rows directly above the input
+.queueList {
+  list-style: none;
+  margin: 0;
+  padding: 6px 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.queueRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 0 0 12px;
+  border-radius: 10px;
+  background-color: rgba(vars.$background, 0.4);
+  border: 1px solid rgba(vars.$surface-border, 0.4);
+  color: vars.$text;
+  opacity: 0.55;
+}
+
+.queueText {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.queueAttach {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+}
+
+// 36px tap target filling the row height
+.queueRemove {
+  flex-shrink: 0;
+  width: 40px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
 // Bottom row — textarea + send, full width
 .composer {
   display: flex;
