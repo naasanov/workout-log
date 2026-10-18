@@ -13,6 +13,7 @@
 //     (send a descriptive User-Agent). Return null when status:0 (not found).
 import { FoodSearchResult, FoodPortion } from '../../shared/nutrition';
 import { searchCustomFoods } from './store';
+import { normalizeFoodName } from './foodName';
 
 const USER_AGENT = 'WorkoutLogApp/1.0 (nutrition tracker; contact: admin@example.com)';
 
@@ -132,13 +133,13 @@ function mapUsdaFood(food: any, queryTokens: Set<string>): FoodSearchResult | nu
     // is literally "APPLE"), so suffix the brand to keep otherwise-identical rows
     // distinct. Skip when the brand is already in the description (avoids stutter
     // like "MOTTS APPLE (Mott's)"). Prefer brandOwner, fall back to brandName.
-    let name = originalName;
+    let name = normalizeFoodName(originalName);
     if (food.dataType === 'Branded') {
       const brand = [food.brandOwner, food.brandName]
         .map((b: unknown) => (typeof b === 'string' ? b.trim() : ''))
         .find((b: string) => b.length > 0);
       if (brand && !originalName.toLowerCase().includes(brand.toLowerCase())) {
-        name = `${originalName} (${brand})`;
+        name = `${name} (${normalizeFoodName(brand)})`;
       }
     }
 
@@ -194,15 +195,16 @@ async function searchOFF(query: string): Promise<FoodSearchResult[]> {
       try {
         const nameEn: string = (p.product_name_en ?? '').trim();
         const nameRaw: string = (p.product_name ?? '').trim();
-        const name = nameEn || nameRaw;
-        if (!name) continue;
+        const rawName = nameEn || nameRaw;
+        if (!rawName) continue;
+        const name = normalizeFoodName(rawName);
         // No English name available: skip if the raw name isn't even Latin-script text.
         if (!nameEn && NON_LATIN_SCRIPT.test(nameRaw)) continue;
 
         const n = p.nutriments ?? {};
         const calories = n['energy-kcal_100g'] ?? n['energy_100g'];
         if (calories === undefined || calories === null) continue;
-        const sourceRef = p.id ?? p._id ?? `off-${encodeURIComponent(name)}`;
+        const sourceRef = p.id ?? p._id ?? `off-${encodeURIComponent(rawName)}`;
         const result: FoodSearchResult = {
           name,
           source: 'off',
@@ -547,7 +549,7 @@ export async function lookupBarcode(code: string): Promise<FoodSearchResult | nu
     if (caloriesRaw === undefined || caloriesRaw === null) return null;
 
     const result: FoodSearchResult = {
-      name: name || `Product ${code}`,
+      name: normalizeFoodName(name) || `Product ${code}`,
       source: 'off',
       source_ref: code,
       per100g: {
