@@ -159,7 +159,7 @@ interface RestoredDraft {
   rows: EditorRow[];
 }
 
-const INGREDIENT_SOURCES: IngredientSource[] = ['usda', 'off', 'manual', 'custom', 'unc'];
+const INGREDIENT_SOURCES: IngredientSource[] = ['usda', 'off', 'manual', 'custom', 'unc', 'fatsecret'];
 
 // Rebuilds one IngredientInput from parsed JSON. The stored value may be
 // corrupt or from an older shape, so every field is type-checked before use

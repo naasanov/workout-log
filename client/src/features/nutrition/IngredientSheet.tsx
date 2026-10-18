@@ -118,7 +118,15 @@ function SearchDropdown({ query, onSelect }: SearchDropdownProps) {
               ? food.kind === 'meal'
                 ? 'Custom · Meal'
                 : 'Custom · Food'
-              : food.source.toUpperCase()}
+              : food.source === 'fatsecret'
+                ? <a
+                    className={styles.sourceLink}
+                    href="https://www.fatsecret.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={e => e.stopPropagation()}
+                  >fatsecret</a>
+                : food.source.toUpperCase()}
           </span>
         </li>
       ))}

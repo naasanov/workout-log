@@ -160,7 +160,7 @@ export const nutritionTools: ToolModule = ({ userUuid, selectedDate, flags }: To
      *  Returns per-100g macros + portions attached to the top result. */
     search_foods: tool({
       description:
-        'Search for a SINGLE food in the food database (USDA, Open Food Facts, and the user\'s saved custom foods/meals). Returns up to 5 candidates with per-100g macros, and portions (household serving sizes) attached to the top result. Results may include custom items (source: \'custom\') — prefer those when they match what the user describes. Use search_foods_batch instead when the user describes two or more foods at once.',
+        'Search for a SINGLE food in the food database (USDA, FatSecret, Open Food Facts, and the user\'s saved custom foods/meals). Returns up to about 7 candidates labeled by source: USDA is best for generic and raw foods, FatSecret for branded, packaged, and chain-restaurant items. Each has per-100g macros, or per_serving + serving_label when no gram weight is known (log those by serving_qty, grams null). Portions (household serving sizes) are attached to the top result of each source. Results may include custom items (source: \'custom\') — prefer those when they match what the user describes. Use search_foods_batch instead when the user describes two or more foods at once.',
       inputSchema: z.object({
         query: z.string().describe('Food name or description to search for, e.g. "banana" or "chicken breast raw"'),
       }),
@@ -170,7 +170,7 @@ export const nutritionTools: ToolModule = ({ userUuid, selectedDate, flags }: To
     /** Batched food search — one call for multi-item meals. Portions on top result per query. */
     search_foods_batch: tool({
       description:
-        'Search for multiple foods in one call. Use this when the user describes two or more distinct foods in a single message (e.g. "rice, chicken, and broccoli"). Searches the food database (USDA, Open Food Facts, and the user\'s saved custom foods/meals). Runs all searches in parallel and returns results grouped per query, with portions attached to the top result of each query.',
+        'Search for multiple foods in one call. Use this when the user describes two or more distinct foods in a single message (e.g. "rice, chicken, and broccoli"). Searches the food database (USDA, FatSecret, Open Food Facts, and the user\'s saved custom foods/meals); results are labeled by source. Runs all searches in parallel and returns results grouped per query, with portions attached to the top result of each query.',
       inputSchema: z.object({
         queries: z
           .array(z.string())
@@ -191,9 +191,9 @@ export const nutritionTools: ToolModule = ({ userUuid, selectedDate, flags }: To
     /** Household serving sizes for a food (USDA FDC or OFF). */
     get_portions: tool({
       description:
-        'Fetch household serving sizes (e.g. "1 medium", "1 cup") for a food from USDA FDC or OFF. Call this after search_foods to help convert a described portion to grams. Not needed if portions are already attached to the search result.',
+        'Fetch household serving sizes (e.g. "1 medium", "1 cup") for a food from USDA FDC, FatSecret, or OFF. Call this after search_foods to help convert a described portion to grams. Not needed if portions are already attached to the search result.',
       inputSchema: z.object({
-        source: z.enum(['usda', 'off']).describe('Data source the food came from'),
+        source: z.enum(['usda', 'off', 'fatsecret']).describe('Data source the food came from'),
         ref: z.string().describe('source_ref from a search_foods result'),
       }),
       execute: async ({ source, ref }) => providers.getPortions(source, ref),
@@ -207,7 +207,7 @@ export const nutritionTools: ToolModule = ({ userUuid, selectedDate, flags }: To
         items: z
           .array(
             z.object({
-              source: z.enum(['usda', 'off']).describe('Data source the food came from'),
+              source: z.enum(['usda', 'off', 'fatsecret']).describe('Data source the food came from'),
               ref: z.string().describe('source_ref from the search result'),
             }),
           )
@@ -420,7 +420,7 @@ export const nutritionTools: ToolModule = ({ userUuid, selectedDate, flags }: To
      */
     propose_entry: tool({
       description:
-        'Propose a structured food entry for the user to review and confirm. Call this once you are confident about food identity and portion. For a weight-based ingredient, include quantity, unit (a real household serving label), portions list, and grams = quantity × unit_grams. For a SERVING-BASIS ingredient with no gram weight (e.g. a UNC dining item), instead set serving_qty (how many servings) and serving_label (the serving as published, e.g. "½ cup"), leave grams null, and set source: \'unc\'. Every ingredient must set EXACTLY ONE basis — grams, OR serving_qty + serving_label — never both, never neither. Do NOT compute macros yourself: pass base (the per100g or per_serving record exactly as a search/barcode/UNC tool returned it) alongside grams or serving_qty, and the server scales it into calories/protein_g/carbs_g/fat_g. Only set those macro fields directly when you have no base record (a freeform estimate). The user will see an editor pre-filled with these values and can adjust before saving.',
+        'Propose a structured food entry for the user to review and confirm. Call this once you are confident about food identity and portion. For a weight-based ingredient, include quantity, unit (a real household serving label), portions list, and grams = quantity × unit_grams. For a SERVING-BASIS ingredient with no gram weight (e.g. a UNC dining item or a FatSecret result with per_serving), instead set serving_qty (how many servings) and serving_label (the serving as published, e.g. "½ cup"), leave grams null, and set source: \'unc\' or \'fatsecret\' to match the item. Every ingredient must set EXACTLY ONE basis — grams, OR serving_qty + serving_label — never both, never neither. Do NOT compute macros yourself: pass base (the per100g or per_serving record exactly as a search/barcode/UNC tool returned it) alongside grams or serving_qty, and the server scales it into calories/protein_g/carbs_g/fat_g. Only set those macro fields directly when you have no base record (a freeform estimate). The user will see an editor pre-filled with these values and can adjust before saving.',
       inputSchema: proposeEntryToolArgsSchema.extend({
         date: proposeEntryToolArgsSchema.shape.date.describe(
           "YYYY-MM-DD, the day this entry should be logged under. Omit for the day the user is currently viewing. Set it explicitly when the user names a different day ('yesterday', 'Monday', 'the 12th').",

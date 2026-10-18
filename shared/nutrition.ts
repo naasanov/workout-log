@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 export const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 export const ENTRY_SOURCES = ['manual', 'text', 'photo', 'barcode', 'mixed', 'custom'] as const;
-export const INGREDIENT_SOURCES = ['usda', 'off', 'manual', 'custom', 'unc'] as const;
+export const INGREDIENT_SOURCES = ['usda', 'off', 'manual', 'custom', 'unc', 'fatsecret'] as const;
 
 // Per-100g nutrient profile returned by food search / barcode lookup. Also reused
 // (despite the name) as the plain nutrient-bundle shape for `per_serving` below,
@@ -120,7 +120,7 @@ export const goalsSchema = z.object({
 export const foodSearchResultSchema = z
   .object({
     name: z.string(),
-    source: z.enum(['usda', 'off', 'custom', 'unc']),
+    source: z.enum(['usda', 'off', 'custom', 'unc', 'fatsecret']),
     source_ref: z.string(),
     // Weight basis: per-100g nutrients, for USDA/OFF/custom results. Nullable
     // because UNC results carry `per_serving` instead — see the refine below.
