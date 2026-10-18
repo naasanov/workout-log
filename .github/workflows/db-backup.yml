@@ -68,7 +68,7 @@ jobs:
           # --no-tablespaces: managed-host users lack the PROCESS privilege.
           # --column-statistics=0: 8.0 clients fail against 5.7 servers without it.
           flags=(--single-transaction --quick --no-tablespaces --routines --triggers --set-gtid-purged=OFF)
-          if mysqldump --help | grep -q -- '--column-statistics'; then
+          if mysqldump --help | grep -c -- '--column-statistics' > /dev/null; then
             flags+=(--column-statistics=0)
           fi
 
@@ -79,7 +79,8 @@ jobs:
 
           test -s "$file"
           gzip -t "$file"
-          gunzip -c "$file" | grep -q 'CREATE TABLE `food_entries`'
+          # grep -c reads to EOF; grep -q would exit early and SIGPIPE gunzip under pipefail.
+          gunzip -c "$file" | grep -c 'CREATE TABLE `food_entries`' > /dev/null
           gunzip -c "$file" | tail -n 5 | grep -q -- '-- Dump completed'
           echo "Dump verified: $(wc -c < "$file") bytes compressed"
 
