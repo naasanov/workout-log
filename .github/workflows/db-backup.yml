@@ -1,0 +1,106 @@
+name: Nightly database backup
+
+on:
+  schedule:
+    - cron: "17 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+env:
+  BACKUP_BUCKET: workout-log-db-backups
+  AWS_DEFAULT_REGION: auto
+  AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+  AWS_ENDPOINT_URL: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+  # Newer AWS CLI releases add default checksums that R2 does not accept.
+  AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+  AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Parse database URL
+        env:
+          JAWSDB_URL: ${{ secrets.JAWSDB_URL }}
+        run: |
+          set -euo pipefail
+          # Emits KEY=VALUE lines for the URL parts; nothing is echoed to the log.
+          parts=$(python3 - <<'PY'
+          import os, sys
+          from urllib.parse import urlparse, unquote
+          u = urlparse(os.environ["JAWSDB_URL"])
+          vals = {
+              "DB_HOST": u.hostname or "",
+              "DB_PORT": str(u.port or 3306),
+              "DB_USER": unquote(u.username or ""),
+              "DB_PASS": unquote(u.password or ""),
+              "DB_NAME": u.path.lstrip("/"),
+          }
+          if not all(vals.values()):
+              sys.exit("JAWSDB_URL is missing a host, user, password, or database name")
+          for k, v in vals.items():
+              print(f"{k}={v}")
+          PY
+          )
+          while IFS='=' read -r key value; do
+            echo "::add-mask::$value"
+            echo "$key=$value" >> "$GITHUB_ENV"
+          done <<< "$parts"
+
+      - name: Dump, verify, and encrypt
+        env:
+          BACKUP_CERT_PEM: ${{ secrets.BACKUP_CERT_PEM }}
+        run: |
+          set -euo pipefail
+          stamp=$(date -u +%Y-%m-%dT%H%MZ)
+          file="workout-log-${stamp}.sql.gz"
+          printf '%s\n' "$BACKUP_CERT_PEM" > "$RUNNER_TEMP/backup-cert.pem"
+
+          # --single-transaction: consistent InnoDB snapshot without locking tables.
+          # --no-tablespaces: managed-host users lack the PROCESS privilege.
+          # --column-statistics=0: 8.0 clients fail against 5.7 servers without it.
+          flags=(--single-transaction --quick --no-tablespaces --routines --triggers --set-gtid-purged=OFF)
+          if mysqldump --help | grep -q -- '--column-statistics'; then
+            flags+=(--column-statistics=0)
+          fi
+
+          mysqldump --version
+          MYSQL_PWD="$DB_PASS" mysqldump "${flags[@]}" \
+            -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" "$DB_NAME" \
+            | gzip -9 > "$file"
+
+          test -s "$file"
+          gzip -t "$file"
+          gunzip -c "$file" | grep -q 'CREATE TABLE `food_entries`'
+          gunzip -c "$file" | tail -n 5 | grep -q -- '-- Dump completed'
+          echo "Dump verified: $(wc -c < "$file") bytes compressed"
+
+          openssl cms -encrypt -binary -aes-256-cbc -outform DER \
+            -in "$file" -out "${file}.cms" "$RUNNER_TEMP/backup-cert.pem"
+          rm -f "$file" "$RUNNER_TEMP/backup-cert.pem"
+          test -s "${file}.cms"
+          echo "BACKUP_FILE=${file}.cms" >> "$GITHUB_ENV"
+
+      - name: Upload to R2
+        run: |
+          set -euo pipefail
+          aws --version
+          file="$BACKUP_FILE"
+          keys=("daily/${file}")
+          if [ "$(date -u +%d)" = "01" ]; then
+            keys+=("monthly/${file}")
+          fi
+          for key in "${keys[@]}"; do
+            aws s3 cp "$file" "s3://${BACKUP_BUCKET}/${key}"
+            aws s3api head-object --bucket "$BACKUP_BUCKET" --key "$key" \
+              --query ContentLength --output text
+          done
+          rm -f "$file"

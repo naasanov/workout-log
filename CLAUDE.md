@@ -108,6 +108,10 @@ user-visible change merges to master, add it there** in the same batch; nothing 
   unread dot fires only when `LATEST_CHANGELOG_DATE` is later than the date a user last saw
   (`client/src/components/Header.tsx`), so bullets added under an old date notify nobody.
 
+## Backups
+
+A nightly encrypted prod DB backup runs from `.github/workflows/db-backup.yml`; see `docs/backups.md` for restore steps and key handling.
+
 ## The agent
 
 `services/agent/` holds the AI chat. Its system prompt is assembled in **stability order**:
