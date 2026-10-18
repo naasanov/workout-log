@@ -14,6 +14,7 @@
 import { FoodSearchResult, FoodPortion } from '../../shared/nutrition';
 import { searchCustomFoods } from './store';
 import { normalizeFoodName } from './foodName';
+import { searchFatSecret, getFatSecretFood, getFatSecretPortions, applyDetail } from './fatsecret';
 
 const USER_AGENT = 'WorkoutLogApp/1.0 (nutrition tracker; contact: admin@example.com)';
 
@@ -328,8 +329,8 @@ async function searchUsdaOnce(
   }
 }
 
-/** USDA + OFF text search → ranked candidate foods with per-100g macros. */
-export async function searchFoods(query: string): Promise<FoodSearchResult[]> {
+/** USDA text search with OFF fallback → ranked candidate foods with per-100g macros. */
+async function searchUsdaOrOff(query: string): Promise<FoodSearchResult[]> {
   const apiKey = getUsdaApiKey();
   const queryTokens = tokenize(query);
 
@@ -349,9 +350,36 @@ export async function searchFoods(query: string): Promise<FoodSearchResult[]> {
   return results;
 }
 
-/** Fetch household serving portions for a food from USDA FDC or OFF.
+// Per-source result counts when both sources respond; kept small so agent tool results stay compact.
+const USDA_MERGE_LIMIT = 4;
+const FATSECRET_MERGE_LIMIT = 3;
+
+/** Groups the two sources, leading with whichever top result matches the query better. */
+export function mergeSourceResults(
+  external: FoodSearchResult[],
+  fatsecret: FoodSearchResult[],
+  query: string,
+): FoodSearchResult[] {
+  if (fatsecret.length === 0) return external;
+  const usdaPart = external.slice(0, USDA_MERGE_LIMIT);
+  const fsPart = fatsecret.slice(0, FATSECRET_MERGE_LIMIT);
+  if (usdaPart.length === 0) return fsPart;
+  const q = tokenize(query);
+  const fsLeads = diceScore(tokenize(fsPart[0].name), q) > diceScore(tokenize(usdaPart[0].name), q);
+  return fsLeads ? [...fsPart, ...usdaPart] : [...usdaPart, ...fsPart];
+}
+
+/** USDA (OFF fallback) and FatSecret searched in parallel, merged with each result labeled by source. */
+export async function searchFoods(query: string): Promise<FoodSearchResult[]> {
+  const [external, fatsecret] = await Promise.all([searchUsdaOrOff(query), searchFatSecret(query, FATSECRET_MERGE_LIMIT)]);
+  return mergeSourceResults(external, fatsecret, query);
+}
+
+/** Fetch household serving portions for a food from USDA FDC, OFF, or FatSecret.
  *  Returns [] on any error; never throws. Results are cached in-memory. */
-export async function getPortions(source: 'usda' | 'off', ref: string): Promise<FoodPortion[]> {
+export async function getPortions(source: 'usda' | 'off' | 'fatsecret', ref: string): Promise<FoodPortion[]> {
+  // FatSecret portions live in the 24h-bounded cache inside fatsecret.ts, not the unbounded map below.
+  if (source === 'fatsecret') return getFatSecretPortions(ref);
   const cacheKey = `${source}:${ref}`;
   const cached = portionsCache.get(cacheKey);
   if (cached) return cached;
@@ -453,16 +481,27 @@ export async function searchFoodsWithPortions(query: string): Promise<FoodSearch
   const results = await searchFoods(query);
   if (results.length === 0) return results;
 
-  // Fetch portions for the top result in parallel with nothing else to keep it simple
-  const top = results[0];
-  // Only USDA/OFF results have external portions; custom items already carry their own.
-  if (top.source === 'usda' || top.source === 'off') {
-    const portions = await getPortions(top.source, top.source_ref);
-    // Mutate in-place so the result remains the same FoodSearchResult reference type.
-    (results[0] as FoodSearchResult).portions = portions;
-  }
-
+  await attachExternalPortions(results);
   return results;
+}
+
+/** Attaches portions to the first USDA/OFF result and upgrades the first FatSecret result with
+ *  its food.get detail (one call). Mutates the array in place. */
+async function attachExternalPortions(results: FoodSearchResult[]): Promise<void> {
+  const firstExternal = results.find((r) => r.source === 'usda' || r.source === 'off');
+  const firstFs = results.findIndex((r) => r.source === 'fatsecret');
+  await Promise.all([
+    (async () => {
+      if (firstExternal && (firstExternal.source === 'usda' || firstExternal.source === 'off')) {
+        firstExternal.portions = await getPortions(firstExternal.source, firstExternal.source_ref);
+      }
+    })(),
+    (async () => {
+      if (firstFs < 0) return;
+      const detail = await getFatSecretFood(results[firstFs].source_ref);
+      if (detail) results[firstFs] = applyDetail(results[firstFs], detail);
+    })(),
+  ]);
 }
 
 /**
@@ -470,7 +509,7 @@ export async function searchFoodsWithPortions(query: string): Promise<FoodSearch
  * Returns an array of { source, ref, portions } objects.
  */
 export async function getPortionsBatch(
-  items: Array<{ source: 'usda' | 'off'; ref: string }>,
+  items: Array<{ source: 'usda' | 'off' | 'fatsecret'; ref: string }>,
 ): Promise<Array<{ source: string; ref: string; portions: FoodPortion[] }>> {
   const results = await Promise.all(
     items.map(async ({ source, ref }) => ({
@@ -508,13 +547,7 @@ export async function searchAllFoodsWithPortions(userUuid: string, query: string
   const results = await searchAllFoods(userUuid, query);
   if (results.length === 0) return results;
 
-  // Find first non-custom result and fetch its portions
-  const firstExternal = results.find((r) => r.source === 'usda' || r.source === 'off');
-  if (firstExternal && (firstExternal.source === 'usda' || firstExternal.source === 'off')) {
-    const portions = await getPortions(firstExternal.source, firstExternal.source_ref);
-    firstExternal.portions = portions;
-  }
-
+  await attachExternalPortions(results);
   return results;
 }
 

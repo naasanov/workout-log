@@ -388,6 +388,12 @@
   color: rgba(vars.$text, 0.5);
 }
 
+.sourceLink {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: rgba(vars.$text, 0.25);
+}
+
 .dropdownHint {
   padding: 10px 14px;
   font-size: 14px;

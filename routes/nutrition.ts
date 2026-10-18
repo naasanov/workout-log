@@ -248,13 +248,13 @@ router.get('/barcode/:code', async (req, res): Promise<any> => {
   }
 });
 
-// GET /portions?source=usda|off&ref=<id>
+// GET /portions?source=usda|off|fatsecret&ref=<id>
 router.get('/portions', async (req, res): Promise<any> => {
   const source = req.query.source as string;
   const ref = (req.query.ref ?? '') as string;
 
-  if (source !== 'usda' && source !== 'off') {
-    return res.status(400).json({ message: 'source must be "usda" or "off"' });
+  if (source !== 'usda' && source !== 'off' && source !== 'fatsecret') {
+    return res.status(400).json({ message: 'source must be "usda", "off", or "fatsecret"' });
   }
   if (!ref.trim()) {
     return res.status(400).json({ message: 'ref is required' });

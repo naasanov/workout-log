@@ -125,7 +125,7 @@ export async function lookupBarcode(code: string): Promise<FoodSearchResult | nu
 
 /** Household serving sizes for a food (USDA via foodPortions; OFF returns []). */
 export async function getPortions(
-  source: 'usda' | 'off',
+  source: 'usda' | 'off' | 'fatsecret',
   ref: string,
 ): Promise<FoodPortion[]> {
   const res = await clientApi.get('/nutrition/portions', { params: { source, ref } });

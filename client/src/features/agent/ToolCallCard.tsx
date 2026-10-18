@@ -127,7 +127,7 @@ function isRecord(x: unknown): x is AnyRecord {
 
 interface FoodResultLike {
   name: string;
-  source: string; // 'usda' | 'off' | 'custom' | 'manual' | 'unc'
+  source: string; // 'usda' | 'off' | 'custom' | 'manual' | 'unc' | 'fatsecret'
   per100g?: { calories: number } | null;
   per_serving?: { calories: number } | null;
   serving_label?: string | null;
@@ -196,6 +196,7 @@ const SOURCE_BADGE_LABEL: Record<string, string> = {
   custom: 'Custom',
   manual: 'Manual',
   unc: 'UNC',
+  fatsecret: 'fatsecret',
 };
 
 const SOURCE_BADGE_COLOR: Record<string, string> = {
@@ -204,16 +205,29 @@ const SOURCE_BADGE_COLOR: Record<string, string> = {
   custom: '#8a5cb8',
   manual: '#6b6b6b',
   unc: '#a5673a',
+  fatsecret: '#2f7d6d',
 };
 
 function SourceBadge({ source }: { source: string }) {
   const label = SOURCE_BADGE_LABEL[source] ?? source.toUpperCase();
   const color = SOURCE_BADGE_COLOR[source] ?? '#6b6b6b';
+  const style = { color, backgroundColor: `${color}22` };
+  // FatSecret's free tier requires attribution linking back to fatsecret.com.
+  if (source === 'fatsecret') {
+    return (
+      <a
+        className={styles.sourceBadge}
+        style={{ ...style, textDecoration: 'none' }}
+        href="https://www.fatsecret.com"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {label}
+      </a>
+    );
+  }
   return (
-    <span
-      className={styles.sourceBadge}
-      style={{ color, backgroundColor: `${color}22` }}
-    >
+    <span className={styles.sourceBadge} style={style}>
       {label}
     </span>
   );

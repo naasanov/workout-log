@@ -226,7 +226,7 @@ export function scaleRowMacros(
  * `food.per100g != null` before calling this (see rowFromFood).
  */
 export function immediatePortions(food: FoodSearchResult): FoodPortion[] {
-  if (food.source === 'custom' && food.portions && food.portions.length > 0) {
+  if ((food.source === 'custom' || food.source === 'fatsecret') && food.portions && food.portions.length > 0) {
     return [GRAMS_UNIT, ...food.portions.filter(p => p.label !== 'g')];
   }
   const list: FoodPortion[] = [GRAMS_UNIT];
