@@ -3,6 +3,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+require('ts-node').register({ transpileOnly: true });
 const { buildUsdaSearchRequest } = require('../services/nutrition/providers.ts');
 
 test('search is a POST with a JSON body carrying all four data types', () => {
