@@ -74,7 +74,6 @@ function VariationNotesModal({ variation, notes, onSave, onClose }: VariationNot
           onBlur={flush}
           placeholder="Bar weight, machine settings, form cues..."
           maxLength={2000}
-          autoFocus
         />
 
         <div className={styles.actions}>
