@@ -11,6 +11,13 @@
 
 export const CHANGELOG = [
   {
+    date: '2026-11-13',
+    title: 'Quieter notes',
+    items: [
+      { text: 'Opening a variation’s notes no longer pops up the keyboard until you tap the field', issues: [427] },
+    ],
+  },
+  {
     date: '2026-10-18',
     title: 'Fewer questions from Peak, and body weight on the right day',
     items: [
