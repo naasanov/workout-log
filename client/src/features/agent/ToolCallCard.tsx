@@ -28,8 +28,6 @@ const TOOL_LABEL_MAP: Record<string, string> = {
   lookup_barcode: 'Barcode lookup',
   get_portions: 'Serving sizes',
   get_portions_batch: 'Serving sizes',
-  search_food_history: 'Food history',
-  search_food_history_batch: 'Food history',
   get_goals_and_today: 'Goals & today',
   convert_units: 'Unit conversion',
   convert_to_grams: 'Unit conversion',
@@ -157,17 +155,17 @@ function isFoodResultLike(x: unknown): x is FoodResultLike {
 type ResultLike = FoodResultLike | UncResultLike;
 
 /** Try to pull a flat list of food/UNC results out of a tool's output, across
- *  every shape these tools actually return: a bare array (search_foods), a
- *  `{ results: [...] }` wrapper (search_unc_foods), a single object
- *  (get_unc_food), or search_foods_batch's `[{ query, results: [...] }, ...]`.
- *  Returns null when the output doesn't look like any of those — callers fall
- *  back to the raw JSON view. */
+ *  every shape these tools return: `{ history, results }` (search_foods), a
+ *  `{ results }` wrapper (search_unc_foods), a single object (get_unc_food),
+ *  or `[{ query, history, results }, ...]` (search_foods_batch). Stored
+ *  conversations may hold the older bare array / `[{ query, results }]`
+ *  shapes. Returns null otherwise so callers fall back to the raw JSON view. */
 function extractResultItems(output: unknown): ResultLike[] | null {
   if (Array.isArray(output)) {
     if (output.length === 0) return null;
     if (output.every(isUncResultLike)) return output as UncResultLike[];
     if (output.every(isFoodResultLike)) return output as FoodResultLike[];
-    // search_foods_batch: [{ query, results: FoodSearchResult[] }, ...]
+    // search_foods_batch: [{ query, history, results: FoodSearchResult[] }, ...]
     if (output.every(o => isRecord(o) && Array.isArray((o as AnyRecord).results))) {
       const flattened = (output as AnyRecord[]).flatMap(o => o.results as unknown[]);
       return flattened.length > 0 && flattened.every(isFoodResultLike)

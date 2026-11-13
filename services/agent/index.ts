@@ -168,8 +168,8 @@ function buildBarcodeToolResultMessages(
             toolCallId,
             toolName: 'lookup_barcode',
             // JSON round-trip: strips the object down to plain JSON so it satisfies
-            // ToolResultOutput's `value: JSONValue` (mirrors the pattern used by the
-            // search_food_history tools above for the same reason).
+            // ToolResultOutput's `value: JSONValue` (mirrors the pattern used by
+            // the food search tools above for the same reason).
             output: { type: 'json', value: JSON.parse(JSON.stringify(attachment.product)) },
           },
         ],

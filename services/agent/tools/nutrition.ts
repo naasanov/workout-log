@@ -155,22 +155,39 @@ export const nutritionTools: ToolModule = ({ userUuid, selectedDate, flags }: To
       }
     : {};
 
+  // History and provider searches fail independently: a rejected side becomes [].
+  const searchBoth = async (query: string) => {
+    const [h, r] = await Promise.allSettled([
+      store.searchFoodHistory(userUuid, query),
+      providers.searchAllFoodsWithPortions(userUuid, query),
+    ]);
+    return {
+      history: h.status === 'fulfilled' ? h.value : [],
+      results: r.status === 'fulfilled' ? r.value : [],
+    };
+  };
+
   return {
-    /** Source-agnostic food search: user's custom foods/meals first, then USDA/OFF.
-     *  Returns per-100g macros + portions attached to the top result. */
+    /** Source-agnostic food search. Returns { history, results }: the user's past log entries
+     *  plus database candidates (per-100g macros, portions on the top result). */
     search_foods: tool({
       description:
-        'Search for a SINGLE food in the food database (USDA, FatSecret, Open Food Facts, and the user\'s saved custom foods/meals). Returns up to about 7 candidates labeled by source: USDA is best for generic and raw foods, FatSecret for branded, packaged, and chain-restaurant items. Each has per-100g macros, or per_serving + serving_label when no gram weight is known (log those by serving_qty, grams null). Portions (household serving sizes) are attached to the top result of each source. Results may include custom items (source: \'custom\') — prefer those when they match what the user describes. Use search_foods_batch instead when the user describes two or more foods at once.',
+        'Search for a SINGLE food in the food database (USDA, FatSecret, Open Food Facts, and the user\'s saved custom foods/meals). Returns up to about 7 candidates labeled by source: USDA is best for generic and raw foods, FatSecret for branded, packaged, and chain-restaurant items. Each has per-100g macros, or per_serving + serving_label when no gram weight is known (log those by serving_qty, grams null). Portions (household serving sizes) are attached to the top result of each source. Results may include custom items (source: \'custom\') — prefer those when they match what the user describes. Use search_foods_batch instead when the user describes two or more foods at once. The response is { history, results }: `history` holds the user\'s past food log entries matching the query (every word must appear in the entry or an ingredient name, so distinctive brand/flavor words match best) and `results` holds the database candidates. Prefer reusing a matching history entry, including its ingredient breakdown and the serving size the user logged, over a database result.',
       inputSchema: z.object({
         query: z.string().describe('Food name or description to search for, e.g. "banana" or "chicken breast raw"'),
       }),
-      execute: async ({ query }) => providers.searchAllFoodsWithPortions(userUuid, query),
+      // JSON round-trip: history rows carry mysql2 Date objects (logged_at) which
+      // the AI SDK rejects as non-JSON tool output, so normalize to plain JSON.
+      execute: async ({ query }) => {
+        const { history, results } = await searchBoth(query);
+        return JSON.parse(JSON.stringify({ history, results }));
+      },
     }),
 
-    /** Batched food search — one call for multi-item meals. Portions on top result per query. */
+    /** Batched food search for multi-item meals. Returns { query, history, results } per query. */
     search_foods_batch: tool({
       description:
-        'Search for multiple foods in one call. Use this when the user describes two or more distinct foods in a single message (e.g. "rice, chicken, and broccoli"). Searches the food database (USDA, FatSecret, Open Food Facts, and the user\'s saved custom foods/meals); results are labeled by source. Runs all searches in parallel and returns results grouped per query, with portions attached to the top result of each query.',
+        'Search for multiple foods in one call. Use this when the user describes two or more distinct foods in a single message (e.g. "rice, chicken, and broccoli"). Searches the food database (USDA, FatSecret, Open Food Facts, and the user\'s saved custom foods/meals); results are labeled by source. Runs all searches in parallel and returns results grouped per query, with portions attached to the top result of each query. Each group is { query, history, results }, where `history` holds the user\'s past food log entries matching that query (prefer reusing a matching entry, including its serving size) and `results` holds the database candidates.',
       inputSchema: z.object({
         queries: z
           .array(z.string())
@@ -178,13 +195,14 @@ export const nutritionTools: ToolModule = ({ userUuid, selectedDate, flags }: To
           .describe('Array of food names/descriptions to search for, e.g. ["white rice", "chicken breast", "broccoli"]'),
       }),
       execute: async ({ queries }) => {
-        const results = await Promise.all(
-          queries.map(async (query) => ({
-            query,
-            results: await providers.searchAllFoodsWithPortions(userUuid, query),
-          })),
+        // JSON round-trip: history rows carry Date objects the AI SDK rejects.
+        const groups = await Promise.all(
+          queries.map(async (query) => {
+            const { history, results } = await searchBoth(query);
+            return { query, history, results };
+          }),
         );
-        return results;
+        return JSON.parse(JSON.stringify(groups));
       },
     }),
 
@@ -215,35 +233,6 @@ export const nutritionTools: ToolModule = ({ userUuid, selectedDate, flags }: To
           .describe('Array of {source, ref} pairs to fetch portions for'),
       }),
       execute: async ({ items }) => providers.getPortionsBatch(items),
-    }),
-
-    /** Search the user's own food log history. */
-    search_food_history: tool({
-      description:
-        "Search the user's past food log entries by name or ingredient name. Every word of the query must appear in the entry or one of its ingredients (case-insensitive), so use distinctive words such as brand and flavor. Useful to reuse a previous entry's ingredient breakdown (including the serving size) instead of re-searching the food database.",
-      inputSchema: z.object({
-        query: z.string().describe('Food name or keyword to search for in past entries'),
-      }),
-      // JSON round-trip: store rows carry mysql2 Date objects (logged_at) which
-      // the AI SDK rejects as non-JSON tool output — normalize to plain JSON.
-      execute: async ({ query }) =>
-        JSON.parse(JSON.stringify(await store.searchFoodHistory(userUuid, query))),
-    }),
-
-    /** Batched food-history search — one call for multi-item meals. */
-    search_food_history_batch: tool({
-      description:
-        "Search the user's past food log entries for two or more foods at once (e.g. a multi-item meal like \"eggs, toast, and coffee\"). Runs all searches in parallel and returns results grouped per query. Use this instead of multiple search_food_history calls when the user describes several distinct foods in one message.",
-      inputSchema: z.object({
-        queries: z
-          .array(z.string())
-          .min(2)
-          .describe('Array of food names/keywords to search for in past entries, e.g. ["eggs", "toast", "coffee"]'),
-      }),
-      // JSON round-trip: store rows carry mysql2 Date objects (logged_at) which
-      // the AI SDK rejects as non-JSON tool output — normalize to plain JSON.
-      execute: async ({ queries }) =>
-        JSON.parse(JSON.stringify(await store.searchFoodHistoryBatch(userUuid, queries))),
     }),
 
     /** Fetch the user's nutrition goals and today's running totals. */
