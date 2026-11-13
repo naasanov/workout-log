@@ -11,6 +11,13 @@
 
 export const CHANGELOG = [
   {
+    date: '2026-11-14',
+    title: 'Report a chat',
+    items: [
+      { text: 'New flag button in the Ask Peak chat header lets you report a specific chat. It goes to us with the chat id, and the message is optional', issues: [428] },
+    ],
+  },
+  {
     date: '2026-11-13',
     title: 'Quieter notes',
     items: [

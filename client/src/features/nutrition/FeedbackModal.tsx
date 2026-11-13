@@ -29,6 +29,8 @@ import styles from './FeedbackModal.module.scss';
 interface FeedbackModalProps {
   open: boolean;
   onClose: () => void;
+  /** Set when launched from an agent chat; makes the message optional. */
+  chatId?: number | null;
 }
 
 type FeedbackCategory = 'bug' | 'idea' | 'ui' | 'other';
@@ -57,7 +59,7 @@ interface AttachmentDraft {
   error: string | null;
 }
 
-export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
+export default function FeedbackModal({ open, onClose, chatId }: FeedbackModalProps) {
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -188,6 +190,7 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
         category: data.category,
         tool: data.tool,
         message: data.message,
+        chatId: chatId ?? undefined,
         attachments: attachmentDataUrls.length > 0 ? attachmentDataUrls : undefined,
       });
       setSubmitted(true);
@@ -261,7 +264,7 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
             {/* Message textarea */}
             <div className={styles.field}>
               <label className={styles.label} htmlFor="fb-message">
-                Message
+                {chatId != null ? 'Message (optional)' : 'Message'}
               </label>
               <textarea
                 id="fb-message"
@@ -269,8 +272,10 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
                 placeholder="Tell us what you noticed or what you'd love to see..."
                 rows={4}
                 {...register('message', {
-                  required: 'Please add a message.',
-                  minLength: { value: 5, message: 'Message is too short.' },
+                  required: chatId != null ? false : 'Please add a message.',
+                  minLength: chatId != null && !messageLength
+                    ? undefined
+                    : { value: 5, message: 'Message is too short.' },
                   // #266: client-side cap matching the server's limit so the
                   // common overflow case never round-trips to get a 400.
                   maxLength: {

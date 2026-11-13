@@ -68,9 +68,10 @@ import type { AgentChatContext, ProposalResolutionState } from './registry';
 // Built-in generic tool renderers self-register on import.
 import './proposals/MutationProposalCard';
 import styles from './AgentChat.module.scss';
-import { ChevronDown, Plus, Square, Send, MessageSquare, RefreshCw, Settings, X, Paperclip } from 'lucide-react';
+import { ChevronDown, Plus, Square, Send, MessageSquare, RefreshCw, Settings, X, Paperclip, Flag } from 'lucide-react';
 import useIsMobile from '../../hooks/useIsMobile';
 import AgentInstructionsModal from './AgentInstructionsModal';
+import FeedbackModal from '../nutrition/FeedbackModal';
 
 // ---------------------------------------------------------------------------
 // A composer plugin lets a domain add its own attach buttons and extra
@@ -666,6 +667,7 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
 
   // ---- Agent instructions modal (#382) ----
   const [instructionsOpen, setInstructionsOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   // ---- Sheet expand/collapse state ----
   const [expanded, setExpanded] = useState(false);
@@ -1006,6 +1008,19 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
               />
             </button>
 
+            {conversationId !== null && (
+              <button
+                type="button"
+                className={styles.settingsBtn}
+                onClick={(e) => { e.stopPropagation(); setFeedbackOpen(true); }}
+                onPointerDown={(e) => e.stopPropagation()}
+                aria-label="Send feedback about this chat"
+                title="Send feedback about this chat"
+              >
+                <Flag className={styles.settingsIcon} size={16} aria-hidden="true" />
+              </button>
+            )}
+
             <button
               type="button"
               className={styles.settingsBtn}
@@ -1027,6 +1042,10 @@ const AgentChat = forwardRef<AgentChatHandle, AgentChatProps>(function AgentChat
               <ChevronDown className={styles.collapseSvg} size={16} aria-hidden="true" />
             </button>
           </div>
+        )}
+
+        {feedbackOpen && conversationId !== null && (
+          <FeedbackModal open onClose={() => setFeedbackOpen(false)} chatId={conversationId} />
         )}
 
         {instructionsOpen && (
