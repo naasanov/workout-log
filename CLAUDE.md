@@ -79,6 +79,14 @@ guarding a refactor, and a mock only asserts the query string was retyped identi
   don't set them in component styles except a deliberate override. `scripts/typography.test.js`
   enforces it. Font sizes are still set per component.
 
+## Memory
+
+`memory/` is version-controlled project memory: lessons, gotchas and decisions not derivable from the code. `memory/MEMORY.md` is the index and describes the format. Read it at session start and the entries relevant to the work; record durable lessons there.
+
+## Factory pipeline sessions
+
+Sessions started by the factory pipeline (the box's nightly build and morning triage) follow their pipeline prompt, which overrides this file where they conflict. Everything else here still applies. They record lessons in `memory/` (see `applies-to` in `memory/MEMORY.md`).
+
 ## Tech debt
 
 `.claude/tech-debt/` is the running triage list for **medium-to-large** tech debt: `README.md`
