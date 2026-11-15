@@ -179,7 +179,7 @@
 .caloriesRow {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 4px 8px;
   flex-wrap: wrap;
 }
 
@@ -199,6 +199,12 @@
 .caloriesGoal {
   font-size: 15px;
   color: rgba(vars.$text, 0.5);
+}
+
+.caloriesLeft {
+  font-size: 15px;
+  color: rgba(vars.$text, 0.5);
+  white-space: nowrap;
 }
 
 // ---- Progress bar (shared) ----

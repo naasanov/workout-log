@@ -387,6 +387,14 @@ export default function NutritionTracker({ onSelectedDateChange }: NutritionTrac
               / {goals.calories} goal
             </span>
           )}
+          {goals.calories != null && (
+            <span className={styles.caloriesLeft}>
+              {(() => {
+                const left = goals.calories - Math.round(totals?.calories ?? 0);
+                return left < 0 ? `${Math.abs(left)} over` : `${left} left`;
+              })()}
+            </span>
+          )}
         </div>
 
         {/* Calorie progress bar — only if calorie goal set */}
