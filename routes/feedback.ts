@@ -33,8 +33,10 @@ const feedbackSchema = z.object({
   // most 4000 character(s)") surface as-is via the 400 body below, so they
   // need to already read like something a user should see.
   message: z.string()
-    .min(1, 'Please add a message.')
-    .max(4000, 'Message is too long — please keep it under 4000 characters.'),
+    .max(4000, 'Message is too long — please keep it under 4000 characters.')
+    .default(''),
+  // Set when launched from an agent chat; the id must be a positive integer.
+  chatId: z.number().int('Invalid chat id.').positive('Invalid chat id.').optional(),
   // #296: same explicit-message convention as above — parsed.error.issues[0]
   // is returned verbatim in the 400 body and shown to the user.
   attachments: z
@@ -48,6 +50,9 @@ const feedbackSchema = z.object({
     )
     .max(MAX_ATTACHMENTS, 'You can attach up to 3 images.')
     .optional(),
+}).refine((val) => val.chatId !== undefined || val.message.length > 0, {
+  message: 'Please add a message.',
+  path: ['message'],
 });
 
 type FeedbackBody = z.infer<typeof feedbackSchema>;
@@ -87,8 +92,10 @@ type AttachmentRow = { token: string };
  * submitter's email couldn't be resolved. Newlines in the message are
  * flattened to spaces and anything past 60 characters is truncated with '...'.
  */
-export function buildIssueTitle(body: Pick<FeedbackBody, 'category' | 'tool' | 'message'>, submitterEmail: string): string {
-  const excerpt = body.message.slice(0, 60).replace(/\n/g, ' ');
+export function buildIssueTitle(body: Pick<FeedbackBody, 'category' | 'tool' | 'message'> & { chatId?: number }, submitterEmail: string): string {
+  const excerpt = body.message === '' && body.chatId !== undefined
+    ? `Chat #${body.chatId} feedback`
+    : body.message.slice(0, 60).replace(/\n/g, ' ');
   const categoryLabel = body.category ?? 'other';
   const tool = body.tool ?? 'other';
   const submitterTag = submitterEmail === 'unknown' ? 'unknown' : submitterEmail.split('@')[0];
@@ -132,9 +139,11 @@ async function createGithubIssue(
       attachmentSection += `\n\n${links.join('\n\n')}`;
     }
 
+    const chatLine = body.chatId !== undefined ? `**Chat ID:** ${body.chatId}\n` : '';
     const issueBody =
       `**Category:** ${categoryLabel}\n` +
       `**Tool:** ${tool}\n` +
+      chatLine +
       `**Submitted by:** ${submitterEmail}\n\n` +
       `---\n\n${body.message}${attachmentSection}`;
 

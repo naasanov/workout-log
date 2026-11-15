@@ -263,6 +263,8 @@ export async function submitFeedback(input: {
   category?: 'bug' | 'idea' | 'ui' | 'other';
   tool?: string;
   message: string;
+  /** Agent chat id when feedback is launched from a chat. */
+  chatId?: number;
   // #296: up to 3 downscaled-JPEG (or PNG/WEBP) data URLs, mirrored server-side.
   attachments?: string[];
 }): Promise<void> {
