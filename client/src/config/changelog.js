@@ -11,6 +11,13 @@
 
 export const CHANGELOG = [
   {
+    date: '2026-11-15',
+    title: 'Calories left',
+    items: [
+      { text: 'The nutrition totals card now shows how many calories you have left today, or how many you are over, next to your goal', issues: [426] },
+    ],
+  },
+  {
     date: '2026-11-14',
     title: 'Report a chat',
     items: [
