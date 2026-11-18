@@ -383,9 +383,19 @@ export function buildPortionListFromFetched(food: FoodSearchResult, fetched: Foo
   return list;
 }
 
+/**
+ * Portions for a weight row: 'g' always first, and the row's current unit
+ * included so the dropdown can show it even when the supplied list lacks it.
+ */
+export function withCurrentUnit(portions: FoodPortion[], unitLabel: string, unitGrams: number): FoodPortion[] {
+  const list = [GRAMS_UNIT, ...portions.filter(p => p.label !== 'g')];
+  if (unitLabel === 'g' || !(unitGrams > 0) || list.some(p => p.label === unitLabel)) return list;
+  return [...list, { label: unitLabel, grams: unitGrams }];
+}
+
 export function buildPortionList(row: EditorRow, fetched: FoodPortion[]): FoodPortion[] {
   if (row.source === 'usda') {
-    return [GRAMS_UNIT, ...fetched];
+    return withCurrentUnit(fetched, row.unitLabel, row.unitGrams);
   }
   return row.portions;
 }
