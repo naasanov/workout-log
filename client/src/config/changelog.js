@@ -11,6 +11,13 @@
 
 export const CHANGELOG = [
   {
+    date: '2026-11-18',
+    title: 'Nutrition entry fixes',
+    items: [
+      { text: 'A food entry you just saved no longer comes back as an unsaved draft the next time you add one', issues: [435] },
+    ],
+  },
+  {
     date: '2026-11-15',
     title: 'Calories left',
     items: [
