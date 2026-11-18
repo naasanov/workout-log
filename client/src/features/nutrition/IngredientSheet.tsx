@@ -44,6 +44,7 @@ import {
   rowFromFood,
   buildPortionListFromFetched,
   buildPortionList,
+  withCurrentUnit,
   applyNewPortions,
 } from './ingredientMath';
 
@@ -359,10 +360,14 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
 
   // Weight rows only — a serving row has no portions dropdown (showUnitDropdown
   // is false for it, see below), so this handler is never wired to one.
+  const isServingRow = row.basis === 'serving';
+  // Dropdown options always include 'g' and the row's current unit.
+  const unitOptions = isServingRow ? [] : withCurrentUnit(row.portions, row.unitLabel, row.unitGrams);
+
   function handleUnitChange(e: React.ChangeEvent<HTMLSelectElement>) {
     setFrozenQuantityText(null);
     const label = e.target.value;
-    const selected = row.portions.find(p => p.label === label) ?? GRAMS_UNIT;
+    const selected = unitOptions.find(p => p.label === label) ?? GRAMS_UNIT;
     const effectiveGrams = row.quantity * selected.grams;
     onChange({
       ...row,
@@ -385,13 +390,12 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
     onChange({ ...row, [field]: parseFloat(value) || 0 });
   }
 
-  const isServingRow = row.basis === 'serving';
   const macrosReadOnly = isServingRow ? row.perServing !== null : row.per100g !== null;
   // A serving row has no gram-convertible portions at all (UNC publishes no
   // gram weight) — never show a unit dropdown, and never offer a "g" option,
   // for one (see the static branch below, which prints the serving label
   // instead of "g" on a serving row).
-  const showUnitDropdown = !isServingRow && row.portions.length > 1;
+  const showUnitDropdown = !isServingRow && unitOptions.length > 1;
 
   return (
     <>
@@ -446,7 +450,7 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
               onChange={handleUnitChange}
               aria-label="Unit"
             >
-              {row.portions.map(p => (
+              {unitOptions.map(p => (
                 <option key={p.label} value={p.label}>
                   {p.label === 'g' ? 'g' : `${p.label} (${p.grams}g)`}
                 </option>
@@ -456,9 +460,8 @@ function IngredientForm({ row, onChange, onExpandMeal, onOpenBarcode }: Ingredie
         ) : (
           <label className={styles.fieldLabel}>
             <span>Unit</span>
-            {/* Serving row: show the serving label alone (e.g. "½ cup") — there
-                is no gram weight, so printing one (or "g") would be a lie. */}
-            <span className={styles.unitStatic}>{isServingRow ? row.unitLabel : 'g'}</span>
+            {/* Always the row's real unit: a serving label (no gram weight) or 'g'. */}
+            <span className={styles.unitStatic}>{row.unitLabel}</span>
           </label>
         )}
       </div>

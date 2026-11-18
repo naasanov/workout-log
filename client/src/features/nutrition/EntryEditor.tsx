@@ -92,6 +92,13 @@ function rowFromProposedIngredient(ing: ProposeIngredient): EditorRow {
     }
   }
 
+  // A proposed non-gram unit missing from the supplied portions is added with
+  // the grams-per-unit implied by the proposal, so it stays selectable.
+  if (ing.unit && ing.unit !== 'g' && ing.quantity != null && ing.quantity > 0 && ing.grams > 0
+      && !portionsList.some(p => p.label === ing.unit)) {
+    portionsList.push({ label: ing.unit, grams: Math.round((ing.grams / ing.quantity) * 100) / 100 });
+  }
+
   // Find the proposed unit in the portions list.
   const proposedUnit = ing.unit ? portionsList.find(p => p.label === ing.unit) : null;
 
