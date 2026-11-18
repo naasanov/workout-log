@@ -26,3 +26,4 @@ This repo is public: no secrets, emails, user data or private ops details. Perso
 - [Prefer structural fixes](prefers-structural-fix-over-heuristic.md) — one user action = one request; no server-side dedupe windows
 - [Changelog on merge](changelog-on-merge.md) — ship the changelog entry with user-visible work, unasked
 - [Impactful tech debt](tech-debt-should-be-impactful.md) — tech-debt picks must prevent real future problems
+- [Assistant proposal confirm paths](assistant-proposal-confirm-paths.md) — food proposals confirm via EntryEditor, not MutationProposalCard
