@@ -422,6 +422,8 @@ export default function EntryEditor({
 
   // ----- Error display -----
   const [saveError, setSaveError] = useState<string | null>(null);
+  // Proposal mode only: true while the caller's onConfirm promise is pending.
+  const [confirming, setConfirming] = useState(false);
 
   // ----- Mutations -----
   const createMutation = useCreateEntry(date);
@@ -547,6 +549,7 @@ export default function EntryEditor({
     effectiveName.length > 0 &&
     rows.length > 0 &&
     !isPending &&
+    !confirming &&
     (mode.kind !== 'proposal' || entryDate.length > 0);
 
   async function handleSave() {
@@ -609,8 +612,8 @@ export default function EntryEditor({
   }
 
   // ----- Proposal confirm: resolve serving-aware UI rows to plain IngredientInput -----
-  function handleConfirm() {
-    if (!onConfirm) return;
+  async function handleConfirm() {
+    if (!onConfirm || confirming) return;
     // #10: resolve UI-only quantity/unit fields to a plain IngredientInput.
     // A weight row resolves to its effective grams (quantity × unitGrams), as
     // before. A UNC (serving-basis) row is NOT converted to grams — there is
@@ -620,14 +623,20 @@ export default function EntryEditor({
     // decides this so both basis are always emitted correctly.
     const ingredients: IngredientInput[] = rows.map(r => ingredientInputFromRow(r));
     const proposalSource = mode.kind === 'proposal' ? mode.proposal.source : 'manual';
-    onConfirm({
-      localDate: entryDate,
-      meal,
-      name: effectiveName,
-      source: proposalSource,
-      barcode: mode.kind === 'proposal' ? (mode.proposal.barcode ?? null) : null,
-      ingredients,
-    });
+    setConfirming(true);
+    try {
+      await onConfirm({
+        localDate: entryDate,
+        meal,
+        name: effectiveName,
+        source: proposalSource,
+        barcode: mode.kind === 'proposal' ? (mode.proposal.barcode ?? null) : null,
+        ingredients,
+      });
+    } catch (err) {
+      setConfirming(false);
+      throw err;
+    }
   }
 
   function handleDeny() {
@@ -764,7 +773,7 @@ export default function EntryEditor({
               onClick={handleConfirm}
               disabled={!canSave}
             >
-              Confirm
+              {confirming ? 'Saving…' : 'Confirm'}
             </button>
           </>
         ) : (
