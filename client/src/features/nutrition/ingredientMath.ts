@@ -454,6 +454,14 @@ export function ingredientInputFromRow(r: EditorRow, scale = 1): IngredientInput
   return { ...base, grams: r.grams != null ? round2(r.grams * scale) : null, serving_qty: null, serving_label: null };
 }
 
+// A single entry above this many kcal asks for confirmation before saving.
+export const ENTRY_KCAL_CONFIRM_THRESHOLD = 5000;
+
+/** True only when the total is strictly above the threshold; NaN is false. */
+export function entryKcalNeedsConfirm(totalKcal: number): boolean {
+  return totalKcal > ENTRY_KCAL_CONFIRM_THRESHOLD;
+}
+
 /** Sum all rows into batch totals.
  *  Weight-basis rows contribute to the gram total as before; serving-basis
  *  rows carry `grams: null` (see EditorRow) and are skipped in that sum so a

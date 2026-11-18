@@ -16,6 +16,7 @@ export const CHANGELOG = [
     items: [
       { text: 'A food entry you just saved no longer comes back as an unsaved draft the next time you add one', issues: [435] },
       { text: 'Tapping Confirm twice on an assistant proposal no longer logs the entry twice', issues: [436] },
+      { text: 'Assistant-proposed ingredients now show their unit next to the amount, and saving a single entry over 5,000 calories asks you to confirm first', issues: [437] },
     ],
   },
   {

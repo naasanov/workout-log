@@ -15,6 +15,7 @@ import {
   useRef,
 } from 'react';
 import Modal from '../../components/Modal';
+import ConfirmModal from '../../components/ConfirmModal';
 import { useCreateEntry, useUpdateEntry } from './api';
 import type {
   EntryEditorProps,
@@ -35,6 +36,7 @@ import {
   nextKey,
   emptyRow,
   sumRows,
+  entryKcalNeedsConfirm,
   rowFromStoredIngredient,
   ingredientInputFromRow,
 } from './ingredientMath';
@@ -431,6 +433,8 @@ export default function EntryEditor({
   const [saveError, setSaveError] = useState<string | null>(null);
   // Proposal mode only: true while the caller's onConfirm promise is pending.
   const [confirming, setConfirming] = useState(false);
+  // Which action the over-threshold calorie dialog will run if accepted.
+  const [kcalPrompt, setKcalPrompt] = useState<'save' | 'confirm' | null>(null);
 
   // ----- Mutations -----
   const createMutation = useCreateEntry(date);
@@ -559,7 +563,7 @@ export default function EntryEditor({
     !confirming &&
     (mode.kind !== 'proposal' || entryDate.length > 0);
 
-  async function handleSave() {
+  async function handleSave(skipKcalCheck = false) {
     if (!canSave) return;
     setSaveError(null);
 
@@ -567,6 +571,11 @@ export default function EntryEditor({
     // clear message instead of a raw "Request failed with status code 400".
     if (rows.some(r => !r.name.trim())) {
       setSaveError('Every ingredient needs a name');
+      return;
+    }
+
+    if (!skipKcalCheck && entryKcalNeedsConfirm(sumRows(rows).calories)) {
+      setKcalPrompt('save');
       return;
     }
 
@@ -619,8 +628,12 @@ export default function EntryEditor({
   }
 
   // ----- Proposal confirm: resolve serving-aware UI rows to plain IngredientInput -----
-  async function handleConfirm() {
+  async function handleConfirm(skipKcalCheck = false) {
     if (!onConfirm || confirming) return;
+    if (!skipKcalCheck && entryKcalNeedsConfirm(sumRows(rows).calories)) {
+      setKcalPrompt('confirm');
+      return;
+    }
     // #10: resolve UI-only quantity/unit fields to a plain IngredientInput.
     // A weight row resolves to its effective grams (quantity × unitGrams), as
     // before. A UNC (serving-basis) row is NOT converted to grams — there is
@@ -777,7 +790,7 @@ export default function EntryEditor({
             <button
               type="button"
               className={styles.saveBtn}
-              onClick={handleConfirm}
+              onClick={() => handleConfirm()}
               disabled={!canSave}
             >
               {confirming ? 'Saving…' : 'Confirm'}
@@ -796,7 +809,7 @@ export default function EntryEditor({
             <button
               type="button"
               className={styles.saveBtn}
-              onClick={handleSave}
+              onClick={() => handleSave()}
               disabled={!canSave}
             >
               {isPending ? 'Saving…' : isEdit ? 'Save changes' : 'Save'}
@@ -805,6 +818,21 @@ export default function EntryEditor({
         )}
       </div>
     </div>
+  );
+
+  const kcalConfirm = kcalPrompt && (
+    <ConfirmModal
+      title="Large entry"
+      confirmLabel="Save anyway"
+      message={`This entry is ${Math.round(sumRows(rows).calories).toLocaleString()} kcal. Save anyway?`}
+      onCancel={() => setKcalPrompt(null)}
+      onConfirm={() => {
+        const action = kcalPrompt;
+        setKcalPrompt(null);
+        if (action === 'confirm') void handleConfirm(true);
+        else void handleSave(true);
+      }}
+    />
   );
 
   // The portaled ingredient sheet is rendered outside of both inline and dialog modes
@@ -833,6 +861,7 @@ export default function EntryEditor({
           {editorContent}
         </div>
         {ingredientSheet}
+        {kcalConfirm}
       </>
     );
   }
@@ -850,6 +879,7 @@ export default function EntryEditor({
         {editorContent}
       </Modal>
       {ingredientSheet}
+      {kcalConfirm}
     </>
   );
 }

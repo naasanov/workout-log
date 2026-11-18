@@ -3,6 +3,8 @@ import styles from '../styles/ConfirmModal.module.scss';
 
 type ConfirmModalProps = {
   message: string;
+  title?: string;
+  confirmLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -14,18 +16,18 @@ type ConfirmModalProps = {
  * The component is always "open" when mounted; closing is handled by calling onCancel/onConfirm
  * from the parent, which unmounts the component.
  */
-function ConfirmModal({ message, onConfirm, onCancel }: ConfirmModalProps) {
+function ConfirmModal({ message, title = 'Confirm deletion', confirmLabel = 'Delete', onConfirm, onCancel }: ConfirmModalProps) {
   return (
     <Modal
       open={true}
       onOpenChange={(isOpen) => { if (!isOpen) onCancel(); }}
-      title="Confirm deletion"
+      title={title}
     >
       <div className={styles.modal}>
         <p className={styles.message}>{message}</p>
         <div className={styles.actions}>
           <button className={styles.cancel} onClick={onCancel}>Cancel</button>
-          <button className={styles.confirm} onClick={onConfirm}>Delete</button>
+          <button className={styles.confirm} onClick={onConfirm}>{confirmLabel}</button>
         </div>
       </div>
     </Modal>
