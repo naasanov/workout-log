@@ -12,6 +12,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
 } from 'react';
 import Modal from '../../components/Modal';
 import { useCreateEntry, useUpdateEntry } from './api';
@@ -428,6 +429,10 @@ export default function EntryEditor({
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
+  // Set once a save succeeds so a debounce timer still pending at that moment
+  // cannot re-create the draft; the reopen reset below re-enables writes.
+  const draftWritesBlockedRef = useRef(false);
+
   // Reset form when the mode prop changes.
   const modeKind = mode.kind;
   useEffect(() => {
@@ -435,6 +440,7 @@ export default function EntryEditor({
     // For dialog mode, only reset when open.
     if (!open && !inline) return;
     setEntryDate(mode.date);
+    draftWritesBlockedRef.current = false;
     if (mode.kind === 'manual-edit') {
       setMeal(mode.entry.meal);
       setEntryName(mode.entry.name);
@@ -475,7 +481,7 @@ export default function EntryEditor({
   );
   const debouncedDraftContent = useDebounce(draftContent, 500);
   useEffect(() => {
-    if (!isManualAdd) return;
+    if (!isManualAdd || draftWritesBlockedRef.current) return;
     writeDraft(date, debouncedDraftContent);
   }, [debouncedDraftContent, isManualAdd, date]);
 
@@ -582,9 +588,12 @@ export default function EntryEditor({
       } else {
         await createMutation.mutateAsync(input);
       }
-      // #313: the entry is now persisted server-side, so the local draft
-      // (if any) would only ever be stale from here on.
-      if (isManualAdd) clearDraft(date);
+      // The entry is persisted server-side, so any local draft is stale:
+      // block further autosaves, then clear what is already stored.
+      if (isManualAdd) {
+        draftWritesBlockedRef.current = true;
+        clearDraft(date);
+      }
       onClose();
     } catch (err: unknown) {
       const msg =
