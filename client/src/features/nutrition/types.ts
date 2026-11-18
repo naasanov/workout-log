@@ -85,6 +85,6 @@ export interface EntryEditorProps {
   // Manual modes save via the api hooks internally, then call onClose.
   // Proposal mode calls these instead of saving directly. onConfirm resolves the
   // serving-aware proposal rows to grams-based EntryInput before persisting.
-  onConfirm?: (input: EntryInput) => void;
+  onConfirm?: (input: EntryInput) => void | Promise<void>;
   onDeny?: () => void;
 }

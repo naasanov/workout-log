@@ -8,7 +8,7 @@
  * every field on the payload, and (for a delete) the cascade counts the
  * model was required to gather beforehand.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { AlertTriangle, Check, X } from 'lucide-react';
 import styles from './MutationProposalCard.module.scss';
 import { registerToolRenderer } from '../registry';
@@ -128,17 +128,22 @@ function MutationFields({ input }: { input: MutationInput }) {
 function SingleMutationCard({ input, resolve }: { input: MutationInput; resolve: ToolRendererProps['resolve'] }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Set synchronously so a second tap in the same frame cannot start a second request.
+  const inFlight = useRef(false);
 
   const { resource, op } = parseMutationType(input?.type ?? '');
   const title = `${op ?? 'change'} ${resourceLabel(resource)}`;
 
   async function handleConfirm() {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setSubmitting(true);
     setError(null);
     try {
       const result = await executeMutation(input);
       resolve('confirmed', input.type, summaryLine(input, op), result.id !== undefined ? { id: result.id } : undefined);
     } catch (err) {
+      inFlight.current = false;
       setError(err instanceof Error ? err.message : 'Failed to apply this change.');
     } finally {
       setSubmitting(false);
@@ -201,8 +206,12 @@ function BatchMutationCard({ mutations, resolve }: { mutations: MutationInput[];
   const [submitting, setSubmitting] = useState(false);
   const [results, setResults] = useState<MutationItemResult[] | null>(null);
   const [failed, setFailed] = useState(false);
+  // Held after the request settles: a failed batch offers Dismiss, not a retry.
+  const inFlight = useRef(false);
 
   async function handleConfirm() {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setSubmitting(true);
     const outcome = await executeMutationBatch(mutations);
     setSubmitting(false);

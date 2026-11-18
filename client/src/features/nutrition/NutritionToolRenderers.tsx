@@ -9,6 +9,7 @@
  * makes propose_entry/propose_custom_food render as confirm cards instead
  * of falling back to the generic ToolCallCard.
  */
+import { useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCreateEntry, useCreateCustomFood, nutritionKeys } from './api';
 import EntryEditor from './EntryEditor';
@@ -43,6 +44,8 @@ function ProposeEntryRenderer({ part, context, resolve }: ToolRendererProps) {
   const proposalDate = rawArgs.date ?? context.selectedDate ?? today;
   const createEntry = useCreateEntry(proposalDate);
   const qc = useQueryClient();
+  // Set synchronously so a second Confirm tap cannot start a second create; held after success.
+  const inFlight = useRef(false);
 
   // The tool's input may carry a base nutrition record instead of macros, which the
   // server resolves into the output. EntryEditor seeds its rows once on mount, so it
@@ -56,7 +59,14 @@ function ProposeEntryRenderer({ part, context, resolve }: ToolRendererProps) {
   }
 
   async function handleConfirm(input: EntryInput) {
-    await createEntry.mutateAsync(input);
+    if (inFlight.current) return;
+    inFlight.current = true;
+    try {
+      await createEntry.mutateAsync(input);
+    } catch (err) {
+      inFlight.current = false;
+      throw err;
+    }
     // The editor lets the user change the date before confirming. createEntry's
     // own invalidation targets proposalDate (its day for cache purposes); if the
     // user picked a different day, invalidate that one too so it refreshes.
@@ -85,13 +95,23 @@ function ProposeEntryRenderer({ part, context, resolve }: ToolRendererProps) {
 function ProposeCustomFoodRenderer({ part, resolve }: ToolRendererProps) {
   const createCustomFood = useCreateCustomFood();
   const rawArgs = rawArgsOf<ProposeCustomFoodArgs>(part);
+  // Set synchronously so a second Save tap cannot start a second create; held after success.
+  const inFlight = useRef(false);
 
   function handleDeny() {
     resolve('denied', 'custom_food');
   }
 
   async function handleConfirm(payload: CustomFoodInput) {
-    const saved = await createCustomFood.mutateAsync(payload);
+    if (inFlight.current) return;
+    inFlight.current = true;
+    let saved;
+    try {
+      saved = await createCustomFood.mutateAsync(payload);
+    } catch (err) {
+      inFlight.current = false;
+      throw err;
+    }
     resolve('confirmed', 'custom_food', `Saved: ${saved.name}`);
   }
 
